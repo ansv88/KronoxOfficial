@@ -1,0 +1,104 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+
+<footer class="footer-custom text-white py-4 bg-dark">
+	<div class="container">
+		<!-- Desktop-vy: visas vid md och uppåt -->
+		<div class="row d-none d-md-flex align-items-center">
+			<!-- Vänster kolumn: Postadress och e-post -->
+			<div class="col-md-4 text-start text-white">
+				<h4 class="fs-6">POSTADRESS</h4>
+				<p>
+					KronoX<br />
+					Högskolan i Borås <br />
+					501 90 Borås
+				</p>
+				<p>
+					<i class="fa fa-envelope"></i> E-post:
+					<a href="mailto:info@kronox.se" class="text-white">info@kronox.se</a>
+				</p>
+			</div>
+			<!-- Mittenkolumn: Logotyp -->
+			<div class="col-md-4 text-center">
+				<img src="images/logo.png" alt="KronoX logga" class="logo" />
+			</div>
+			<!-- Höger kolumn: Sitemap -->
+			<div class="col-md-4 text-end">
+				<h4 class="text-white fs-6">SITEMAP</h4>
+				<AuthorizeView>
+					<NotAuthorized>
+						<ul class="list-unstyled">
+							<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+							<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
+							<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
+							<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+						</ul>
+					</NotAuthorized>
+					<Authorized>
+						<ul class="list-unstyled">
+							<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
+							<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+							<!-- Länkar för Admin eller Styrelse -->
+							<AuthorizeView Roles="Admin,Styrelse" Context="rolesAuthState">
+								<li><NavLink href="/for-styrelsen" class="text-white">För styrelsen</NavLink></li>
+								<li><NavLink href="/for-vnsg" class="text-white">För VNSG</NavLink></li>
+							</AuthorizeView>
+							<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
+							<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
+							<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+						</ul>
+					</Authorized>
+				</AuthorizeView>
+			</div>
+		</div>
+		<!-- Mobilvy: visas vid mindre än md -->
+		<div class="d-md-none">
+			<!-- Postadress -->
+			<div class="row text-center">
+				<div class="col-12 text-white">
+					<h4 class="fs-6">POSTADRESS</h4>
+					<p>
+						KronoX<br />
+						Högskolan i Borås <br />
+						501 90 Borås
+					</p>
+					<p>
+						<i class="fa fa-envelope"></i> E-post:
+						<a href="mailto:info@kronox.se" class="text-white">info@kronox.se</a>
+					</p>
+				</div>
+			</div>
+			<!-- Separator -->
+			<hr class="my-3" />
+			<!-- Sitemap -->
+			<div class="row text-center">
+				<div class="col-12">
+					<h4 class="fs-6">SITEMAP</h4>
+					<AuthorizeView>
+						<NotAuthorized>
+							<ul class="list-unstyled">
+								<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+								<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
+								<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
+								<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+							</ul>
+						</NotAuthorized>
+						<Authorized>
+							<ul class="list-unstyled">
+								<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
+								<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+								<AuthorizeView Roles="Admin,Styrelse" Context="innerAuthState">
+									<li><NavLink href="/for-styrelsen" class="text-white">För styrelsen</NavLink></li>
+									<li><NavLink href="/for-vnsg" class="text-white">För VNSG</NavLink></li>
+								</AuthorizeView>
+								<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
+								<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
+								<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+							</ul>
+						</Authorized>
+					</AuthorizeView>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>

@@ -1,0 +1,396 @@
+﻿@page "/"
+@using System.Text.Json
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components.Authorization
+@inject CmsService Cms
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthState
+@inject ILogger<Home> Logger
+
+<PageTitle>KronoX  - @pageContent.Title</PageTitle>
+<h1 class="visually-hidden">@pageContent.Title</h1>
+
+@if (loading)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else
+{
+    @* ---------- Hero/banner ------------------------------------------------ *@
+    <section class="hero-banner position-relative">
+        @{
+            var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+            var heroBannerUrl = heroBanner != null ? heroBanner.Url : "images/hero/hero_students.jpeg";
+            var heroBannerAlt = heroBanner != null ? heroBanner.AltText.Substring(5) : "Studenter bannerbild";
+        }
+        <img src="@heroBannerUrl" class="img-fluid w-100" alt="@heroBannerAlt" />
+        @if (isAdmin)
+        {
+            <div class="position-absolute top-0 end-0 m-3">
+                <a href="/admin/home" class="btn btn-dark btn-sm opacity-75">
+                    <i class="fa-solid fa-edit me-1"></i> Redigera startsida
+                </a>
+            </div>
+        }
+    </section>
+
+    @* ---------- Intro ------------------------------------------------------- *@
+    <section class="container mt-5" style="max-width:1000px; margin: 0 auto;">
+        <div class="row align-items-center">
+            <!-- Bild till vänster -->
+            <div class="col-md-4 mb-4 mb-md-0">
+                @if (!string.IsNullOrEmpty(introSection.ImageUrl))
+                {
+                    <img src="@introSection.ImageUrl" class="img-fluid rounded-3 shadow"
+                         alt="@(string.IsNullOrEmpty(introSection.ImageAltText) ? introSection.Title : introSection.ImageAltText)"
+                         @onclick="() => ShowImage(introSection.ImageUrl)" />
+                }
+                else
+                {
+                    <!-- Platshållarbild när ingen riktig bild finns -->
+                    <div class="fakebild bg-light rounded-3 p-4 text-center shadow" style="min-height: 300px;">
+                        <i class="fas fa-image text-muted fa-3x mb-2"></i>
+                        <p class="text-muted">KronoX</p>
+                    </div>
+                }
+            </div>
+
+            <!-- Textinnehåll till höger -->
+            <div class="col-md-8">
+                <h2 class="mb-4 fw-bold">@introSection.Title</h2>
+                <div class="intro-content">
+                    @((MarkupString)introSection.Content)
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ---------- Navigeringsknappar ------------------------------------------------- *@
+    <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 my-4">
+            <a class="btn btn-dark px-4 py-3 btn-arrow" href="/omsystemet">
+                Varför välja KronoX? <i class="fa-solid fa-arrow-right ms-2"></i>
+            </a>
+            <a class="btn btn-dark px-4 py-3 btn-arrow" href="/anvandartraffar">
+                Användarträffar <i class="fa-solid fa-arrow-right ms-2"></i>
+            </a>
+            <a class="btn btn-dark px-4 py-3 btn-arrow" href="/kontaktaoss">
+                Kontakta oss <i class="fa-solid fa-arrow-right ms-2"></i>
+            </a>
+        </div>
+    </section>
+
+    <div class="wrapper-div py-3">
+        @* ---------- Bildkarusell medlemmar ------------------------------------------- *@
+        <section class="py-5 text-center mb-2" style="max-width:1000px; margin: 0 auto;">
+            <h3 class="text-start mb-3 fs-5" style="color: rgba(255, 255, 255, 0.85);">Våra medlemmar:</h3>
+            <!-- Desktop Carousel (4 per slide) - visas bara på md och större skärmar -->
+            <div class="d-none d-md-block">
+                <div id="desktopCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+                    <div class="carousel-inner p-5 bg-white shadow rounded-3">
+                        @{
+                            var logoImages = pageContent.Images
+                            .Where(i => i.Url != null &&
+                            (i.Url.StartsWith("/images/members/") ||
+                            i.Url.StartsWith("images/members/")))
+                            .Select(i => new
+                            {
+                                Url = i.Url.StartsWith("/") ? i.Url : "/" + i.Url,
+                                AltText = i.AltText, 
+                                LinkUrl = GetLinkUrlForLogo(i.Url)
+                            })
+                            .ToArray();
+
+                            if (logoImages.Any())
+                            {
+                                // Gruppera för desktop (4 per slide)
+                                var desktopGroups = logoImages
+                                .Select((logo, index) => new { logo, index })
+                                .GroupBy(x => x.index / 4)
+                                .Select(g => g.Select(x => x.logo).ToList())
+                                .ToList();
+
+                                bool isFirstDesktop = true;
+                                foreach (var group in desktopGroups)
+                                {
+                                    <div class="carousel-item @(isFirstDesktop ? "active" : "")">
+                                        <div class="row mx-0 justify-content-center">
+                                            @foreach (var logo in group)
+                                            {
+                                                <div class="col-3 px-3">
+                                                    <div class="d-flex justify-content-center align-items-center" style="height: 100px">
+                                                        @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                                                        {
+                                                            <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                                                <img src="@logo.Url" class="img-fluid"
+                                                                style="max-height: 100%; object-fit: contain;"
+                                                                alt="@logo.AltText" />
+                                                            </a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <img src="@logo.Url" class="img-fluid"
+                                                            style="max-height: 100%; object-fit: contain;" alt="@logo.AltText" />
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                    isFirstDesktop = false;
+                                }
+                            }
+                            else
+                            {
+                                <div class="carousel-item active">
+                                    <p class="my-4">Inga medlemslogotyper har lagts till ännu.</p>
+                                </div>
+                            }
+                        }
+                    </div>
+                    @if (logoImages.Count() > 4)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#desktopCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                            <span class="visually-hidden">Föregående</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#desktopCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                            <span class="visually-hidden">Nästa</span>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Mobile Carousel (1 per slide) - visas bara på mindre än md skärmar -->
+            <div class="d-block d-md-none">
+                <div id="mobileCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+                    <div class="carousel-inner p-2 bg-white shadow rounded-3">
+                        @{
+                            if (logoImages.Any())
+                            {
+                                bool isFirstMobile = true;
+                                foreach (var logo in logoImages)
+                                {
+                                    <div class="carousel-item @(isFirstMobile ? "active" : "")">
+                                        <div class="d-flex justify-content-center align-items-center px-4" style="height: 120px">
+                                            @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                                            {
+                                                <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                                    <img src="@logo.Url" class="img-fluid logo-link"
+                                                    style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <img src="@logo.Url" class="img-fluid"
+                                                style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                            }
+                                        </div>
+                                    </div>
+                                    isFirstMobile = false;
+                                }
+                            }
+                            else
+                            {
+                                <div class="carousel-item active">
+                                    <p class="my-4">Inga medlemslogotyper har lagts till ännu.</p>
+                                </div>
+                            }
+                        }
+                    </div>
+                    @if (logoImages.Count() > 1)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#mobileCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                            <span class="visually-hidden">Föregående</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#mobileCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                            <span class="visually-hidden">Nästa</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </section>
+
+        @* ---------- Huvudinnehåll ---------------------------------------- *@
+        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+            <div style="max-width:800px; margin: 0 auto;">
+
+                @* ---------- Feature Sections ---------------------------------------- *@
+                @if (featureSections.Count > 0)
+                {
+                    @foreach (var (featureItem, index) in featureSections.Select((s, i) => (s, i)))
+                    {
+                        <div class="feature-section row align-items-center mb-5">
+                            @if (featureItem.HasImage)
+                            {
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    @if (!string.IsNullOrEmpty(featureItem.ImageUrl))
+                                    {
+                                        <img src="@featureItem.ImageUrl"
+                                        class="img-thumbnail feature-thumb w-100"
+                                        style="cursor:pointer"
+                                        alt="@(!string.IsNullOrEmpty(featureItem.ImageAltText) ? featureItem.ImageAltText : $"Bild för {featureItem.Title}")"
+                                        @onclick="() => ShowImage(featureItem.ImageUrl)" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bg-light p-4 text-center rounded">
+                                            <i class="fa-solid fa-image text-muted fa-3x"></i>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="col-md-8">
+                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    <div>@((MarkupString)featureItem.Content)</div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col-12 text-center">
+                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    <div>@((MarkupString)featureItem.Content)</div>
+                                </div>
+                            }
+                        </div>
+
+                        @if (index < featureSections.Count - 1)
+                        {
+                            <div class="divider"></div>
+                        }
+                    }
+                }
+            </div>
+        </section>
+
+        @* ---------- Bilder Modal ------------------------------------------------ *@
+        @if (!string.IsNullOrEmpty(activeImage))
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content border-0 bg-transparent">
+                        <button type="button" class="btn-close btn-close-white ms-auto me-n4 mt-n4" @onclick="CloseModal"></button>
+                        <img src="@activeImage" class="img-fluid rounded-3" />
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private PageContentViewModel pageContent = new();
+    private bool loading = true;
+    private bool isAdmin = false;
+    private string? activeImage;
+    private IntroSectionViewModel introSection = new();
+    private List<HomeFeatureSectionViewModel> featureSections = new();
+    private List<MemberLogoViewModel> memberLogos = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initiera karusell och bildklick direkt vid första rendering
+            await JS.InvokeVoidAsync("initCarousel");
+            await JS.InvokeVoidAsync("initFeatureImageClicks");
+        }
+    }
+
+    [JSInvokable("ShowFeatureImageFromJs")]
+    public static Task ShowFeatureImageFromJs(string imageUrl)
+    {
+        if (instance != null)
+        {
+            instance.ShowImage(imageUrl);
+            instance.StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    private static Home instance;
+
+    protected override void OnInitialized()
+    {
+        instance = this;
+        base.OnInitialized();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+        loading = true;
+
+        try
+        {
+            // Synkronisera bilder från API till frontend
+            await Cms.SyncImagesFromApiAsync();
+            pageContent = await Cms.GetHomeAsync() ?? new PageContentViewModel();
+            memberLogos = await Cms.GetMemberLogosAsync();
+
+            // Hämta data direkt från CmsService
+            introSection = await Cms.GetIntroSectionAsync("home");
+            featureSections = await Cms.GetHomeFeatureSectionsAsync("home");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid inläsning av startsidan: {Message}", ex.Message);
+
+            // Minimal fallback
+            introSection = new IntroSectionViewModel
+                {
+                    Title = "Något gick fel",
+                    Content = "<p>Det uppstod ett fel vid hämtning av innehållet.</p>"
+                };
+            featureSections = new List<HomeFeatureSectionViewModel>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    // Visa bild i modal när den klickas
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    // Stäng bildmodalen
+    private void CloseModal() => activeImage = null;
+
+    // Scrolla till toppen av sidan
+    private async Task ScrollToTop() => await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+
+    // Hjälpmetod för att ta bort metadata-div från HTML-innehållet (används inte längre men behålls för kompatibilitet)
+    private string RemoveMetadataDiv(string html)
+    {
+        if (string.IsNullOrEmpty(html))
+            return html;
+
+        // Ta bort metadata-diven men behåll resten av innehållet
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            @"<div[^>]*id=""page-metadata""[^>]*data-content=""([^""]*)"">.*?</div>",
+            "");
+    }
+
+    // Hjälpmetod för att hämta LinkUrl för en logotyp
+    private string GetLinkUrlForLogo(string logoUrl)
+    {
+        // Hämta logoId från URL
+        var fileName = Path.GetFileName(logoUrl);
+        var matchingLogo = memberLogos.FirstOrDefault(l =>
+            Path.GetFileName(l.Url).Equals(fileName, StringComparison.OrdinalIgnoreCase));
+        return matchingLogo?.LinkUrl ?? string.Empty;
+    }
+}

@@ -1,0 +1,6 @@
+@KronoxApi_HostAddress = http://localhost:5252
+
+GET {{KronoxApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

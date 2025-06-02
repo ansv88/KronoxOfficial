@@ -1,0 +1,359 @@
+@page "/dokument"
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IHttpClientFactory HttpClientFactory
+@inject IJSRuntime JSRuntime
+@inject IToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject DocumentService DocumentService
+@attribute [Authorize(Policy = "ExcludeNewUser")]
+
+<PageTitle>Dokument</PageTitle>
+
+@if (loading)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Hero/banner -->
+    <section class="hero-banner position-relative">
+        @{
+            var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+            var heroBannerUrl = heroBanner != null ? heroBanner.Url : "images/hero/hero_top_klocka_blue-1300x394.jpg";
+            var heroBannerAlt = heroBanner != null ? heroBanner.AltText.Substring(5) : "Klocka bannerbild";
+        }
+        <img src="@heroBannerUrl" class="img-fluid w-100" alt="@heroBannerAlt" />
+        @if (isAdmin)
+        {
+            <div class="position-absolute top-0 end-0 m-3">
+                <a href="/admin/documents" class="btn btn-dark btn-sm opacity-75">
+                    <i class="fa-solid fa-edit me-1"></i> Redigera Dokument
+                </a>
+            </div>
+        }
+    </section>
+
+    <!-- Introsektion -->
+    <section class="bg-light py-5 border-0" style="min-height: 320px;">
+        <div class="container" style="max-width: 800px;">
+            <div class="mb-2 text-uppercase fw-semibold text-start" style="letter-spacing: 0.5px;">
+                DOKUMENT
+            </div>
+            <div class="text-center">
+                <h1 class="fw-semibold mb-3">
+                    Ladda ner alla filer du behöver här
+                </h1>
+                <div class="mb-3 fs-5">
+                    Här hittar du alla mötesprotokoll, anteckningar, förvaltningsdokument med mera.
+                </div>
+                <div class="mb-4 fs-5">
+                    <a href="/manual" class="text-decoration-underline text-dark small">
+                        Letar du efter Manualen hittar du den här <i class="fa fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div>
+                    <a href="/manual" class="btn btn-dark px-4 py-2 shadow-sm" style="min-width: 140px;">
+                        Manualen <i class="fa fa-arrow-right ms-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Huvudsektion med dokument -->
+    <div class="wrapper-div py-3">
+        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+            <div style="max-width:800px; margin: 0 auto;">
+                <div class="container mt-4">
+
+                    @if (isLoading)
+                    {
+                        <div class="d-flex justify-content-center my-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Laddar...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (loadError)
+                    {
+                        <div class="alert alert-danger text-center">
+                            Ett fel uppstod vid laddning av dokument. Vänligen försök igen senare.
+                        </div>
+                    }
+                    else if (AccessibleCategories.Count == 0)
+                    {
+                        <div class="alert alert-info text-center">
+                            Inga dokument finns tillgängliga.
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Dokumentlista grupperad per kategori -->
+                        <div class="document-categories mb-5">
+                            @foreach (var category in AccessibleTopLevelCategories.Where(c =>
+                           allDocuments.Any(doc => doc.MainCategoryId == c.Id)))
+                            {
+                                <div class="document-category mb-5">
+                                    <h3 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark">@category.Name</h3>
+                                    <div class="document-list">
+                                        @foreach (var doc in allDocuments
+                                       .Where(d => d.MainCategoryId == category.Id)
+                                       .OrderByDescending(d => d.UploadedAt))
+                                        {
+                                            <div class="document-item py-2">
+                                                <div class="text-decoration-none text-dark d-flex align-items-center">
+                                                    <div class="document-icon text-center flex-shrink-0 me-2">
+                                                        <i class="@GetFileIcon(doc.FileName) fa-lg"></i>
+                                                    </div>
+                                                    <div class="document-details flex-grow-1">
+                                                        <div>@doc.FileName</div>
+                                                        <small class="text-muted">@doc.UploadedAt.ToString("yyyy-MM-dd")</small>
+                                                    </div>
+                                                    <div class="ms-auto">
+                                                        <button class="btn btn-sm btn-info me-1"
+                                                                title="Visa dokument"
+                                                                @onclick="() => ViewDocument(doc.Id, doc.FileName)">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-primary"
+                                                                title="Ladda ner dokument"
+                                                                @onclick="() => DownloadDocument(doc.Id)">
+                                                            <i class="fas fa-download"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Document Viewer Modal -->
+    <DocumentViewer IsVisible="@isViewerOpen"
+                    DocumentId="@selectedDocumentId"
+                    DocumentTitle="@selectedDocumentName"
+                    OnClose="CloseDocumentViewer"
+                    OnDownload="DownloadDocument" />
+}
+
+@code {
+    public class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string AllowedRoles { get; set; } = "";
+        public int? ParentCategoryId { get; set; }
+    }
+
+    public class DocumentCategory
+    {
+        public int DocumentId { get; set; }
+        public int CategoryId { get; set; }
+        public Category Category { get; set; } = new();
+    }
+
+    private List<DocumentViewModel> allDocuments = new();
+    private List<Category> categories = new();
+    private bool isLoading = true;
+    private bool loadError = false;
+    private string errorMessage = "";
+    private Dictionary<Category, List<DocumentViewModel>> documentsByCategory = new();
+
+    private List<string> userRoles = new();
+
+    private bool isViewerOpen = false;
+    private int selectedDocumentId = 0;
+    private string selectedDocumentName = "";
+
+    private List<Category> AccessibleCategories =>
+        categories.Where(cat =>
+            string.IsNullOrWhiteSpace(cat.AllowedRoles) ||
+            cat.AllowedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(r => r.Trim())
+                .Any(role => userRoles.Contains(role))
+        ).ToList();
+
+    private List<Category> AccessibleTopLevelCategories =>
+        AccessibleCategories.Where(c => c.ParentCategoryId == null).ToList();
+
+    private Dictionary<Category, List<DocumentViewModel>> AccessibleDocumentsByCategory =>
+        AccessibleCategories
+            .ToDictionary(
+                cat => cat,
+                cat => allDocuments.Where(doc => doc.MainCategoryId == cat.Id).ToList()
+            );
+
+    private PageContentViewModel pageContent = new();
+    private bool loading = true;
+    private bool isAdmin = false;
+
+    private class IntroSection
+    {
+        public string Title { get; set; } = "Alla viktiga dokument på ett ställe";
+        public string Content { get; set; } = "<p>Här hittar du mötesprotokoll, ansökningar, förvaltningsdokument och andra viktiga filer. Använd kategorierna för att snabbt hitta det du söker och ladda ner dokumenten direkt.</p>";
+        public string? ImageUrl { get; set; }
+        public string? ImageAltText { get; set; }
+    }
+    private IntroSection introSection = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Hämta användarroller
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            userRoles = authState.User.Claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Select(c => c.Value)
+                .ToList();
+
+            // Kontrollera om användaren har Admin-rollen
+            isAdmin = userRoles.Contains("Admin");
+
+            await LoadCategories();
+            await LoadDocuments();
+            await OrganizeDocumentsByCategory();
+        }
+        catch (Exception)
+        {
+            loadError = true;
+        }
+        finally
+        {
+            isLoading = false;
+            loading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && loadError && !string.IsNullOrEmpty(errorMessage))
+        {
+            await ToastService.Error($"Kunde inte ladda dokumentsidan: {errorMessage}");
+        }
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var result = await http.GetFromJsonAsync<List<Category>>("api/category/main");
+            if (result != null)
+            {
+                categories = result;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            throw;
+        }
+    }
+
+    private async Task LoadDocuments()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var result = await http.GetFromJsonAsync<List<DocumentViewModel>>("api/documents");
+            if (result != null)
+            {
+                allDocuments = result
+                    .OrderByDescending(d => d.UploadedAt)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            throw;
+        }
+    }
+
+    private async Task OrganizeDocumentsByCategory()
+    {
+        documentsByCategory.Clear();
+
+        foreach (var category in categories)
+        {
+            var docsInCategory = allDocuments
+                .Where(d => d.MainCategoryId == category.Id).ToList();
+
+            if (docsInCategory.Any())
+            {
+                documentsByCategory[category] = docsInCategory;
+            }
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private void ViewDocument(int id, string fileName)
+    {
+        selectedDocumentId = id;
+        selectedDocumentName = fileName;
+        isViewerOpen = true;
+    }
+
+    private void CloseDocumentViewer()
+    {
+        isViewerOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task DownloadDocument(int id)
+    {
+        try
+        {
+            var result = await DocumentService.DownloadDocumentAsync(id);
+
+            if (result == null)
+            {
+                await ToastService.Error("Kunde inte ladda ner dokumentet");
+                return;
+            }
+
+            var (stream, fileName) = result.Value;
+
+            // Create a stream reference
+            var streamRef = new DotNetStreamReference(stream: stream);
+
+            // Pass the stream reference to JS for download
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", streamRef, fileName);
+        }
+        catch (Exception ex)
+        {
+            await ToastService.Error($"Ett fel inträffade vid nedladdning: {ex.Message}");
+        }
+    }
+
+    private string GetFileIcon(string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".pdf" => "fas fa-file-pdf text-danger",
+            ".doc" or ".docx" => "fas fa-file-word text-primary",
+            ".xls" or ".xlsx" => "fas fa-file-excel text-success",
+            ".ppt" or ".pptx" => "fas fa-file-powerpoint text-warning",
+            ".txt" => "fas fa-file-alt text-secondary",
+            _ => "fas fa-file"
+        };
+    }
+}

@@ -1,0 +1,851 @@
+﻿@page "/admin/documents"
+@using KronoxFront.Components
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using KronoxFront.Requests
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop.Infrastructure
+@inject DocumentService DocumentService
+@inject CategoryService CategoryService
+@inject CacheService CacheService
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+
+@attribute [Authorize(Policy = "RequireAdmin")]
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+
+<PageTitle>Dokumenthantering</PageTitle>
+
+<div class="container-fluid">
+    <h2 class="mb-4">
+        <i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering
+    </h2>
+
+    <div class="row mb-4">
+        <!-- Upload -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header"><h5>Ladda upp dokument</h5></div>
+                <div class="card-body">
+                    <EditForm Model="uploadModel" OnValidSubmit="UploadDocument">
+                        <DataAnnotationsValidator />
+
+                        <!-- Filval -->
+                        <div class="mb-3">
+                            <label>Dokument</label>
+                            <InputFile OnChange="OnInputFileChange"
+                                       accept=".pdf,.docx,.xlsx,.pptx,.txt"
+                                       class="form-control" />
+                            @if (selectedFile != null)
+                            {
+                                <div class="mt-1">
+                                    @selectedFile.Name @* (@FormatFileSize(selectedFile.Size)) *@
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Huvudkategorier (obligatoriskt) -->
+                        <div class="mb-3">
+                            <label class="fw-bold">
+                                Huvudkategorier <span class="text-danger">*</span>
+                            </label>
+                            <small class="text-muted d-block mb-2">
+                                <span class="text-danger">*</span> Minst en huvudkategori krävs.
+                            </small>
+                            <div class="d-flex flex-wrap gap-2">
+                                <select class="form-select"
+                                @bind="uploadModel.SelectedMainCategoryId">
+                                    <option value="">-- Välj kategori --</option>
+                                    @foreach (var mainCategory in mainCategoryDtos)
+                                    {
+                                        <option value="@mainCategory.Id">@mainCategory.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Underkategorier (valfritt) -->
+                        <div class="mb-3">
+                            <label>Underkategorier (valfritt)</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var subCategory in subCategoryDtos)
+                                {
+                                    <div class="form-check">
+                                        <input type="checkbox"
+                                        class="form-check-input"
+                                        @onchange="e => ToggleCategory(subCategory.Id,(bool)e.Value)" />
+                                        <label class="form-check-label">@subCategory.Name</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-primary" disabled="@isUploading">
+                                @if (isUploading)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                    <span class="ms-1">Laddar upp…</span>
+                                }
+                                else
+                                {
+                                    <text>Ladda upp dokument</text>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Admin -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h5>Hantera kategorier</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="newCategory" OnValidSubmit="AddCategory">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label>Namn</label>
+                            <InputText @bind-Value="newCategory.Name" class="form-control" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Typ</label>
+                            <select class="form-select" @bind="newCategoryString" @bind:event="onchange">
+                                <option value="">-- Välj Kategorinivå --</option>
+                                <option value="main">Huvudkategori</option>
+                                <option value="sub">Underkategori</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-primary">Lägg till ny kategori</button>
+                        </div>
+                    </EditForm>
+
+                    <!-- Lista över existerande kategorier -->
+                    <div class="mt-4">
+                        <h6 class="border-bottom pb-2 fw-bold">Huvudkategorier</h6>
+                        <ul class="list-group mb-3">
+                            @if (!mainCategoryDtos.Any())
+                            {
+                                <li class="list-group-item text-muted">Inga huvudkategorier</li>
+                            }
+                            else
+                            {
+                                @foreach (var category in mainCategoryDtos)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>@category.Name</span>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-warning me-1"
+                                            title="Redigera kategori"
+                                            @onclick="() => StartEditCategory(category, true)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger"
+                                            @onclick="() => DeleteCategory(category.Id, true)"
+                                            title="Radera kategori">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    </li>
+                                }
+                            }
+                        </ul>
+
+                        <h6 class="border-bottom pb-2 fw-bold">Underkategorier</h6>
+                        <ul class="list-group">
+                            @if (!subCategoryDtos.Any())
+                            {
+                                <li class="list-group-item text-muted">Inga underkategorier</li>
+                            }
+                            else
+                            {
+                                @foreach (var category in subCategoryDtos)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>@category.Name</span>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-warning me-1"
+                                            title="Redigera kategori"
+                                            @onclick="() => StartEditCategory(category, true)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger"
+                                            title="Radera kategori"
+                                            @onclick="() => DeleteCategory(category.Id, false)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    </li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr />
+
+    <!-- Dokument‐tabell -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between">
+            <h5>Hantera dokument</h5>
+            <div class="form-check form-switch">
+                <input type="checkbox"
+                class="form-check-input"
+                @bind="showArchived" />
+                <label class="form-check-label">Visa arkiverade</label>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="spinner-border"></div>
+            }
+            else if (!FilteredDocuments.Any())
+            {
+                <div class="alert alert-info">Inga dokument.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Fil</th>
+                                <th>Storlek</th>
+                                <th>Huvudkategori</th>
+                                <th>Underkategorier</th>
+                                <th>Uppl.</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var document in FilteredDocuments)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="javascript:void(0)"
+                                        @onclick="() => ViewDocument(document.Id, document.FileName)"
+                                        class="document-link">
+                                            @document.FileName
+                                        </a>
+                                    </td>
+                                    <td>@FormatFileSize(document.FileSize)</td>
+                                    <td><span class="badge bg-primary">@document.MainCategoryDto.Name</span></td>
+                                    <td>
+                                        @foreach (var subCategory in document.SubCategoryDtos)
+                                        {
+                                            <span class="badge bg-secondary">@subCategory.Name</span>
+                                        }
+                                    </td>
+                                    <td>@document.UploadedAt</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning me-1"
+                                        title="Redigera kategorier för dokumentet"
+                                        @onclick="() => EditDocument(document)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-info me-1"
+                                        title="Visa dokument i PDF-läsare"
+                                        @onclick="() => ViewDocument(document.Id, document.FileName)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-primary me-1"
+                                        title="Ladda ner dokumentet"
+                                        @onclick="() => DownloadDocument(document.Id)">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger"
+                                        title="Radera dokumentet"
+                                        @onclick="() => DeleteDocument(document.Id)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- EditCategory-modal -->
+@if (documentToEdit != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5>Redigera kategorier för @documentToEdit.FileName</h5>
+                    <button class="btn-close" @onclick="CloseEditModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="editModel" OnValidSubmit="SaveDocumentChanges">
+                        <DataAnnotationsValidator />
+
+                        <!-- Huvudkategorier (obligatoriskt) -->
+                        <div class="mb-3">
+                            <label class="fw-bold">
+                                Huvudkategori <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select"
+                            @bind="editModel.SelectedMainCategoryId">
+                                <option value="">-- Välj kategori --</option>
+                                @foreach (var mainCategory in mainCategoryDtos)
+                                {
+                                    <option value="@mainCategory.Id">@mainCategory.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Underkategorier (valfritt) -->
+                        <div class="mb-3">
+                            <label>Underkategorier (valfritt)</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var subCategory in subCategoryDtos)
+                                {
+                                    <div class="form-check">
+                                        <input type="checkbox"
+                                        class="form-check-input"
+                                        checked="@IsSubCategorySelected(subCategory.Id)"
+                                        @onchange="e => ToggleEditCategory(subCategory.Id, (bool)e.Value)" />
+                                        <label class="form-check-label">@subCategory.Name</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <button type="button" class="btn btn-secondary me-2" @onclick="CloseEditModal">
+                                Avbryt
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                    <span class="ms-1">Sparar...</span>
+                                }
+                                else
+                                {
+                                    <text>Spara ändringar</text>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+<!-- EditCategory-modal -->
+@if (isEditCategoryModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5>Redigera kategori</h5>
+                    <button class="btn-close" @onclick="CloseEditCategoryModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="editCategoryModel" OnValidSubmit="SaveEditCategory">
+                        <DataAnnotationsValidator />
+                        <div class="alert alert-info">
+                            Vill du byta namn på kategorin <strong>@editCategoryModel.Name</strong>?
+                        </div>
+                        <div class="alert alert-warning">
+                            Observera: Namnändringen kommer att synas på alla dokument som har denna kategori.
+                        </div>
+                        <div class="mb-3">
+                            <label>Nytt namn</label>
+                            <InputText @bind-Value="editCategoryModel.Name" class="form-control" />
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-secondary me-2" @onclick="CloseEditCategoryModal">Avbryt</button>
+                            <button type="submit" class="btn btn-primary">Spara</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    }
+
+<DocumentViewer IsVisible="@isViewerOpen"
+DocumentId="@selectedDocumentId"
+DocumentTitle="@selectedDocumentName"
+OnClose="CloseDocumentViewer"
+OnDownload="DownloadDocument" />
+
+
+@code {
+    class UploadModel
+    {
+        public IBrowserFile? File { get; set; }
+        public int SelectedMainCategoryId { get; set; } = 0;
+        public List<SubCategoryDto> SelectedSubCategoryIds { get; set; } = new();
+    }
+
+    class EditModel
+    {
+        public int DocumentId { get; set; }
+        public int SelectedMainCategoryId { get; set; }
+        public List<int> SelectedSubCategoryIds { get; set; } = new();
+    }
+
+    private class CategoryFormModel
+    {
+        public string Name { get; set; } = "";
+    }
+
+    private class EditCategoryModel
+    {
+        public string Name { get; set; } = "";
+    }
+    private EditCategoryModel editCategoryModel = new();
+
+    UploadModel uploadModel = new();
+    IBrowserFile? selectedFile;
+    bool isUploading, isLoading, showArchived;
+    bool newCategoryIsMain = true;
+    string newCategoryString = "";
+    string searchTerm = "";
+    private CategoryFormModel newCategory = new();
+    DocumentViewModel? documentToEdit;
+    bool isSaving;
+    EditModel editModel = new();
+
+    private bool isEditCategoryModalOpen = false;
+    private bool editCategoryIsMain;
+    private int editCategoryId;
+    private string editCategoryName = "";
+
+    private bool isViewerOpen = false;
+    private int selectedDocumentId = 0;
+    private string selectedDocumentName = "";
+
+
+    List<DocumentViewModel> documents = new();
+    List<MainCategoryDto> mainCategoryDtos = new();
+    List<SubCategoryDto> subCategoryDtos = new();
+
+    IEnumerable<DocumentViewModel> FilteredDocuments =>
+    documents.OrderByDescending(d => d.UploadedAt);
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        // Hämta dokument med kategorier (från cache eller databas)
+        documents = await GetDocumentsFromCacheOrDatabase();
+
+        // Hämta alla huvudkategorier
+        var mainCategoryDtosUnsorted = await CategoryService.GetMainCategoriesAsync();
+        mainCategoryDtos = mainCategoryDtosUnsorted.OrderBy(m => m.Name).ToList();
+
+        var subCategoryDtosUnsorted = await CategoryService.GetSubCategoriesAsync();
+        subCategoryDtos = subCategoryDtosUnsorted.OrderBy(s => s.Name).ToList();
+
+        isLoading = false;
+    }
+
+    private async Task<List<DocumentViewModel>> GetDocumentsFromCacheOrDatabase()
+    {
+        // Försök hämta dokument från cachen först
+        var cachedDocuments = CacheService.GetDocumentsFromCache();
+        if (cachedDocuments != null)
+        {
+            return cachedDocuments;
+        }
+
+        // Om cachen är tom, hämta från databasen och fyll cachen
+        var documents = await CreateDocumentDto();
+        if (documents != null && documents.Any())
+        {
+            CacheService.SetDocumentsToCache(documents);
+        }
+        return documents;
+    }
+
+    private async Task<List<DocumentViewModel>> CreateDocumentDto()
+    {
+        var documentsDto = new List<DocumentViewModel>();
+        var mainCategoryForDocument = new MainCategoryDto();
+
+        documentsDto = await DocumentService.GetDocumentsAsync();
+
+        foreach (var document in documentsDto)
+        {
+            mainCategoryForDocument = await CategoryService.GetMainCategoryByIdAsync(document.MainCategoryId);
+            if (mainCategoryForDocument != null)
+            {
+                document.MainCategoryDto = mainCategoryForDocument;
+            }
+
+            foreach (var subCategoryId in document.SubCategories)
+            {
+                var subCategory = await CategoryService.GetSubCategoryByIdAsync(subCategoryId);
+                if (subCategory != null)
+                {
+                    document.SubCategoryDtos.Add(subCategory);
+                }
+            }
+        }
+        return documentsDto;
+    }
+
+    void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        uploadModel.File = e.File;
+    }
+
+    void ToggleCategory(int id, bool on)
+    {
+        var subCategory = subCategoryDtos.FirstOrDefault(s => s.Id == id);
+        if (subCategory == null) return;
+
+        if (on)
+        {
+            if (!uploadModel.SelectedSubCategoryIds.Any(s => s.Id == id))
+                uploadModel.SelectedSubCategoryIds.Add(subCategory);
+        }
+        else
+        {
+            var toRemove = uploadModel.SelectedSubCategoryIds.FirstOrDefault(s => s.Id == id);
+            if (toRemove != null)
+                uploadModel.SelectedSubCategoryIds.Remove(toRemove);
+        }
+    }
+
+    async Task UploadDocument()
+    {
+        if (selectedFile == null)
+        {
+            await ToastService.Warning("Välj fil");
+            return;
+        }
+
+        if (uploadModel.SelectedMainCategoryId.Equals(0))
+        {
+            await ToastService.Warning("Minst en huvudkategori krävs");
+            return;
+        }
+
+        isUploading = true;
+        var ok = await DocumentService.UploadDocumentAsync(selectedFile, uploadModel.SelectedMainCategoryId, uploadModel.SelectedSubCategoryIds);
+        isUploading = false;
+
+        if (ok)
+        {
+            await ToastService.Success("Uppladdat");
+            uploadModel = new();
+            selectedFile = null;
+
+            // Invalidate document cache and reload documents
+            CacheService.InvalidateDocumentsCache();
+            documents = await GetDocumentsFromCacheOrDatabase();
+        }
+        else
+        {
+            await ToastService.Error("Misslyckades");
+        }
+    }
+
+    async Task ViewDocument(int id, string fileName)
+    {
+        selectedDocumentId = id;
+        selectedDocumentName = fileName;
+        isViewerOpen = true;
+        StateHasChanged();
+    }
+
+    void CloseDocumentViewer()
+    {
+        isViewerOpen = false;
+        StateHasChanged();
+    }
+
+    async Task AddCategory()
+    {
+        if (string.IsNullOrWhiteSpace(newCategory.Name))
+        {
+            await ToastService.Warning("Kategorinamn måste anges");
+            return;
+        }
+
+        bool ok;
+        if (newCategoryString.Equals("main"))
+        {
+            // Skapa huvudkategori med endast namn
+            ok = await CategoryService.AddMainCategoryAsync(newCategory.Name);
+        }
+        else
+        {
+            // Skapa underkategori enbart med namn
+            ok = await CategoryService.AddSubCategoryAsync(newCategory.Name);
+        }
+
+        if (ok)
+        {
+            await ToastService.Success("Kategori skapad");
+            newCategory = new CategoryFormModel();
+
+            // Uppdatera listor över kategorier
+            mainCategoryDtos = await CategoryService.GetMainCategoriesAsync();
+            subCategoryDtos = await CategoryService.GetSubCategoriesAsync();
+        }
+        else
+        {
+            await ToastService.Error("Kunde inte skapa kategori");
+        }
+    }
+
+    void StartEditCategory(MainCategoryDto category, bool isMain)
+    {
+        isEditCategoryModalOpen = true;
+        editCategoryIsMain = isMain;
+        editCategoryId = category.Id;
+        editCategoryModel.Name = category.Name;
+    }
+    void StartEditCategory(SubCategoryDto category, bool isMain)
+    {
+        isEditCategoryModalOpen = true;
+        editCategoryIsMain = isMain;
+        editCategoryId = category.Id;
+        editCategoryModel.Name = category.Name;
+    }
+    void CloseEditCategoryModal()
+    {
+        isEditCategoryModalOpen = false;
+        editCategoryId = 0;
+        editCategoryModel.Name = "";
+    }
+
+    private async Task SaveEditCategory()
+    {
+        bool ok;
+        if (editCategoryIsMain)
+            ok = await CategoryService.EditMainCategoryAsync(editCategoryId, editCategoryModel.Name);
+        else
+            ok = await CategoryService.EditSubCategoryAsync(editCategoryId, editCategoryModel.Name);
+
+        if (ok)
+        {
+            await ToastService.Success("Kategori uppdaterad");
+            mainCategoryDtos = await CategoryService.GetMainCategoriesAsync();
+            subCategoryDtos = await CategoryService.GetSubCategoriesAsync();
+
+            // Cache
+            CacheService.InvalidateDocumentsCache();
+            documents = await GetDocumentsFromCacheOrDatabase();
+
+            CloseEditCategoryModal();
+        }
+        else
+        {
+            await ToastService.Error("Kunde inte uppdatera kategori");
+        }
+    }
+
+    private async Task DeleteCategory(int id, bool isMain)
+    {
+        // Kontrollera om kategorin används av något dokument
+        if (isMain && documents.Any(d => d.MainCategoryId == id))
+        {
+            await ToastService.Warning("Kategorin används av minst ett dokument och kan inte tas bort");
+            return;
+        }
+
+        if (!isMain && documents.Any(d => d.SubCategories != null && d.SubCategories.Contains(id)))
+        {
+            await ToastService.Warning("Kategorin används av minst ett dokument och kan inte tas bort");
+            return;
+        }
+
+        var okConfirm = await JSRuntime.InvokeAsync<bool>("confirm", "Vill du verkligen ta bort kategorin?");
+        if (!okConfirm) return;
+
+        bool removed;
+        if (isMain)
+        {
+            removed = await CategoryService.DeleteMainCategoryAsync(id);
+        }
+        else
+        {
+            removed = await CategoryService.DeleteSubCategoryAsync(id);
+        }
+
+        if (removed)
+        {
+            await ToastService.Success("Kategorin togs bort.");
+
+            // Uppdatera listor över kategorier
+            mainCategoryDtos = await CategoryService.GetMainCategoriesAsync();
+            subCategoryDtos = await CategoryService.GetSubCategoriesAsync();
+
+            // Uppdatera också dokumentlistan eftersom kategorierna kan ha ändrats
+            CacheService.InvalidateDocumentsCache();
+            documents = await GetDocumentsFromCacheOrDatabase();
+        }
+        else
+        {
+            await ToastService.Error("Kunde inte ta bort kategorin.");
+        }
+    }
+
+    void EditDocument(DocumentViewModel document)
+    {
+        documentToEdit = document;
+
+        // Initialize the edit model with current values
+        editModel = new EditModel
+            {
+                DocumentId = document.Id,
+                SelectedMainCategoryId = document.MainCategoryId,
+                SelectedSubCategoryIds = document.SubCategories?.ToList() ?? new List<int>()
+            };
+    }
+
+    void CloseEditModal()
+    {
+        documentToEdit = null;
+    }
+
+    bool IsSubCategorySelected(int subCategoryId)
+    {
+        return editModel.SelectedSubCategoryIds.Contains(subCategoryId);
+    }
+
+    void ToggleEditCategory(int id, bool on)
+    {
+        if (on)
+        {
+            if (!editModel.SelectedSubCategoryIds.Contains(id))
+                editModel.SelectedSubCategoryIds.Add(id);
+        }
+        else
+        {
+            editModel.SelectedSubCategoryIds.Remove(id);
+        }
+    }
+
+    async Task SaveDocumentChanges()
+    {
+        if (documentToEdit == null) return;
+
+        if (editModel.SelectedMainCategoryId == 0)
+        {
+            await ToastService.Warning("Minst en huvudkategori krävs");
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            var updateRequest = new UpdateDocumentRequest
+                {
+                    MainCategoryId = editModel.SelectedMainCategoryId,
+                    SubCategoryIds = editModel.SelectedSubCategoryIds.ToList()
+                };
+
+            var success = await DocumentService.UpdateDocumentAsync(documentToEdit.Id, updateRequest);
+
+            if (success)
+            {
+                // Invalidate cache and reload documents
+                CacheService.InvalidateDocumentsCache();
+                documents = await GetDocumentsFromCacheOrDatabase();
+
+                await ToastService.Success("Dokumentkategorier uppdaterade");
+                CloseEditModal();
+            }
+            else
+            {
+                await ToastService.Error("Kunde inte uppdatera dokumentet");
+            }
+        }
+        catch (Exception ex)
+        {
+            await ToastService.Error($"Fel: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    async Task DownloadDocument(int id)
+    {
+        try
+        {
+            var result = await DocumentService.DownloadDocumentAsync(id);
+            if (result == null)
+            {
+                await ToastService.Error("Kunde ej hämta fil");
+                return;
+            }
+
+            var content = result.Value.content;
+            var fileName = result.Value.fileName;
+
+            // Create a DotNetStreamReference from the stream
+            var streamRef = new DotNetStreamReference(stream: content);
+
+            // Pass the stream reference to JS
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", streamRef, fileName);
+        }
+        catch (Exception ex)
+        {
+            await ToastService.Error($"Nedladdningsfel: {ex.Message}");
+        }
+    }
+
+    async Task DeleteDocument(int id)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Ta bort?")) return;
+        if (await DocumentService.DeleteDocumentAsync(id))
+        {
+            // Invalidate document cache and reload documents
+            CacheService.InvalidateDocumentsCache();
+            documents = await GetDocumentsFromCacheOrDatabase();
+            await ToastService.Success("Borttagen");
+        }
+        else
+        {
+            await ToastService.Error("Misslyckades");
+        }
+    }
+
+    string FormatFileSize(long bytes)
+    {
+        string[] suf = { "B", "KB", "MB", "GB" };
+        int idx = 0;
+        double size = bytes;
+        while (size >= 1024 && idx < suf.Length - 1)
+        {
+            size /= 1024;
+            idx++;
+        }
+        return $"{size:0.##} {suf[idx]}";
+    }
+
+    private void FilterDocuments() => StateHasChanged();
+    }

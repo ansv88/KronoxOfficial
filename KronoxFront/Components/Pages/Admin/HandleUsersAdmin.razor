@@ -1,0 +1,879 @@
+﻿@page "/admin/users"
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@using System.Net.Http.Json
+@using System.ComponentModel.DataAnnotations
+@using KronoxFront.Services
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject IHttpClientFactory HttpClientFactory
+@inject IJSRuntime JS
+@inject IToastService Toast
+@inject ILogger<HandleUsersAdmin> Logger
+
+<PageTitle>KronoX - Användarhantering</PageTitle>
+
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fa-solid fa-users me-2"></i>Användarhantering</h2>
+
+    <div class="row">
+        <!-- Vänster panel för användarlista och nya ansökningar -->
+        <div class="col-md-5">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <ul class="nav nav-tabs card-header-tabs" id="userTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="all-users-tab" data-bs-toggle="tab"
+                                    data-bs-target="#all-users" type="button" role="tab"
+                                    aria-controls="all-users" aria-selected="true">
+                                Alla användare
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="new-users-tab" data-bs-toggle="tab"
+                                    data-bs-target="#new-users" type="button" role="tab"
+                                    aria-controls="new-users" aria-selected="false">
+                                Nya ansökningar
+                                @if (newUsers.Any())
+                                {
+                                    <span class="badge bg-danger ms-1">@newUsers.Count</span>
+                                }
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="userTabsContent">
+                        <!-- Alla användare -->
+                        <div class="tab-pane fade show active" id="all-users" role="tabpanel" aria-labelledby="all-users-tab">
+                            <div class="input-group mb-3">
+                                <span class="input-group-text"><i class="fa-solid fa-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Sök användare..." @bind-value="searchTerm" @bind-value:event="oninput" />
+                            </div>
+
+                            @if (loading)
+                            {
+                                <div class="text-center my-3">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Laddar användare...</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (!allUsers.Any())
+                            {
+                                <div class="alert alert-info">
+                                    Inga användare hittades.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="list-group user-list">
+                                    @foreach (var user in FilteredUsers)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(selectedUser?.UserName == user.UserName ? "active" : "")"
+                                                @onclick="() => SelectUser(user)">
+                                            <div>
+                                                <div class="fw-bold">@user.UserName</div>
+                                                <div class="text-muted small">@user.FirstName @user.LastName</div>
+                                            </div>
+                                            <span class="badge rounded-pill @GetRoleBadgeColor(user.Roles?.FirstOrDefault())">
+                                                @(user.Roles?.FirstOrDefault() ?? "Ingen roll")
+                                            </span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Nya ansökningar -->
+                        <div class="tab-pane fade" id="new-users" role="tabpanel" aria-labelledby="new-users-tab">
+                            @if (loading)
+                            {
+                                <div class="text-center my-3">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Laddar ansökningar...</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (!newUsers.Any())
+                            {
+                                <div class="alert alert-info">
+                                    Inga nya användaransökningar.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="list-group user-list">
+                                    @foreach (var user in newUsers)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(selectedUser?.UserName == user.UserName ? "active" : "")"
+                                                @onclick="() => SelectUser(user)">
+                                            <div>
+                                                <div class="fw-bold">@user.UserName</div>
+                                                <div class="text-muted small">@user.FirstName @user.LastName</div>
+                                                <div class="text-muted small">@user.Email</div>
+                                            </div>
+                                            <span class="badge bg-warning text-dark">Ny ansökan</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Höger panel för användardetaljer och åtgärder -->
+        <div class="col-md-7">
+            @if (selectedUser != null)
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Användardetaljer</h5>
+                        <div>
+                            @if (selectedUser.Roles?.Contains("Ny användare") == true)
+                            {
+                                <button class="btn btn-success btn-sm me-1" @onclick="() => OpenApproveUserModal(selectedUser)">
+                                    <i class="fa-solid fa-check me-1"></i> Godkänn
+                                </button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => OpenRejectUserModal(selectedUser)">
+                                    <i class="fa-solid fa-ban me-1"></i> Avslå
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-warning btn-sm me-1" @onclick="() => isEditMode = true">
+                                    <i class="fa-solid fa-edit me-1"></i> Redigera
+                                </button>
+                                <button class="btn btn-info btn-sm me-1" @onclick="() => OpenChangePasswordModal(selectedUser)">
+                                    <i class="fa-solid fa-key me-1"></i> Byt lösenord
+                                </button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => OpenDeleteUserModal(selectedUser)">
+                                    <i class="fa-solid fa-trash me-1"></i> Ta bort
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (isEditMode)
+                        {
+                            <EditForm Model="editUserModel" OnValidSubmit="SaveUserChanges">
+                                <DataAnnotationsValidator />
+
+                                <div class="mb-3">
+                                    <label class="form-label">Användarnamn</label>
+                                    <input type="text" class="form-control-plaintext" value="@selectedUser.UserName" readonly />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Roll</label>
+                                    <select class="form-select" @bind="selectedRoleForEdit">
+                                        @foreach (var role in availableRoles.Where(r => r != "Ny användare"))
+                                        {
+                                            <option value="@role">@role</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Förnamn</label>
+                                    <InputText class="form-control" @bind-Value="editUserModel.FirstName" />
+                                    <ValidationMessage For="@(() => editUserModel.FirstName)" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Efternamn</label>
+                                    <InputText class="form-control" @bind-Value="editUserModel.LastName" />
+                                    <ValidationMessage For="@(() => editUserModel.LastName)" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">E-post</label>
+                                    <InputText class="form-control" @bind-Value="editUserModel.Email" />
+                                    <ValidationMessage For="@(() => editUserModel.Email)" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Lärosäte</label>
+                                    <InputText class="form-control" @bind-Value="editUserModel.Academy" />
+                                    <ValidationMessage For="@(() => editUserModel.Academy)" />
+                                </div>
+
+                                <div class="d-flex justify-content-end">
+                                    <button type="button" class="btn btn-secondary me-2" @onclick="CancelEdit">
+                                        Avbryt
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        Spara ändringar
+                                    </button>
+                                </div>
+                            </EditForm>
+                        }
+                        else
+                        {
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Användarnamn:</label>
+                                        <div>@selectedUser.UserName</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Roll:</label>
+                                        <div>
+                                            <span class="badge @GetRoleBadgeColor(selectedUser.Roles?.FirstOrDefault())">
+                                                @(selectedUser.Roles?.FirstOrDefault() ?? "Ingen roll")
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Namn:</label>
+                                        <div>@selectedUser.FirstName @selectedUser.LastName</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="fw-bold">E-post:</label>
+                                        <div>@selectedUser.Email</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Lärosäte:</label>
+                                        <div>@selectedUser.Academy</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Skapad:</label>
+                                        <div>@(selectedUser.CreatedDate.HasValue ? selectedUser.CreatedDate.Value.ToString("yyyy-MM-dd") : "Okänt")</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="card mb-4">
+                    <div class="card-body text-center text-muted py-5">
+                        <i class="fa-solid fa-user fa-3x mb-3"></i>
+                        <h5>Välj en användare för att visa detaljer</h5>
+                        <p>Du kan visa och hantera användaruppgifter här.</p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modalfönster för godkänna användare -->
+@if (showApproveUserModal && selectedUser != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Godkänn användare</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Välj en roll för användaren <strong>@selectedUser.UserName</strong>:</p>
+
+                    <div class="mb-3">
+                        <select class="form-select" @bind="selectedRole">
+                            @foreach (var role in availableRoles.Where(r => r != "Ny användare"))
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
+                    <button type="button" class="btn btn-success" @onclick="ApproveUser">Godkänn</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modalfönster för avslå användare -->
+@if (showRejectUserModal && selectedUser != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Avslå användaransökan</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Är du säker på att du vill avslå användaransökan för <strong>@selectedUser.UserName</strong>?</p>
+                    <p class="text-danger">Detta kommer att ta bort användaren från systemet.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
+                    <button type="button" class="btn btn-danger" @onclick="RejectUser">Avslå</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modalfönster för ta bort användare -->
+@if (showDeleteUserModal && selectedUser != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ta bort användare</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Är du säker på att du vill ta bort användaren <strong>@selectedUser.UserName</strong>?</p>
+                    <p class="text-danger">Detta kommer att ta bort användaren permanent från systemet.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteUser">Ta bort</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modalfönster för ändra lösenord -->
+@if (showChangePasswordModal && selectedUser != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ändra lösenord</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Ange ett nytt lösenord för användaren <strong>@selectedUser.UserName</strong>:</p>
+
+                    <EditForm Model="passwordModel" OnValidSubmit="ChangePassword">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Nytt lösenord</label>
+                            <div class="input-group">
+                                <InputText type="@(showPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.NewPassword" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showPassword = !showPassword">
+                                    <i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                </button>
+                            </div>
+                            <ValidationMessage For="@(() => passwordModel.NewPassword)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Bekräfta lösenord</label>
+                            <div class="input-group">
+                                <InputText type="@(showConfirmPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.ConfirmPassword" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showConfirmPassword = !showConfirmPassword">
+                                    <i class="fa-solid @(showConfirmPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                </button>
+                            </div>
+                            <ValidationMessage For="@(() => passwordModel.ConfirmPassword)" />
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
+                            <button type="submit" class="btn btn-primary">Spara lösenord</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UserViewModel> allUsers = new();
+    private List<UserViewModel> newUsers = new();
+    private List<string> availableRoles = new();
+    private UserViewModel? selectedUser;
+    private bool loading = true;
+    private string searchTerm = "";
+    private string selectedRole = "";
+    private string selectedRoleForEdit = "";
+    private bool isEditMode = false;
+    private bool showPassword = false;
+    private bool showConfirmPassword = false;
+
+    // Modal states
+    private bool showApproveUserModal = false;
+    private bool showRejectUserModal = false;
+    private bool showDeleteUserModal = false;
+    private bool showChangePasswordModal = false;
+
+    // Models for forms
+    private UpdateUserModel editUserModel = new();
+    private ChangePasswordModel passwordModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loading = true;
+
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+
+            try
+            {
+                // Load all users
+                var response = await http.GetAsync("api/admin/users");
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    Logger.LogInformation("API Response: {Content}", content);
+
+                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    allUsers = JsonSerializer.Deserialize<List<UserViewModel>>(content, options) ?? new();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Logger.LogError("API returned error: {Status} with content: {Content}",
+                                    response.StatusCode, errorContent);
+                    await Toast.Error($"Fel vid hämtning av användare: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid avkodning av användardata");
+                await Toast.Error("Det uppstod ett fel vid tolkning av användardata.");
+            }
+
+            // Load new user registrations
+            var newUsersResponse = await http.GetFromJsonAsync<List<UserViewModel>>("api/admin/registration-requests");
+            if (newUsersResponse != null)
+            {
+                newUsers = newUsersResponse;
+            }
+
+            // Load available roles
+            var rolesResponse = await http.GetFromJsonAsync<List<string>>("api/admin/roles");
+            if (rolesResponse != null)
+            {
+                availableRoles = rolesResponse;
+                if (availableRoles.Any())
+                {
+                    selectedRole = availableRoles.FirstOrDefault(r => r != "Ny användare") ?? availableRoles.First();
+                    selectedRoleForEdit = selectedRole;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av användardata");
+            await Toast.Error("Det uppstod ett fel vid hämtning av användardata.");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private IEnumerable<UserViewModel> FilteredUsers => allUsers
+        .Where(u =>
+            (string.IsNullOrWhiteSpace(searchTerm) ||
+            u.UserName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            u.FirstName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            u.LastName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        )
+        .OrderBy(u => u.UserName);
+
+    private void SelectUser(UserViewModel user)
+    {
+        selectedUser = user;
+        isEditMode = false;
+
+        if (user != null)
+        {
+            // Kontrollera om användaren finns i newUsers-listan och se till att den har rollen "Ny användare"
+            bool isNewUser = newUsers.Any(nu => nu.UserName == user.UserName);
+
+            if (isNewUser)
+            {
+                // För användare från "Nya ansökningar" - se till att de har rollen "Ny användare"
+                if (user.Roles == null)
+                    user.Roles = new List<string>();
+
+                if (!user.Roles.Contains("Ny användare"))
+                {
+                    user.Roles = new List<string> { "Ny användare" };
+                }
+            }
+
+            // Bygger editUserModel som tidigare
+            editUserModel = new UpdateUserModel
+                {
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    Academy = user.Academy
+                };
+
+            // Sätt default roll för redigering
+            selectedRoleForEdit = user.Roles?.FirstOrDefault() ??
+                availableRoles.FirstOrDefault(r => r != "Ny användare") ??
+                availableRoles.FirstOrDefault() ?? "";
+        }
+    }
+
+    private string GetRoleBadgeColor(string? role)
+    {
+        return role switch
+        {
+            "Admin" => "bg-danger",
+            "Styrelse" => "bg-primary",
+            "Medlem" => "bg-success",
+            "Ny användare" => "bg-warning text-dark",
+            _ => "bg-secondary"
+        };
+    }
+
+    private void OpenApproveUserModal(UserViewModel user)
+    {
+        selectedUser = user;
+        showApproveUserModal = true;
+    }
+
+    private void OpenRejectUserModal(UserViewModel user)
+    {
+        selectedUser = user;
+        showRejectUserModal = true;
+    }
+
+    private void OpenDeleteUserModal(UserViewModel user)
+    {
+        selectedUser = user;
+        showDeleteUserModal = true;
+    }
+
+    private void OpenChangePasswordModal(UserViewModel user)
+    {
+        selectedUser = user;
+        passwordModel = new ChangePasswordModel();
+        showChangePasswordModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showApproveUserModal = false;
+        showRejectUserModal = false;
+        showDeleteUserModal = false;
+        showChangePasswordModal = false;
+        // Återställ lösenordssynlighet
+        showPassword = false;
+        showConfirmPassword = false;
+    }
+
+    private async Task RefreshUserLists()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+
+            // Uppdatera nya användaransökningar
+            var newUsersResponse = await http.GetFromJsonAsync<List<UserViewModel>>("api/admin/registration-requests");
+            if (newUsersResponse != null)
+            {
+                newUsers = newUsersResponse;
+            }
+
+            // Uppdatera alla användare
+            var response = await http.GetAsync("api/admin/users");
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                allUsers = JsonSerializer.Deserialize<List<UserViewModel>>(content, options) ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppdatering av användarlistor");
+        }
+    }
+
+    private async Task ApproveUser()
+    {
+        if (selectedUser == null) return;
+
+        try
+        {
+            var model = new UserRoleChangeModel
+                {
+                    UserName = selectedUser.UserName,
+                    RoleName = selectedRole
+                };
+
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+
+            var response = await http.PostAsJsonAsync("api/admin/approve-user", model);
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success($"Användaren '{selectedUser.UserName}' har godkänts med rollen '{selectedRole}'.");
+
+                // Update lists
+                newUsers.Remove(selectedUser);
+
+                // Set the new role on the user object
+                selectedUser.Roles = new List<string> { selectedRole }; // Ensure only the new role exists
+
+                // Add to all users if not already there
+                if (!allUsers.Any(u => u.UserName == selectedUser.UserName))
+                {
+                    allUsers.Add(selectedUser);
+                }
+                else
+                {
+                    // Update existing user in allUsers list
+                    var existingUser = allUsers.First(u => u.UserName == selectedUser.UserName);
+                    existingUser.Roles = new List<string> { selectedRole };
+                }
+
+                CloseModals();
+
+                // Anropa RefreshUserLists för att uppdatera listorna från servern
+                await RefreshUserLists();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await Toast.Error($"Fel vid godkännande av användare: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid godkännande av användare");
+            await Toast.Error("Det uppstod ett fel vid godkännande av användare.");
+        }
+    }
+
+    private async Task RejectUser()
+    {
+        if (selectedUser == null) return;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+
+            var response = await http.DeleteAsync($"api/admin/registration-request/{selectedUser.UserName}");
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success($"Användaransökan för '{selectedUser.UserName}' har avslagits och ett meddelande har skickats till användaren.");
+
+                // Remove from lists
+                newUsers.Remove(selectedUser);
+                allUsers.RemoveAll(u => u.UserName == selectedUser.UserName);
+
+                selectedUser = null;
+                CloseModals();
+
+                // Anropa RefreshUserLists för att uppdatera listorna från servern
+                await RefreshUserLists();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await Toast.Error($"Fel vid avslag av användaransökan: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid avslag av användaransökan");
+            await Toast.Error("Det uppstod ett fel vid avslag av användaransökan.");
+        }
+    }
+
+    private async Task DeleteUser()
+    {
+        if (selectedUser == null) return;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.DeleteAsync($"api/admin/delete-user/{selectedUser.UserName}");
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success($"Användaren '{selectedUser.UserName}' har tagits bort.");
+
+                // Remove from lists
+                allUsers.RemoveAll(u => u.UserName == selectedUser.UserName);
+                newUsers.RemoveAll(u => u.UserName == selectedUser.UserName);
+
+                selectedUser = null;
+                CloseModals();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await Toast.Error($"Fel vid borttagning av användare: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av användare");
+            await Toast.Error("Det uppstod ett fel vid borttagning av användare.");
+        }
+    }
+
+    private void CancelEdit()
+    {
+        isEditMode = false;
+        // Reset edit model to current user values
+        if (selectedUser != null)
+        {
+            editUserModel = new UpdateUserModel
+                {
+                    FirstName = selectedUser.FirstName,
+                    LastName = selectedUser.LastName,
+                    Email = selectedUser.Email,
+                    Academy = selectedUser.Academy
+                };
+        }
+    }
+
+    private async Task SaveUserChanges()
+    {
+        if (selectedUser == null) return;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+
+            // Update user profile
+            var updateResponse = await http.PutAsJsonAsync($"api/admin/update-user/{selectedUser.UserName}", editUserModel);
+
+            if (!updateResponse.IsSuccessStatusCode)
+            {
+                var updateError = await updateResponse.Content.ReadAsStringAsync();
+                await Toast.Error($"Fel vid uppdatering av användaruppgifter: {updateError}");
+                return;
+            }
+
+            // Check if role needs to be changed
+            var currentRole = selectedUser.Roles?.FirstOrDefault() ?? "";
+            if (currentRole != selectedRoleForEdit)
+            {
+                var roleModel = new UserRoleChangeModel
+                    {
+                        UserName = selectedUser.UserName,
+                        RoleName = selectedRoleForEdit
+                    };
+
+                var roleResponse = await http.PostAsJsonAsync("api/admin/assignrole", roleModel);
+                if (!roleResponse.IsSuccessStatusCode)
+                {
+                    var roleError = await roleResponse.Content.ReadAsStringAsync();
+                    await Toast.Error($"Fel vid ändring av användarroll: {roleError}");
+                    return;
+                }
+
+                // Update role in the user object
+                selectedUser.Roles = new List<string> { selectedRoleForEdit };
+            }
+
+            // Update user object with new values
+            selectedUser.FirstName = editUserModel.FirstName;
+            selectedUser.LastName = editUserModel.LastName;
+            selectedUser.Email = editUserModel.Email;
+            selectedUser.Academy = editUserModel.Academy;
+
+            isEditMode = false;
+            await Toast.Success("Användaruppgifter har uppdaterats.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppdatering av användaruppgifter");
+            await Toast.Error("Det uppstod ett fel vid uppdatering av användaruppgifter.");
+        }
+    }
+
+    private async Task ChangePassword()
+    {
+        if (selectedUser == null) return;
+
+        try
+        {
+            var model = new
+            {
+                UserName = selectedUser.UserName,
+                NewPassword = passwordModel.NewPassword
+            };
+
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+
+            var response = await http.PostAsJsonAsync("api/admin/reset-password", model);
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success($"Lösenordet för '{selectedUser.UserName}' har ändrats.");
+                CloseModals();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await Toast.Error($"Fel vid ändring av lösenord: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid ändring av lösenord");
+            await Toast.Error("Det uppstod ett fel vid ändring av lösenord.");
+        }
+    }
+
+    public class UserViewModel
+    {
+        public string UserName { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Academy { get; set; } = "";
+        public List<string>? Roles { get; set; }
+        public DateTime? CreatedDate { get; set; }
+    }
+
+    public class UserRoleChangeModel
+    {
+        [Required(ErrorMessage = "Användarnamn krävs")]
+        public string UserName { get; set; } = "";
+
+        [Required(ErrorMessage = "Roll krävs")]
+        public string RoleName { get; set; } = "";
+    }
+
+    public class UpdateUserModel
+    {
+        [Required(ErrorMessage = "Förnamn krävs")]
+        public string FirstName { get; set; } = "";
+
+        [Required(ErrorMessage = "Efternamn krävs")]
+        public string LastName { get; set; } = "";
+
+        [Required(ErrorMessage = "E-post krävs")]
+        [EmailAddress(ErrorMessage = "Ogiltig e-postadress")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Lärosäte krävs")]
+        public string Academy { get; set; } = "";
+    }
+
+    public class ChangePasswordModel
+    {
+        [Required(ErrorMessage = "Lösenord krävs")]
+        [StringLength(100, ErrorMessage = "Lösenordet måste vara minst {2} tecken långt.", MinimumLength = 6)]
+        public string NewPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "Bekräfta lösenordet")]
+        [Compare("NewPassword", ErrorMessage = "Lösenorden matchar inte.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

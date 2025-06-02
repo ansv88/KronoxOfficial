@@ -1,0 +1,16 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+
+<header>
+	 <CascadingAuthenticationState>
+	<NavMenu />
+	</CascadingAuthenticationState>
+</header>
+
+<main class="flex-grow-1">
+	@Body
+</main>
+
+<Footer />
+
+<ScrollTopButton IsDarkMode="false" />

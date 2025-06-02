@@ -1,0 +1,221 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+@attribute [Authorize(Roles = "Admin")]
+@inject NavigationManager Nav
+@inject IHttpClientFactory HttpClientFactory
+@inject ILogger<AdminLayout> Logger
+
+@namespace KronoxFront.Components.Layout
+
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                    <div class="position-sticky pt-3">
+                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                            <span>Administration</span>
+                        </h5>
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin" Match="NavLinkMatch.All">
+                                    <i class="fa-solid fa-gauge me-2"></i> Dashboard
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/home">
+                                    <i class="fa-solid fa-house me-2"></i> Startsida
+                                </NavLink>
+                            </li>
+                        </ul>
+
+                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                            <span>Publika sidor</span>
+                        </h5>
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/omkonsortiet">
+                                    <i class="fa-solid fa-info-circle me-2"></i> Om konsortiet
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/omsystemet">
+                                    <i class="fa-solid fa-cogs me-2"></i> Om systemet
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/visioner">
+                                    <i class="fa-solid fa-bullseye me-2"></i> Visioner & Verksamhetsidé
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/kontaktaoss">
+                                    <i class="fa-solid fa-address-book me-2"></i> Kontakta oss
+                                </NavLink>
+                            </li>
+                        </ul>
+
+                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                            <span>Interna sidor</span>
+                        </h5>
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/medlemsnytt">
+                                    <i class="fa-solid fa-newspaper me-2"></i> Medlemsnytt
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/for-styrelsen">
+                                    <i class="fa-solid fa-users-cog me-2"></i> För styrelsen
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/for-vnsg">
+                                    <i class="fa-solid fa-user-tie me-2"></i> För VNSG
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/forvaltning">
+                                    <i class="fa-solid fa-tasks me-2"></i> Förvaltning
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/page/dokument">
+                                    <i class="fa-solid fa-file-contract me-2"></i> Dokument
+                                </NavLink>
+                            </li>
+                        </ul>
+
+                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                            <span>Funktioner</span>
+                        </h5>
+                        <ul class="nav flex-column mb-2">
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/news">
+                                    <i class="fa-solid fa-newspaper me-2"></i> Hantera nyheter
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/documents">
+                                    <i class="fa-solid fa-file-alt me-2"></i> Hantera dokument
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/users">
+                                    <i class="fa-solid fa-users me-2"></i> Hantera användare
+                                    @if (newUserCount > 0)
+                                    {
+                                        <span class="badge bg-danger ms-1">@newUserCount</span>
+                                    }
+                                </NavLink>
+                            </li>
+                        </ul>
+
+                        <div class="px-3 mt-4">
+                            <button class="btn btn-outline-primary w-100" @onclick="GoToFrontpage">
+                                <i class="fa-solid fa-arrow-left me-1"></i> Tillbaka till webbplatsen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main content -->
+                <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+                    @Body
+                </main>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="container mt-5">
+            <div class="alert alert-danger">
+                <h4 class="alert-heading">Åtkomst nekad</h4>
+                <p>Du har inte behörighet att visa denna sida.</p>
+                <hr>
+                <p class="mb-0">
+                    <a href="/" class="btn btn-primary">Tillbaka till förstasidan</a>
+                </p>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private int newUserCount = 0;
+    private int mainCategoryCount = 0;
+    private int subCategoryCount = 0;
+
+    // Vid initiering, hämta statistik för sidomenyn
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNewUserCount();
+        await LoadCategoryCount();
+    }
+
+    // Hämtar antal huvud- och underkategorier från API.
+    private async Task LoadCategoryCount()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var mainCategories = await http.GetFromJsonAsync<List<object>>("api/category/main");
+            if (mainCategories != null)
+            {
+                mainCategoryCount = mainCategories.Count;
+            }
+            else
+            {
+                mainCategoryCount = 0;
+            }
+
+            var subCategories = await http.GetFromJsonAsync<List<object>>("api/category/sub");
+            if (subCategories != null)
+            {
+                subCategoryCount = subCategories.Count;
+            }
+            else
+            {
+                subCategoryCount = 0;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Kunde inte hämta kategoridata från API.");
+            mainCategoryCount = 0;
+            subCategoryCount = 0;
+        }
+    }
+
+    // Hämtar antal nya användarregistreringar från API.
+    private async Task LoadNewUserCount()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var newUsers = await http.GetFromJsonAsync<List<object>>("api/admin/registration-requests");
+            if (newUsers != null)
+            {
+                newUserCount = newUsers.Count;
+            }
+            else
+            {
+                newUserCount = 0;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Kunde inte hämta nya användarregistreringar från API.");
+            newUserCount = 0;
+        }
+    }
+
+    // Navigera tillbaka till förstasidan
+    private void GoToFrontpage()
+    {
+        Nav.NavigateTo("/");
+    }
+}
+
+<ScrollTopButton IsDarkMode="true" />

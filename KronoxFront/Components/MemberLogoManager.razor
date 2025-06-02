@@ -1,0 +1,417 @@
+﻿@using System.Collections.Generic
+@using System.IO
+@using System.Linq
+@using System.Threading.Tasks
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject CmsService Cms
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject IWebHostEnvironment WebHostEnvironment
+
+<div class="card mb-3">
+    <div class="card-header">
+    <h3 class="h5 mb-0">Hantera medlemslogotyper</h3>
+    </div>
+    <div class="card-body">
+        <!-- Upload section -->
+        <div class="mb-4 p-3 border rounded bg-light">
+            <h5 class="mb-3">Ladda upp ny logotyp</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label" for="logoFileInput">Välj bild:</label>
+                        <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp,.svg" class="form-control" id="logoFileInput" aria-label="Välj logotypbild" />
+                        @if (!string.IsNullOrEmpty(_selectedFileName))
+                        {
+                            <div class="form-text mt-1">Vald fil: @_selectedFileName</div>
+                        }
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="altTextInput">Alt-text <span class="text-muted">(för tillgänglighet, t.ex. "Universitetes logga")</span></label>
+                        <input id="altTextInput" class="form-control" @bind="uploadDto.AltText" placeholder="Beskriv logotypen" required aria-label="Beskrivning av logotypen (alt-text)" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkUrlInput">Länk-URL <span class="text-muted">(t.ex. https://exempeluni.se)</span></label>
+                        <input id="linkUrlInput" class="form-control" @bind="uploadDto.LinkUrl" placeholder="https://exempel.se" required aria-label="Webbadress för logotypen" />
+                    </div>
+                </div>
+            </div>
+            <div class="text-end">
+                <button class="btn btn-primary"
+                        @onclick="UploadLogo"
+                        aria-label="Ladda upp logotyp"
+                        disabled="@(_selectedFile == null || string.IsNullOrWhiteSpace(uploadDto.AltText) || string.IsNullOrWhiteSpace(uploadDto.LinkUrl))">
+                    <i class="fa-solid fa-upload me-2"></i> Ladda upp
+                </button>
+            </div>
+        </div>
+
+        <!-- Logo listing -->
+        <h5 class="mb-3">Registrerade logotyper</h5>
+        @if (!Logos.Any())
+        {
+            <div class="alert alert-info">Inga logotyper har registrerats än.</div>
+        }
+        else
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Bild</th>
+                        <th>Beskrivning</th>
+                        <th>Webbadress</th>
+                        <th>Sortering</th>
+                        <th>Åtgärder</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var logo in Logos.OrderBy(l => l.SortOrd))
+                    {
+                        <tr>
+                            <td><img src="@logo.Url" style="height:50px" alt="@logo.AltText" /></td>
+                            <td>
+                                <input class="form-control"
+                                       value="@GetEditedLogoAltText(logo.Id)"
+                                       @oninput="(e) => UpdateAltText(logo.Id, e)"
+                                       aria-label="Redigera beskrivning för logotyp: @logo.AltText" />
+                            </td>
+                            <td>
+                                <input class="form-control"
+                                       value="@GetEditedLogoLinkUrl(logo.Id)"
+                                       @oninput="(e) => UpdateLinkUrl(logo.Id, e)"
+                                       aria-label="Redigera webbadress för logotyp: @logo.AltText"
+                                       placeholder="https://example.com" />
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary me-1"
+                                        @onclick="() => MoveAsync(logo, -1)"
+                                        aria-label="Flytta logotyp upp: @logo.AltText"
+                                        disabled="@(!CanMoveUp(logo))">
+                                    <i class="fa-solid fa-arrow-up"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        @onclick="() => MoveAsync(logo, +1)"
+                                        aria-label="Flytta logotyp ner: @logo.AltText"
+                                        disabled="@(!CanMoveDown(logo))">
+                                    <i class="fa-solid fa-arrow-down"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-success me-1"
+                                        @onclick="() => UpdateLogoAsync(logo.Id)"
+                                        aria-label="Spara ändringar för logotyp: @logo.AltText"
+                                        disabled="@(!HasLogoChanged(logo.Id))">
+                                    <i class="fa-solid fa-save"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger"
+                                        @onclick="() => DeleteAsync(logo.Id)"
+                                        aria-label="Ta bort logotyp: @logo.AltText">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+
+@code {
+    [Parameter] public List<MemberLogoViewModel> Logos { get; set; } = new();
+    [Parameter] public EventCallback OnLogosChanged { get; set; }
+
+    private IBrowserFile? _selectedFile;
+    private string? _selectedFileName;
+    private MemberLogoUploadDto uploadDto = new();
+    private Dictionary<int, EditedLogo> editedLogos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Ladda data från parent
+        await OnLogosChanged.InvokeAsync();
+        InitializeEditState();
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Ensure edit state is synchronized with any new logos
+        InitializeEditState();
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFile = e.File;
+        _selectedFileName = _selectedFile?.Name;
+        uploadDto.File = _selectedFile;
+    }
+
+    private void InitializeEditState()
+    {
+    // Create a new dictionary to avoid stale entries
+    var newEditedLogos = new Dictionary<int, EditedLogo>();
+
+        // Initialize or update edit state for all logos
+        foreach (var logo in Logos)
+        {
+            // Create a new entry or copy existing values
+            var entry = editedLogos.ContainsKey(logo.Id)
+                ? new EditedLogo
+                    {
+                        AltText = editedLogos[logo.Id].AltText,
+                        LinkUrl = editedLogos[logo.Id].LinkUrl
+                    }
+                : new EditedLogo
+                    {
+                        AltText = logo.AltText,
+                        LinkUrl = logo.LinkUrl
+                    };
+
+            newEditedLogos[logo.Id] = entry;
+        }
+
+        // Replace the old dictionary
+        editedLogos = newEditedLogos;
+    }
+
+    private bool HasLogoChanged(int logoId)
+    {
+        var logo = Logos.FirstOrDefault(l => l.Id == logoId);
+        if (logo == null || !editedLogos.ContainsKey(logoId))
+            return false;
+
+        var edited = editedLogos[logoId];
+        return edited.AltText != logo.AltText || edited.LinkUrl != logo.LinkUrl;
+    }
+
+    private async Task UpdateLogoAsync(int logoId)
+    {
+        if (!editedLogos.ContainsKey(logoId))
+            return;
+
+        var logo = Logos.FirstOrDefault(l => l.Id == logoId);
+        if (logo == null)
+            return;
+
+        var edited = editedLogos[logoId];
+        bool success = true;
+
+        // Update description if changed
+        if (edited.AltText != logo.AltText)
+        {
+            var descResult = await Cms.UpdateLogoDescriptionAsync(logoId, edited.AltText);
+            if (!descResult)
+            {
+                await Toast.Error("Kunde inte uppdatera beskrivningen");
+                success = false;
+            }
+        }
+
+        // Update link URL if changed
+        if (edited.LinkUrl != logo.LinkUrl)
+        {
+            var linkResult = await Cms.UpdateLogoLinkUrlAsync(logoId, edited.LinkUrl);
+            if (!linkResult)
+            {
+                await Toast.Error("Kunde inte uppdatera webbadressen");
+                success = false;
+            }
+        }
+
+        if (success)
+        {
+            // Update local logo data
+            logo.AltText = edited.AltText;
+            logo.LinkUrl = edited.LinkUrl;
+
+            await Toast.Success("Logotyp uppdaterad");
+            await OnLogosChanged.InvokeAsync();
+        }
+    }
+
+    private void UpdateAltText(int logoId, ChangeEventArgs e)
+    {
+        if (!editedLogos.ContainsKey(logoId))
+        {
+            var logo = Logos.FirstOrDefault(l => l.Id == logoId);
+            if (logo == null) return;
+
+            editedLogos[logoId] = new EditedLogo
+                {
+                    AltText = logo.AltText,
+                    LinkUrl = logo.LinkUrl
+                };
+        }
+
+        editedLogos[logoId].AltText = e.Value?.ToString() ?? "";
+    }
+
+    private void UpdateLinkUrl(int logoId, ChangeEventArgs e)
+    {
+        if (!editedLogos.ContainsKey(logoId))
+        {
+            var logo = Logos.FirstOrDefault(l => l.Id == logoId);
+            if (logo == null) return;
+
+            editedLogos[logoId] = new EditedLogo
+                {
+                    AltText = logo.AltText,
+                    LinkUrl = logo.LinkUrl
+                };
+        }
+
+        var url = e.Value?.ToString() ?? "";
+
+        // If the URL is not empty and doesn't start with a protocol, prepend https://
+        if (!string.IsNullOrWhiteSpace(url) &&
+            !url.StartsWith("http://") &&
+            !url.StartsWith("https://") &&
+            !url.StartsWith("/"))
+        {
+            url = "https://" + url;
+        }
+
+        editedLogos[logoId].LinkUrl = url;
+    }
+
+
+    private async Task UploadLogo()
+    {
+        if (_selectedFile == null || string.IsNullOrWhiteSpace(uploadDto.AltText) || string.IsNullOrWhiteSpace(uploadDto.LinkUrl))
+            return;
+
+        try
+        {
+            // Set the sort order to be after the last logo
+            uploadDto.SortOrd = Logos.Count > 0 ? Logos.Max(l => l.SortOrd) + 1 : 1;
+
+            // Fix URL format if needed
+            if (!string.IsNullOrWhiteSpace(uploadDto.LinkUrl) &&
+                !uploadDto.LinkUrl.StartsWith("http://") &&
+                !uploadDto.LinkUrl.StartsWith("https://") &&
+                !uploadDto.LinkUrl.StartsWith("/"))
+            {
+                uploadDto.LinkUrl = "https://" + uploadDto.LinkUrl;
+            }
+
+            // Upload the logo
+            var response = await Cms.UploadLogoAsync(uploadDto);
+
+            if (response != null)
+            {
+                await Toast.Success("Logotyp uppladdad!");
+                // Refresh the logo list
+                await OnLogosChanged.InvokeAsync();
+
+                // Reset the form
+                _selectedFile = null;
+                _selectedFileName = null;
+                uploadDto = new MemberLogoUploadDto();
+            }
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Fel vid uppladdning: {ex.Message}");
+        }
+    }
+
+    private bool CanMoveUp(MemberLogoViewModel logo)
+        => Logos.Min(l => l.SortOrd) < logo.SortOrd;
+
+    private bool CanMoveDown(MemberLogoViewModel logo)
+        => Logos.Max(l => l.SortOrd) > logo.SortOrd;
+
+    private async Task MoveAsync(MemberLogoViewModel logo, int dir)
+    {
+        if (await Cms.MoveLogoAsync(logo.Id, dir))
+        {
+            await OnLogosChanged.InvokeAsync();
+            await Toast.Success("Sortering uppdaterad");
+        }
+        else
+        {
+            await Toast.Error("Kunde inte uppdatera sorteringen");
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        var ok = await JS.InvokeAsync<bool>("showConfirmDialog", "Är du säker på att du vill ta bort denna logotyp?");
+        if (!ok) return;
+
+        try
+        {
+        await Cms.DeleteLogoAsync(id);
+
+            // Remove from edited logos dictionary
+            if (editedLogos.ContainsKey(id))
+                editedLogos.Remove(id);
+
+        await OnLogosChanged.InvokeAsync();
+        // await ScanForLogos();
+        await Toast.Success("Logotyp borttagen");
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Kunde inte ta bort logotypen: {ex.Message}");
+        }
+    }
+
+    // Helper class to track edits
+    private class EditedLogo
+    {
+        public string AltText { get; set; } = "";
+        public string LinkUrl { get; set; } = "";
+    }
+
+    private string GetEditedLogoAltText(int logoId)
+    {
+        if (!editedLogos.ContainsKey(logoId))
+        {
+            var logo = Logos.FirstOrDefault(l => l.Id == logoId);
+            if (logo != null)
+            {
+                editedLogos[logoId] = new EditedLogo
+                    {
+                        AltText = logo.AltText,
+                        LinkUrl = logo.LinkUrl
+                    };
+            }
+            else
+            {
+                // Fallback for safety
+                editedLogos[logoId] = new EditedLogo();
+            }
+        }
+        return editedLogos[logoId].AltText;
+    }
+
+    private string GetEditedLogoLinkUrl(int logoId)
+    {
+        if (!editedLogos.ContainsKey(logoId))
+        {
+            var logo = Logos.FirstOrDefault(l => l.Id == logoId);
+            if (logo != null)
+            {
+                editedLogos[logoId] = new EditedLogo
+                    {
+                        AltText = logo.AltText,
+                        LinkUrl = logo.LinkUrl
+                    };
+            }
+            else
+            {
+                // Fallback for safety
+                editedLogos[logoId] = new EditedLogo();
+            }
+        }
+        return editedLogos[logoId].LinkUrl;
+    }
+}

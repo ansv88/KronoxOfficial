@@ -1,0 +1,29 @@
+﻿@inject IJSRuntime JS
+
+<button id="scrollTopBtn"
+        class="to-top btn @ButtonClass rounded-circle shadow position-fixed bottom-0 end-0 m-3 d-none"
+        style="z-index:2000;"
+        @onclick="ScrollToTop">
+    <i class="fa-solid fa-angle-up @TextClass"></i>
+</button>
+
+@code {
+    [Parameter]
+    public bool IsDarkMode { get; set; } = false;
+
+    private string ButtonClass => IsDarkMode ? "btn-dark" : "btn-light";
+    private string TextClass => IsDarkMode ? "text-white" : "text-black";
+
+    private bool jsInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initScrollTopButton");
+            jsInitialized = true;
+        }
+    }
+
+    private async Task ScrollToTop() => await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+}

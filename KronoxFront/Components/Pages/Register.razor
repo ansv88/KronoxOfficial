@@ -1,0 +1,267 @@
+﻿@page "/registrera"
+@inject IHttpClientFactory HttpClientFactory
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@using KronoxFront.DTOs
+@using KronoxFront.Requests
+
+<PageTitle>Registrera ny användare</PageTitle>
+
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8 col-sm-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h1 class="card-title mb-0 text-center fs-2">Registrera ny användare</h1>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(passwordRequirements))
+                    {
+                        <div class="alert alert-info mb-4">
+                            <strong><i class="fa-solid fa-info-circle me-2"></i>Lösenordskrav:</strong> @passwordRequirements
+                        </div>
+                    }
+
+<EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group mb-2">
+        <label for="userName">Användarnamn</label>
+        <InputText id="userName" class="form-control" @bind-Value="registerModel.UserName" />
+    </div>
+    <div class="form-group mb-2">
+        <label for="firstName">Förnamn</label>
+        <InputText id="firstName" class="form-control" @bind-Value="registerModel.FirstName" />
+    </div>
+    <div class="form-group mb-2">
+        <label for="lastName">Efternamn</label>
+        <InputText id="lastName" class="form-control" @bind-Value="registerModel.LastName" />
+    </div>
+    <div class="form-group mb-2">
+        <label for="academy">Lärosäte</label>
+        <InputText id="academy" class="form-control" @bind-Value="registerModel.Academy" />
+    </div>
+    <div class="form-group mb-2">
+        <label for="email">E-post</label>
+        <InputText id="email" class="form-control" @bind-Value="registerModel.Email" />
+    </div>
+                        <div class="form-group mb-2">
+                            <label for="password">Lösenord</label>
+                            <div class="input-group">
+                                <InputText id="password" type="@(showPassword ? "text" : "password")" class="form-control" @bind-Value="registerModel.Password" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showPassword = !showPassword"
+                                    aria-label="@(showPassword ? "Dölj lösenord" : "Visa lösenord")"
+                                        title="@(showPassword ? "Dölj lösenord" : "Visa lösenord")">
+                                    <i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group mb-2">
+                            <label for="confirmPassword">Bekräfta lösenord</label>
+                            <div class="input-group">
+                                <InputText id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")" class="form-control" @bind-Value="registerModel.ConfirmPassword" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showConfirmPassword = !showConfirmPassword"
+                                    aria-label="@(showConfirmPassword ? "Dölj lösenord" : "Visa lösenord")"
+                                        title="@(showConfirmPassword ? "Dölj lösenord" : "Visa lösenord")">
+                                    <i class="fa-solid @(showConfirmPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                </button>
+                            </div>
+                        </div>
+
+<!-- GDPR Checkbox -->
+    <div class="form-group mb-3">
+        <div class="form-check">
+            <InputCheckbox id="gdprConsent" class="form-check-input" @bind-Value="gdprConsent" />
+            <label class="form-check-label" for="gdprConsent">
+                Jag godkänner <a href="javascript:void(0)" @onclick="ShowTermsModal" class="text-primary">behandling av personuppgifter</a>
+            </label>
+        </div>
+        @if (gdprConsentError)
+        {
+            <div class="text-danger mt-1">Du måste godkänna villkoren för att fortsätta</div>
+        }
+    </div>
+
+    <div class="text-center">
+         <button type="submit" class="btn btn-primary my-4">Registrera</button>
+    </div>
+</EditForm>
+
+                    @if (!string.IsNullOrEmpty(message))
+                    {
+                        <div class="alert @alertClass mt-4">
+                            @if (alertClass == "alert-success")
+                            {
+                                <i class="fa-solid fa-check-circle me-2"></i>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-exclamation-circle me-2"></i>
+                            }
+                            @message
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GDPR Terms Modal -->
+@if (showTermsModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Behandling av personuppgifter</h5>
+                    <button type="button" class="btn-close" @onclick="CloseTermsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <h4>Villkor för behandling av personuppgifter</h4>
+
+                    <h5 class="mt-4">1. Insamling av personuppgifter</h5>
+                    <p>
+                        KronoX samlar in följande personuppgifter i samband med din registrering:
+                    </p>
+                    <ul>
+                        <li>Användarnamn</li>
+                        <li>För- och efternamn</li>
+                        <li>Lärosäte</li>
+                        <li>E-postadress</li>
+                    </ul>
+
+                    <h5 class="mt-4">2. Användning av personuppgifter</h5>
+                    <p>
+                        Dina personuppgifter används för följande ändamål:
+                    </p>
+                    <ul>
+                        <li>För att skapa och hantera ditt användarkonto</li>
+                        <li>För att kommunicera med dig angående systemet</li>
+                        <li>För att tillhandahålla de tjänster som systemet erbjuder</li>
+                    </ul>
+
+                    <h5 class="mt-4">3. Lagring och säkerhet</h5>
+                    <p>
+                        Vi lagrar dina personuppgifter på säkra servrar och vidtar lämpliga åtgärder för att skydda dem från obehörig åtkomst, ändring, avslöjande eller förstörelse.
+                    </p>
+
+                    <h5 class="mt-4">4. Delning av personuppgifter</h5>
+                    <p>
+                        Vi delar inte dina personuppgifter med tredje part utan ditt samtycke, såvida vi inte är skyldiga att göra det enligt lag.
+                    </p>
+
+                    <h5 class="mt-4">5. Dina rättigheter</h5>
+                    <p>
+                        Du har följande rättigheter angående dina personuppgifter:
+                    </p>
+                    <ul>
+                        <li>Rätt att få information om hur dina personuppgifter behandlas</li>
+                        <li>Rätt att få tillgång till dina personuppgifter</li>
+                        <li>Rätt att begära rättelse av felaktiga personuppgifter</li>
+                        <li>Rätt att begära radering av dina personuppgifter ("rätten att bli glömd")</li>
+                        <li>Rätt att invända mot behandlingen av dina personuppgifter</li>
+                    </ul>
+
+                    <h5 class="mt-4">6. Kontakt</h5>
+                    <p>
+                        Om du har frågor om hur vi behandlar dina personuppgifter, kontakta oss via vår kontaktsida.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseTermsModal">Stäng</button>
+                    <button type="button" class="btn btn-primary" @onclick="AcceptTerms">Jag godkänner</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private UserRegisterRequest registerModel = new();
+    private string message = "";
+    private string alertClass = "alert-success";
+    private bool showPassword = false;
+    private bool showConfirmPassword = false;
+
+    // GDPR consent properties
+    private bool gdprConsent = false;
+    private bool gdprConsentError = false;
+    private bool showTermsModal = false;
+
+    private async Task HandleRegister()
+    {
+        message = "";
+        alertClass = "alert-success";
+        gdprConsentError = false;
+
+        // Kontrollera GDPR-samtycke
+        if (!gdprConsent)
+        {
+            gdprConsentError = true;
+            message = "";
+            alertClass = "alert-danger";
+            return;
+        }
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.PostAsJsonAsync("api/auth/register", registerModel);
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Din registrering är mottagen! Du får ett mail när din ansökan är granskad.";
+                registerModel = new(); // Nollställ formuläret
+                gdprConsent = false;   // Nollställ checkboxen
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                message = $"Fel: {error}";
+                alertClass = "alert-danger";
+            }
+        }
+        catch
+        {
+            message = "Ett oväntat fel uppstod. Försök igen senare.";
+            alertClass = "alert-danger";
+        }
+    }
+
+    private string passwordRequirements = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            passwordRequirements = await http.GetStringAsync("api/auth/password-requirements");
+        }
+        catch
+        {
+            passwordRequirements = "Kunde inte hämta lösenordskrav.";
+        }
+    }
+
+    // Show terms modal
+    private void ShowTermsModal()
+    {
+        showTermsModal = true;
+    }
+
+    // Close terms modal
+    private void CloseTermsModal()
+    {
+        showTermsModal = false;
+    }
+
+    // Accept terms and close modal
+    private void AcceptTerms()
+    {
+        gdprConsent = true;
+        gdprConsentError = false;
+        showTermsModal = false;
+    }
+}

@@ -1,0 +1,40 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+                <NotAuthorized>
+                    @if (context.User?.Identity?.IsAuthenticated != true)
+                    {
+                        <RedirectToLogin />
+                    }
+                    else
+                    {
+                        <div class="container mt-5">
+                            <div class="alert alert-danger">
+                                <h3>Åtkomst nekad</h3>
+                                <p>Du har inte behörighet att visa denna sida.</p>
+                                <a href="/" class="btn btn-primary">Till startsidan</a>
+                            </div>
+                        </div>
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Sidan hittades inte</PageTitle>
+            <LayoutView Layout="typeof(Layout.MainLayout)">
+                <div class="container mt-5">
+                    <div class="alert alert-warning">
+                        <h3>404 - Sidan hittades inte</h3>
+                        <p>Den sökta sidan finns inte.</p>
+                        <a href="/" class="btn btn-primary">Till startsidan</a>
+                    </div>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

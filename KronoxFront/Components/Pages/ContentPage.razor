@@ -1,0 +1,73 @@
+﻿@page "/{PageKey}"
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@inject CmsService Cms
+
+<PageTitle>KronoX - @pageContent.Title</PageTitle>
+
+@if (loading)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container my-5">
+        <div class="mb-4">
+            <h1>@pageContent.Title</h1>
+            <p class="text-muted">
+                <small>Senast uppdaterad: @pageContent.LastModified.ToString("g")</small>
+            </p>
+        </div>
+
+        @if (pageContent.Images.Any())
+        {
+            <div class="row mb-4">
+                @foreach (var image in pageContent.Images)
+                {
+                    <div class="col-md-4 mb-3">
+                        <img src="@image.Url" alt="@image.AltText" class="img-fluid rounded" />
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="content mb-5">
+            @((MarkupString)pageContent.HtmlContent)
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string PageKey { get; set; } = default!;
+
+    private PageContentViewModel pageContent = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var content = await Cms.GetPageContentAsync(PageKey);
+
+        if (content != null)
+        {
+            pageContent = content;
+        }
+        else
+        {
+            pageContent = new PageContentViewModel
+                {
+                    PageKey = PageKey,
+                    Title = "Sidan hittades inte",
+                    HtmlContent = "<p>Innehållet du söker finns inte tillgängligt.</p>",
+                    LastModified = DateTime.Now,
+                };
+        }
+
+        loading = false;
+    }
+}
