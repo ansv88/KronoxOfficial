@@ -2,6 +2,8 @@
 
 namespace KronoxFront.Services;
 
+// Tjänst för att hantera API-anrop för huvud- och underkategorier av dokument.
+// Ger CRUD-operationer mot backend-API för kategorier.
 public class CategoryService
 {
     private readonly HttpClient _http;

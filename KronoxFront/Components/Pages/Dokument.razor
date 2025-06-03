@@ -5,12 +5,29 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Authorization
+@inject ILogger<Dokument> Logger
 @inject IHttpClientFactory HttpClientFactory
 @inject IJSRuntime JSRuntime
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject DocumentService DocumentService
 @attribute [Authorize(Policy = "ExcludeNewUser")]
+
+@*
+   Publik dokumentsida som visar dokument grupperade per kategori, med stöd för dynamisk banner och introtext.
+
+   TODO: Implementera rollbaserad åtkomst för kategorier
+   -----------------------------------------------------
+   För närvarande visas alla kategorier för alla autentiserade användare. En framtida implementation
+   bör innehålla:
+
+   1. Ett system för att knyta specifika roller till huvudkategorier 
+   2. Anpassning av kategorifiltrering baserad på användarroller
+   3. API-stöd för att endast hämta kategorier som användaren har tillgång till
+
+   Skapa ev en separat endpoint i API:et (t.ex. "api/category/accessible") som 
+   direkt filtrerar kategorierna baserat på användarens roller.
+*@
 
 <PageTitle>Dokument</PageTitle>
 
@@ -89,7 +106,7 @@ else
                             Ett fel uppstod vid laddning av dokument. Vänligen försök igen senare.
                         </div>
                     }
-                    else if (AccessibleCategories.Count == 0)
+                    else if (loadError)
                     {
                         <div class="alert alert-info text-center">
                             Inga dokument finns tillgängliga.
@@ -99,7 +116,7 @@ else
                     {
                         <!-- Dokumentlista grupperad per kategori -->
                         <div class="document-categories mb-5">
-                            @foreach (var category in AccessibleTopLevelCategories.Where(c =>
+                            @foreach (var category in categories.Where(c =>
                            allDocuments.Any(doc => doc.MainCategoryId == c.Id)))
                             {
                                 <div class="document-category mb-5">
@@ -152,27 +169,12 @@ else
 }
 
 @code {
-    public class Category
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string AllowedRoles { get; set; } = "";
-        public int? ParentCategoryId { get; set; }
-    }
-
-    public class DocumentCategory
-    {
-        public int DocumentId { get; set; }
-        public int CategoryId { get; set; }
-        public Category Category { get; set; } = new();
-    }
-
     private List<DocumentViewModel> allDocuments = new();
-    private List<Category> categories = new();
+    private List<MainCategoryDto> categories = new();
     private bool isLoading = true;
     private bool loadError = false;
     private string errorMessage = "";
-    private Dictionary<Category, List<DocumentViewModel>> documentsByCategory = new();
+    private Dictionary<int, List<DocumentViewModel>> documentsByCategory = new();
 
     private List<string> userRoles = new();
 
@@ -180,28 +182,12 @@ else
     private int selectedDocumentId = 0;
     private string selectedDocumentName = "";
 
-    private List<Category> AccessibleCategories =>
-        categories.Where(cat =>
-            string.IsNullOrWhiteSpace(cat.AllowedRoles) ||
-            cat.AllowedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(r => r.Trim())
-                .Any(role => userRoles.Contains(role))
-        ).ToList();
-
-    private List<Category> AccessibleTopLevelCategories =>
-        AccessibleCategories.Where(c => c.ParentCategoryId == null).ToList();
-
-    private Dictionary<Category, List<DocumentViewModel>> AccessibleDocumentsByCategory =>
-        AccessibleCategories
-            .ToDictionary(
-                cat => cat,
-                cat => allDocuments.Where(doc => doc.MainCategoryId == cat.Id).ToList()
-            );
-
+    // Banner och sidinnehåll
     private PageContentViewModel pageContent = new();
     private bool loading = true;
     private bool isAdmin = false;
 
+    // Introtext modell (för framtida användning med CMS)
     private class IntroSection
     {
         public string Title { get; set; } = "Alla viktiga dokument på ett ställe";
@@ -229,9 +215,11 @@ else
             await LoadDocuments();
             await OrganizeDocumentsByCategory();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid initiering av dokumentsidan");
             loadError = true;
+            errorMessage = "Ett fel uppstod vid laddning av dokumentsidan.";
         }
         finally
         {
@@ -253,19 +241,28 @@ else
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
-            var result = await http.GetFromJsonAsync<List<Category>>("api/category/main");
+            // TODO: Ändra till rollfiltrerad endpoint när implementerad
+            var result = await http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main");
+
             if (result != null)
             {
                 categories = result;
             }
+            else
+            {
+                Logger.LogWarning("Inga kategorier returnerades från API");
+                categories = new List<MainCategoryDto>();
+            }
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid laddning av kategorier");
             errorMessage = ex.Message;
-            throw;
+            loadError = true;
         }
     }
 
+    // Laddar dokument från API
     private async Task LoadDocuments()
     {
         try
@@ -278,27 +275,41 @@ else
                     .OrderByDescending(d => d.UploadedAt)
                     .ToList();
             }
+            else
+            {
+                Logger.LogWarning("Inga dokument returnerades från API");
+                allDocuments = new List<DocumentViewModel>();
+            }
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid laddning av dokument");
             errorMessage = ex.Message;
-            throw;
+            loadError = true;
         }
     }
 
+    // Organiserar dokument per kategori för snabbare åtkomst
     private async Task OrganizeDocumentsByCategory()
     {
-        documentsByCategory.Clear();
-
-        foreach (var category in categories)
+        try
         {
-            var docsInCategory = allDocuments
-                .Where(d => d.MainCategoryId == category.Id).ToList();
+            documentsByCategory.Clear();
 
-            if (docsInCategory.Any())
+            foreach (var category in categories)
             {
-                documentsByCategory[category] = docsInCategory;
+                var docsInCategory = allDocuments
+                    .Where(d => d.MainCategoryId == category.Id).ToList();
+
+                if (docsInCategory.Any())
+                {
+                    documentsByCategory[category.Id] = docsInCategory;
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid organisering av dokument per kategori");
         }
 
         await Task.CompletedTask;
@@ -317,6 +328,7 @@ else
         StateHasChanged();
     }
 
+    // Laddar ner dokument till användarens dator
     private async Task DownloadDocument(int id)
     {
         try
@@ -325,6 +337,7 @@ else
 
             if (result == null)
             {
+                Logger.LogWarning("Kunde inte ladda ner dokument {DocumentId}: Null-resultat från DocumentService", id);
                 await ToastService.Error("Kunde inte ladda ner dokumentet");
                 return;
             }
@@ -339,10 +352,12 @@ else
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid nedladdning av dokument {DocumentId}", id);
             await ToastService.Error($"Ett fel inträffade vid nedladdning: {ex.Message}");
         }
     }
 
+    // Returnerar lämplig FontAwesome-ikon baserat på filtyp
     private string GetFileIcon(string fileName)
     {
         var extension = Path.GetExtension(fileName).ToLowerInvariant();

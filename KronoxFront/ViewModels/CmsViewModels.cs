@@ -1,6 +1,6 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace KronoxFront.ViewModels;
+
+// Innehåller ViewModels för CMS-data såsom sidor, bilder, logotyper och startsidans sektioner.
 
 // Motsvarar PageContentDto i API-projektet
 public class PageContentViewModel

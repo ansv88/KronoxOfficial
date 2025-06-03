@@ -1,5 +1,6 @@
 namespace KronoxFront.ViewModels;
 
+// ViewModel för att registrera en medlemslogotyp
 public class RegisterMemberLogoViewModel
 {
     public string SourcePath { get; set; } = "";

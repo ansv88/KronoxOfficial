@@ -2,6 +2,8 @@
 
 namespace KronoxFront.ViewModels;
 
+// ViewModel för dokument, inklusive koppling till huvud- och underkategorier.
+
 public class DocumentViewModel
 {
     public int Id { get; set; }

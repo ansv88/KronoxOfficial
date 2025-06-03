@@ -2,6 +2,7 @@
 
 namespace KronoxFront.DTOs;
 
+// Representerar en underkategori för dokument i systemet
 public class SubCategoryDto
 {
     public int Id { get; set; }

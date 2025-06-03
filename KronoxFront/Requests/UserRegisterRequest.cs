@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace KronoxFront.Requests;
 
+// Request för att registrera en ny användare
+
 public class UserRegisterRequest
 {
     [Required(ErrorMessage = "Användarnamn krävs")]

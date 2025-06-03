@@ -111,11 +111,12 @@
 <!-- GDPR Terms Modal -->
 @if (showTermsModal)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="gdprModalTitle">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Behandling av personuppgifter</h5>
+                    <h5 class="modal-title" id="gdprModalTitle">Behandling av personuppgifter</h5>
                     <button type="button" class="btn-close" @onclick="CloseTermsModal"></button>
                 </div>
                 <div class="modal-body">
@@ -245,19 +246,16 @@
         }
     }
 
-    // Show terms modal
     private void ShowTermsModal()
     {
         showTermsModal = true;
     }
 
-    // Close terms modal
     private void CloseTermsModal()
     {
         showTermsModal = false;
     }
 
-    // Accept terms and close modal
     private void AcceptTerms()
     {
         gdprConsent = true;

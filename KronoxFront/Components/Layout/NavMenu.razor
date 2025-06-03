@@ -1,14 +1,11 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
-@using System.Diagnostics
-@using Microsoft.AspNetCore.Components.Forms
-@using Microsoft.AspNetCore.Antiforgery
-@using static KronoxFront.Program
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.JSInterop
 @inject AuthenticationStateProvider AuthStateProvider
-@inject IAntiforgery Antiforgery
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IHttpClientFactory HttpFactory
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <nav class="navbar navbar-expand-lg navbar-custom bg-dark">
     <div class="container-fluid d-flex align-items-center">
@@ -18,7 +15,7 @@
         </a>
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Visa/dölj navigeringsmeny">
             <span class="navbar-toggler-icon"></span>
         </button>
 
@@ -27,71 +24,107 @@
                 <NotAuthorized>
                     <ul class="navbar-nav ms-auto gap-3 text-center justify-content-center">
                         <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/omkonsortiet">Om konsortiet</NavLink>
+                            <NavLink class="nav-link text-white position-relative" href="/omkonsortiet" ActiveClass="active-link">
+                                Om konsortiet
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
                         </li>
                         <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/omsystemet">Om systemet</NavLink>
+                            <NavLink class="nav-link text-white position-relative" href="/omsystemet" ActiveClass="active-link">
+                                Om systemet
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
                         </li>
                         <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/visioner">Visioner & Verksamhetsidé</NavLink>
+                            <NavLink class="nav-link text-white position-relative" href="/visioner" ActiveClass="active-link">
+                                Visioner & Verksamhetsidé
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
                         </li>
                         <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/kontakt">Kontakta oss</NavLink>
+                            <NavLink class="nav-link text-white position-relative" href="/kontakt" ActiveClass="active-link">
+                                Kontakta oss
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
                         </li>
                         <li class="nav-item ms-lg-5">
                             <button class="btn btn-link nav-link text-white d-flex align-items-center justify-content-center gap-2"
-                                    @onclick="() => showLogin = true">
-                                <i class="fa-solid fa-lock fa-xs"></i> Logga in
+                            @onclick="() => ToggleModal(ref showLogin)"
+                            aria-label="Öppna inloggningsformulär">
+                                <i class="fa-solid fa-lock fa-xs" aria-hidden="true"></i> Logga in
                             </button>
                         </li>
                     </ul>
                 </NotAuthorized>
 
                 <Authorized>
-                     <!-- Navigering för inloggade användare -->
+                    <!-- Navigering för inloggade användare -->
                     <ul class="navbar-nav ms-auto gap-3 text-center justify-content-center">
                         <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/medlemsnytt">Medlemsnytt</NavLink>
+                            <NavLink class="nav-link text-white position-relative" href="/medlemsnytt" ActiveClass="active-link">
+                                Medlemsnytt
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
                         </li>
                         <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/omkonsortiet">Om konsortiet</NavLink>
+                            <NavLink class="nav-link text-white position-relative" href="/omkonsortiet" ActiveClass="active-link">
+                                Om konsortiet
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
                         </li>
                         <!-- Länkar enbart för Admin eller Styrelse -->
                         <AuthorizeView Roles="Admin,Styrelse" Context="roleContext">
                             <Authorized>
                                 <li class="nav-item">
-                                    <NavLink class="nav-link text-white" href="/for-styrelsen">För styrelsen</NavLink>
+                                    <NavLink class="nav-link text-white position-relative" href="/for-styrelsen" ActiveClass="active-link">
+                                        För styrelsen
+                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                                    </NavLink>
                                 </li>
                                 <li class="nav-item">
-                                    <NavLink class="nav-link text-white" href="/for-vnsg">För VNSG</NavLink>
-                                </li>
-                            </Authorized>
-                        </AuthorizeView>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/forvaltning">Förvaltning</NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/dokument">Dokument</NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white" href="/kontakt">Kontakta oss</NavLink>
-                        </li>
-                        
-                        <!-- Admin-länk visas bara för administratörer -->
-                        <AuthorizeView Roles="Admin" Context="adminContext">
-                            <Authorized>
-                                <li class="nav-item">
-                                    <NavLink class="nav-link text-white" href="/admin">
-                                        <i class="fa-solid fa-gauge fa-xs me-1"></i> Admin
+                                    <NavLink class="nav-link text-white position-relative" href="/for-vnsg" ActiveClass="active-link">
+                                        För VNSG
+                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
                                     </NavLink>
                                 </li>
                             </Authorized>
                         </AuthorizeView>
-                        
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white position-relative" href="/forvaltning" ActiveClass="active-link">
+                                Förvaltning
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white position-relative" href="/dokument" ActiveClass="active-link">
+                                Dokument
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white position-relative" href="/kontakt" ActiveClass="active-link">
+                                Kontakta oss
+                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                            </NavLink>
+                        </li>
+
+                        <!-- Admin-länk visas bara för administratörer -->
+                        <AuthorizeView Roles="Admin" Context="adminContext">
+                            <Authorized>
+                                <li class="nav-item">
+                                    <NavLink class="nav-link text-white position-relative" href="/admin" ActiveClass="active-link">
+                                        <i class="fa-solid fa-gauge fa-xs me-1" aria-hidden="true"></i> Admin
+                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                                    </NavLink>
+                                </li>
+                            </Authorized>
+                        </AuthorizeView>
+
                         <li class="nav-item ms-lg-5">
                             <button class="btn btn-link nav-link text-white d-flex align-items-center justify-content-center gap-2"
-                                    @onclick="() => showLogout = true">
-                                <i class="fa-solid fa-unlock fa-xs"></i> Logga ut
+                            @onclick="() => ToggleModal(ref showLogout)"
+                            aria-label="Öppna utloggningsformulär">
+                                <i class="fa-solid fa-unlock fa-xs" aria-hidden="true"></i> Logga ut
                             </button>
                         </li>
                     </ul>
@@ -104,37 +137,46 @@
 <!-- Inloggningsmodal -->
 @if (showLogin)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+    role="dialog" aria-modal="true" aria-labelledby="loginModalTitle"
+    @onclick="() => ToggleModal(ref showLogin)">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation>
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Logga in</h5>
-                    <button type="button" class="btn-close" @onclick="() => showLogin = false"></button>
+                    <h5 class="modal-title" id="loginModalTitle">Logga in</h5>
+                    <button type="button" class="btn-close" @onclick="() => ToggleModal(ref showLogin)" aria-label="Stäng"></button>
                 </div>
 
                 <form method="post" action="/auth/login">
                     <div class="modal-body">
+                        @if (!string.IsNullOrEmpty(returnUrl))
+                        {
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        }
+
                         @if (!string.IsNullOrEmpty(loginErrorMessage))
                         {
-                            <div class="alert alert-danger mb-3">
+                            <div class="alert alert-danger mb-3" role="alert">
                                 @loginErrorMessage
                             </div>
                         }
                         <div class="mb-3">
-                            <label class="form-label">Användarnamn</label>
-                            <input class="form-control" name="username" required />
+                            <label class="form-label" for="username-input">Användarnamn</label>
+                            <input id="username-input" class="form-control" name="username" required />
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Lösenord</label>
-                            <input type="password" class="form-control" name="password" required />
+                            <label class="form-label" for="password-input">Lösenord</label>
+                            <input id="password-input" type="password" class="form-control" name="password" required />
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary"
-                                @onclick="() => showLogin = false">
+                        @onclick="() => ToggleModal(ref showLogin)">
                             Avbryt
                         </button>
-                        <button type="submit" class="btn btn-primary">Logga in</button>
+                        <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2">
+                            Logga in
+                        </button>
                     </div>
                 </form>
             </div>
@@ -145,12 +187,14 @@
 <!-- Utloggningsmodal -->
 @if (showLogout)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+    role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle"
+    @onclick="() => ToggleModal(ref showLogout)">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation>
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Bekräfta utloggning</h5>
-                    <button type="button" class="btn-close" @onclick="() => showLogout = false"></button>
+                    <h5 class="modal-title" id="logoutModalTitle">Bekräfta utloggning</h5>
+                    <button type="button" class="btn-close" @onclick="() => ToggleModal(ref showLogout)" aria-label="Stäng"></button>
                 </div>
 
                 <div class="modal-body">
@@ -169,7 +213,7 @@
 
                 <div class="modal-footer">
                     <button class="btn btn-secondary"
-                            @onclick="() => showLogout = false">
+                    @onclick="() => ToggleModal(ref showLogout)">
                         Avbryt
                     </button>
 
@@ -186,22 +230,46 @@
     private bool showLogin;
     private bool showLogout;
     private string? loginErrorMessage;
+    private string? returnUrl;
 
     protected override void OnInitialized()
     {
-        // Kontrollera URL-parametrar vid initialisering för att se om det finns felmeddelanden
-        var uri = Nav.ToAbsoluteUri(Nav.Uri);
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("loginerror", out var errorValues))
-        {
-            showLogin = true;
-            loginErrorMessage = GetErrorMessage(errorValues.ToString());
-        }
+        // Kontrollera URL-parametrar vid initialisering
+    var uri = Nav.ToAbsoluteUri(Nav.Uri);
+    var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+    if (queryParams.TryGetValue("loginerror", out var errorValues))
+    {
+        showLogin = true;
+        loginErrorMessage = GetErrorMessage(errorValues.ToString());
     }
 
-    private void OpenLoginModal()
+    // Kontrollera om det finns en returnUrl
+    if (queryParams.TryGetValue("returnUrl", out var returnUrlValues))
     {
-        loginErrorMessage = null;
-        showLogin = true;
+        // Dekoda URL från URL-encoding
+        returnUrl = System.Net.WebUtility.UrlDecode(returnUrlValues.ToString());
+        
+        // Säkerställ att URL är korrekt formaterad
+        if (!returnUrl.StartsWith("/"))
+            returnUrl = "/" + returnUrl;
+            
+        // Öppna login-modal om vi är på startsidan
+        if (uri.AbsolutePath == "/" || uri.AbsolutePath == "/home")
+        {
+            showLogin = true;
+        }
+    }
+    }
+
+    private void ToggleModal(ref bool modalState)
+    {
+        modalState = !modalState;
+        if (!modalState)
+        {
+            // Återställ felmeddelande när modal stängs
+            loginErrorMessage = null;
+        }
     }
 
     private string GetErrorMessage(string errorCode)

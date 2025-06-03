@@ -1,5 +1,6 @@
 namespace KronoxFront.ViewModels;
 
+// ViewModel för en feature-sektion på en sida.
 public class FeatureSectionViewModel
 {
     public int Id { get; set; }

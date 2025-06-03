@@ -24,14 +24,13 @@ public class Program
         builder.Services.AddRazorComponents()
                .AddInteractiveServerComponents(options =>
                {
-                   // Increase timeouts for file uploads
+                   // Ökad timeouts för filuppladdning
                    options.DisconnectedCircuitMaxRetained = 100;
                    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(5);
                    options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(2);
                    options.MaxBufferedUnacknowledgedRenderBatches = 20;
                });
 
-        // Lägg också till detta för SignalR:
         builder.Services.AddSignalR(options =>
         {
             options.MaximumReceiveMessageSize = 20 * 1024 * 1024; // 20MB
@@ -56,8 +55,8 @@ public class Program
                 policy.RequireRole("Admin"));
 
             options.AddPolicy("ExcludeNewUser", policy =>
-    policy.RequireAssertion(context =>
-        !context.User.IsInRole("Ny användare") && context.User.Identity.IsAuthenticated));
+               policy.RequireAssertion(context =>
+            !context.User.IsInRole("Ny användare") && context.User.Identity.IsAuthenticated));
         });
 
         builder.Services.AddCascadingAuthenticationState();
@@ -92,8 +91,6 @@ public class Program
             client.BaseAddress = new Uri(apiBaseUrl);
         }).AddHttpMessageHandler<ApiAuthHandler>();
 
-        //builder.Services.AddScoped(sp => sp.GetRequiredService<DocumentService>());
-
         // Registrera HealthService om du behöver det
         builder.Services.AddHttpClient<HealthService>(client =>
         {
@@ -104,8 +101,6 @@ public class Program
         builder.Services.AddMemoryCache();
         builder.Services.AddScoped<CacheService>();
 
-        //builder.Services.AddScoped<CmsService>();
-        //builder.Services.AddScoped<FileService>();
         builder.Services.AddScoped<IToastService, ToastService>();
 
         // Konfiguration av loggning
@@ -277,7 +272,6 @@ public class Program
                 _ => "application/octet-stream"
             };
         }
-
 
         app.Run();
     }

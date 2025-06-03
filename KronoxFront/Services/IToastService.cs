@@ -1,7 +1,7 @@
 ﻿
 namespace KronoxFront.Services;
 
-// Abstraktion för att visa toast-notiser från komponenterna.
+// Interface för att visa toast-notiser i användargränssnittet
 public interface IToastService
 {
     Task Success(string message);

@@ -17,7 +17,7 @@
     <h3 class="h5 mb-0">Hantera medlemslogotyper</h3>
     </div>
     <div class="card-body">
-        <!-- Upload section -->
+        <!-- Uppladdningssektion -->
         <div class="mb-4 p-3 border rounded bg-light">
             <h5 class="mb-3">Ladda upp ny logotyp</h5>
             <div class="row">
@@ -52,7 +52,7 @@
             </div>
         </div>
 
-        <!-- Logo listing -->
+        <!-- Lista över logotyper -->
         <h5 class="mb-3">Registrerade logotyper</h5>
         @if (!Logos.Any())
         {
@@ -142,10 +142,11 @@
 
     protected override void OnParametersSet()
     {
-        // Ensure edit state is synchronized with any new logos
+        // Synkronisera redigeringsläge med nya logotyper
         InitializeEditState();
     }
 
+    // Hanterar filval vid uppladdning
     private void OnFileSelected(InputFileChangeEventArgs e)
     {
         _selectedFile = e.File;
@@ -153,15 +154,12 @@
         uploadDto.File = _selectedFile;
     }
 
+    // Initierar eller uppdaterar redigeringsläge för alla logotyper
     private void InitializeEditState()
     {
-    // Create a new dictionary to avoid stale entries
     var newEditedLogos = new Dictionary<int, EditedLogo>();
-
-        // Initialize or update edit state for all logos
         foreach (var logo in Logos)
         {
-            // Create a new entry or copy existing values
             var entry = editedLogos.ContainsKey(logo.Id)
                 ? new EditedLogo
                     {
@@ -177,10 +175,10 @@
             newEditedLogos[logo.Id] = entry;
         }
 
-        // Replace the old dictionary
         editedLogos = newEditedLogos;
     }
 
+    // Kontrollerar om en logotyp har ändrats (för att aktivera spara-knappen)
     private bool HasLogoChanged(int logoId)
     {
         var logo = Logos.FirstOrDefault(l => l.Id == logoId);
@@ -191,6 +189,7 @@
         return edited.AltText != logo.AltText || edited.LinkUrl != logo.LinkUrl;
     }
 
+    // Sparar ändringar för en logotyp
     private async Task UpdateLogoAsync(int logoId)
     {
         if (!editedLogos.ContainsKey(logoId))
@@ -203,7 +202,7 @@
         var edited = editedLogos[logoId];
         bool success = true;
 
-        // Update description if changed
+        // Uppdatera beskrivning om den har ändrats
         if (edited.AltText != logo.AltText)
         {
             var descResult = await Cms.UpdateLogoDescriptionAsync(logoId, edited.AltText);
@@ -214,7 +213,7 @@
             }
         }
 
-        // Update link URL if changed
+        // Uppdatera länk-URL om den har ändrats
         if (edited.LinkUrl != logo.LinkUrl)
         {
             var linkResult = await Cms.UpdateLogoLinkUrlAsync(logoId, edited.LinkUrl);
@@ -227,7 +226,7 @@
 
         if (success)
         {
-            // Update local logo data
+            // Uppdatera lokala data
             logo.AltText = edited.AltText;
             logo.LinkUrl = edited.LinkUrl;
 
@@ -236,6 +235,7 @@
         }
     }
 
+    // Uppdaterar alt-text i redigeringsläge
     private void UpdateAltText(int logoId, ChangeEventArgs e)
     {
         if (!editedLogos.ContainsKey(logoId))
@@ -253,6 +253,7 @@
         editedLogos[logoId].AltText = e.Value?.ToString() ?? "";
     }
 
+    // Uppdaterar länk-URL i redigeringsläge
     private void UpdateLinkUrl(int logoId, ChangeEventArgs e)
     {
         if (!editedLogos.ContainsKey(logoId))
@@ -269,7 +270,7 @@
 
         var url = e.Value?.ToString() ?? "";
 
-        // If the URL is not empty and doesn't start with a protocol, prepend https://
+        // Om URL inte börjar med protokoll, lägg till https://
         if (!string.IsNullOrWhiteSpace(url) &&
             !url.StartsWith("http://") &&
             !url.StartsWith("https://") &&
@@ -281,7 +282,7 @@
         editedLogos[logoId].LinkUrl = url;
     }
 
-
+    // Laddar upp en ny logotyp
     private async Task UploadLogo()
     {
         if (_selectedFile == null || string.IsNullOrWhiteSpace(uploadDto.AltText) || string.IsNullOrWhiteSpace(uploadDto.LinkUrl))
@@ -289,10 +290,10 @@
 
         try
         {
-            // Set the sort order to be after the last logo
+            // Sätt sorteringsordning efter sista logotypen
             uploadDto.SortOrd = Logos.Count > 0 ? Logos.Max(l => l.SortOrd) + 1 : 1;
 
-            // Fix URL format if needed
+            // Korrigera URL-format om det behövs
             if (!string.IsNullOrWhiteSpace(uploadDto.LinkUrl) &&
                 !uploadDto.LinkUrl.StartsWith("http://") &&
                 !uploadDto.LinkUrl.StartsWith("https://") &&
@@ -301,16 +302,15 @@
                 uploadDto.LinkUrl = "https://" + uploadDto.LinkUrl;
             }
 
-            // Upload the logo
+            // Ladda upp logotypen
             var response = await Cms.UploadLogoAsync(uploadDto);
 
             if (response != null)
             {
                 await Toast.Success("Logotyp uppladdad!");
-                // Refresh the logo list
                 await OnLogosChanged.InvokeAsync();
 
-                // Reset the form
+                // Återställ formuläret
                 _selectedFile = null;
                 _selectedFileName = null;
                 uploadDto = new MemberLogoUploadDto();
@@ -350,12 +350,12 @@
         {
         await Cms.DeleteLogoAsync(id);
 
-            // Remove from edited logos dictionary
+
+            // Ta bort från redigeringsdictionary
             if (editedLogos.ContainsKey(id))
                 editedLogos.Remove(id);
 
         await OnLogosChanged.InvokeAsync();
-        // await ScanForLogos();
         await Toast.Success("Logotyp borttagen");
         }
         catch (Exception ex)
@@ -364,13 +364,14 @@
         }
     }
 
-    // Helper class to track edits
+    // Hjälpklass för att hålla reda på redigeringar av logotyper
     private class EditedLogo
     {
         public string AltText { get; set; } = "";
         public string LinkUrl { get; set; } = "";
     }
 
+    // Hämtar aktuell alt-text för redigering
     private string GetEditedLogoAltText(int logoId)
     {
         if (!editedLogos.ContainsKey(logoId))
@@ -386,13 +387,14 @@
             }
             else
             {
-                // Fallback for safety
+                // Fallback om logotypen inte hittas
                 editedLogos[logoId] = new EditedLogo();
             }
         }
         return editedLogos[logoId].AltText;
     }
 
+    // Hämtar aktuell länk-URL för redigering
     private string GetEditedLogoLinkUrl(int logoId)
     {
         if (!editedLogos.ContainsKey(logoId))
@@ -408,7 +410,7 @@
             }
             else
             {
-                // Fallback for safety
+                // Fallback om logotypen inte hittas
                 editedLogos[logoId] = new EditedLogo();
             }
         }

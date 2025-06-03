@@ -462,27 +462,32 @@ namespace KronoxFront.Services
         // Fil-upload
         public async Task<MemberLogoViewModel?> UploadLogoAsync(MemberLogoUploadDto dto)
         {
-
-            using var content = new MultipartFormDataContent();
-
-            var stream = dto.File.OpenReadStream(maxAllowedSize: 10_000_000);
-            var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(dto.File.ContentType));
-            content.Add(fileContent, "File", dto.File.Name);
-            content.Add(new StringContent(dto.AltText), "AltText");
-            content.Add(new StringContent(dto.SortOrd.ToString()), "SortOrd");
-            content.Add(new StringContent(dto.LinkUrl), "LinkUrl");
-
-            // kalla på "upload"
-            var resp = await _http.PostAsync("api/cms/logos/upload", content);
-            if (!resp.IsSuccessStatusCode)
+            try
             {
-                var errorJson = await resp.Content.ReadAsStringAsync();
-                Console.Error.WriteLine($"Upload failed: {errorJson}");
-                throw new ApplicationException($"Upload failed: {errorJson}");
+                using var content = new MultipartFormDataContent();
+                var stream = dto.File.OpenReadStream(maxAllowedSize: 10_000_000);
+                var fileContent = new StreamContent(stream);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(dto.File.ContentType));
+                content.Add(fileContent, "File", dto.File.Name);
+                content.Add(new StringContent(dto.AltText), "AltText");
+                content.Add(new StringContent(dto.SortOrd.ToString()), "SortOrd");
+                content.Add(new StringContent(dto.LinkUrl), "LinkUrl");
+
+                var resp = await _http.PostAsync("api/cms/logos/upload", content);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    var errorJson = await resp.Content.ReadAsStringAsync();
+                    _logger.LogError("Misslyckades med uppladdning av logotyp: {Error}", errorJson);
+                    throw new ApplicationException($"Upload failed: {errorJson}");
+                }
+                var json = await resp.Content.ReadAsStringAsync();
+                return json.ToLogoViewModel();
             }
-            var json = await resp.Content.ReadAsStringAsync();
-            return json.ToLogoViewModel();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fel vid uppladdning av logotyp");
+                throw;
+            }
         }
 
         // Metadata-register (filer som redan ligger i wwwroot/images/members)
@@ -545,7 +550,7 @@ namespace KronoxFront.Services
         {
             _logger.LogInformation("Synkroniserar bilder från API till wwwroot");
 
-            // 1) Medlemslogotyper
+       Medlemslogotyper
             var logos = await GetMemberLogosAsync();
             var membersDir = Path.Combine(_env.WebRootPath, "images", "members");
             Directory.CreateDirectory(membersDir);
@@ -567,7 +572,7 @@ namespace KronoxFront.Services
                 }
             }
 
-            // 2) Sida- och feature-bilder (”home”)
+            // Sida- och feature-bilder (”home”)
             var page = await GetPageContentAsync("home");
             if (page != null && page.Images.Any())
             {

@@ -268,18 +268,19 @@
 <!-- Modalfönster för godkänna användare -->
 @if (showApproveUserModal && selectedUser != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="approveUserModalTitle">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Godkänn användare</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                    <h5 class="modal-title" id="approveUserModalTitle">Godkänn användare</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="Stäng"></button>
                 </div>
                 <div class="modal-body">
                     <p>Välj en roll för användaren <strong>@selectedUser.UserName</strong>:</p>
 
                     <div class="mb-3">
-                        <select class="form-select" @bind="selectedRole">
+                        <select class="form-select" @bind="selectedRole" aria-label="Välj roll">
                             @foreach (var role in availableRoles.Where(r => r != "Ny användare"))
                             {
                                 <option value="@role">@role</option>
@@ -299,12 +300,13 @@
 <!-- Modalfönster för avslå användare -->
 @if (showRejectUserModal && selectedUser != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="rejectUserModalTitle">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Avslå användaransökan</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                    <h5 class="modal-title" id="rejectUserModalTitle">Avslå användaransökan</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="Stäng"></button>
                 </div>
                 <div class="modal-body">
                     <p>Är du säker på att du vill avslå användaransökan för <strong>@selectedUser.UserName</strong>?</p>
@@ -322,12 +324,13 @@
 <!-- Modalfönster för ta bort användare -->
 @if (showDeleteUserModal && selectedUser != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+  <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="deleteUserModalTitle">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Ta bort användare</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                    <h5 class="modal-title" id="deleteUserModalTitle">Ta bort användare</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="Stäng"></button>
                 </div>
                 <div class="modal-body">
                     <p>Är du säker på att du vill ta bort användaren <strong>@selectedUser.UserName</strong>?</p>
@@ -345,12 +348,13 @@
 <!-- Modalfönster för ändra lösenord -->
 @if (showChangePasswordModal && selectedUser != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="changePasswordModalTitle">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Ändra lösenord</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                    <h5 class="modal-title" id="changePasswordModalTitle">Ändra lösenord</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="Stäng"></button>
                 </div>
                 <div class="modal-body">
                     <p>Ange ett nytt lösenord för användaren <strong>@selectedUser.UserName</strong>:</p>
@@ -359,22 +363,26 @@
                         <DataAnnotationsValidator />
 
                         <div class="mb-3">
-                            <label class="form-label">Nytt lösenord</label>
+                            <label class="form-label" for="newPassword">Nytt lösenord</label>
                             <div class="input-group">
-                                <InputText type="@(showPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.NewPassword" />
-                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showPassword = !showPassword">
-                                    <i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                <InputText id="newPassword" type="@(showPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.NewPassword" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showPassword = !showPassword"
+                                        aria-label="@(showPassword ? "Dölj lösenord" : "Visa lösenord")"
+                                        title="@(showPassword ? "Dölj lösenord" : "Visa lösenord")">
+                                    <i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")" aria-hidden="true"></i>
                                 </button>
                             </div>
                             <ValidationMessage For="@(() => passwordModel.NewPassword)" />
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Bekräfta lösenord</label>
+                            <label class="form-label" for="confirmPassword">Bekräfta lösenord</label>
                             <div class="input-group">
-                                <InputText type="@(showConfirmPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.ConfirmPassword" />
-                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showConfirmPassword = !showConfirmPassword">
-                                    <i class="fa-solid @(showConfirmPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                <InputText id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.ConfirmPassword" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => showConfirmPassword = !showConfirmPassword"
+                                        aria-label="@(showConfirmPassword ? "Dölj lösenord" : "Visa lösenord")"
+                                        title="@(showConfirmPassword ? "Dölj lösenord" : "Visa lösenord")">
+                                    <i class="fa-solid @(showConfirmPassword ? "fa-eye-slash" : "fa-eye")" aria-hidden="true"></i>
                                 </button>
                             </div>
                             <ValidationMessage For="@(() => passwordModel.ConfirmPassword)" />
@@ -429,7 +437,6 @@
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    Logger.LogInformation("API Response: {Content}", content);
 
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                     allUsers = JsonSerializer.Deserialize<List<UserViewModel>>(content, options) ?? new();
@@ -830,6 +837,7 @@
         }
     }
 
+    // Kanske bör flyttas till separata filer framöver:
     public class UserViewModel
     {
         public string UserName { get; set; } = "";

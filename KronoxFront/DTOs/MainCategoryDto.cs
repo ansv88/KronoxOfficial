@@ -2,6 +2,7 @@
 
 namespace KronoxFront.DTOs;
 
+// Representerar en huvudkategori för dokument i systemet
 public class MainCategoryDto
 {
     public int Id { get; set; }

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace KronoxFront.Services;
 
+// Tjänst för att hantera caching av dokumentlistor i minnet med IMemoryCache.
 public class CacheService
 {
     private readonly IMemoryCache _cache;
@@ -14,11 +15,13 @@ public class CacheService
         _cache = cache;
     }
 
+    // Hämtar dokumentlistan från cachen, eller null om den inte finns.
     public List<DocumentViewModel>? GetDocumentsFromCache()
     {
         return _cache.TryGetValue(DocumentsCacheKey, out List<DocumentViewModel>? documents) ? documents : null;
     }
 
+    // Lagrar dokumentlistan i cachen med fördefinierad utgångstid.
     public void SetDocumentsToCache(List<DocumentViewModel> documents)
     {
         var cacheOptions = new MemoryCacheEntryOptions()
@@ -28,6 +31,7 @@ public class CacheService
         _cache.Set(DocumentsCacheKey, documents, cacheOptions);
     }
 
+    // Tar bort dokumentlistan från cachen.
     public void InvalidateDocumentsCache()
     {
         _cache.Remove(DocumentsCacheKey);

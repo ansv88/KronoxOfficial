@@ -3,6 +3,8 @@ using KronoxFront.ViewModels;
 
 namespace KronoxFront.Extensions;
 
+// Extension-metoder för att deserialisera JSON-strängar till ViewModels.
+
 public static class DtoExtensions
 {
     private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions

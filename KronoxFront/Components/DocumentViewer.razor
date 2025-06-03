@@ -2,10 +2,16 @@
 @inject DocumentService DocumentService
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
+@inject ILogger<DocumentViewer> Logger
+
+@*
+   Modal-komponent för att visa och ladda ner dokument (PDF och övriga filtyper).
+   Visar PDF-filer direkt i webbläsaren, andra filtyper kan laddas ner.
+*@
 
 @if (IsVisible)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)" role="dialog" aria-modal="true">
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content d-flex flex-column" style="max-height:90vh;">
                 <div class="modal-header">
@@ -127,6 +133,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid laddning av dokument {DocumentId}", DocumentId);
             error = true;
             errorMessage = $"Ett fel inträffade: {ex.Message}";
         }

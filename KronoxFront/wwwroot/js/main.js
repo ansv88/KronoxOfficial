@@ -85,7 +85,6 @@ window.initScrollTopButton = function () {
 
 // Initialisera karusell för medlemslogotyper på startsidan
 window.initCarousel = function () {
-    // Initialize desktop carousel
     const desktopCarousel = document.getElementById('desktopCarousel');
     if (desktopCarousel) {
         const carousel1 = new bootstrap.Carousel(desktopCarousel, {
@@ -95,7 +94,7 @@ window.initCarousel = function () {
         });
     }
 
-    // Initialize mobile carousel
+    // Initialisera mobilkarusell
     const mobileCarousel = document.getElementById('mobileCarousel');
     if (mobileCarousel) {
         const carousel2 = new bootstrap.Carousel(mobileCarousel, {
@@ -122,7 +121,7 @@ window.toast = {
     }
 };
 
- // Hjälpfunktion för att skapa och visa toast
+// Hjälpfunktion för att skapa och visa toast
 function showToast(message, type, title) {
     console.log(`Toast [${type}]:`, message);
 
@@ -266,11 +265,10 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.showFeatureImage = function (imageUrl) {
-    // Call the Blazor method
     DotNet.invokeMethodAsync('KronoxFront', 'ShowFeatureImageFromJs', imageUrl);
 };
 
-// Initialize feature image clicks
+// Initialisera klick på funktionsbilder
 window.initFeatureImageClicks = function () {
     document.querySelectorAll('.feature-thumb').forEach(img => {
         img.addEventListener('click', function () {
@@ -301,7 +299,7 @@ window.downloadFileFromStream = async function (streamRef, fileName) {
     }, 100);
 };
 
-// File handling utilities for feature image upload
+// Filhantering för uppladdning av feature-bilder
 window.getFileAsBase64 = function (inputId) {
     return new Promise((resolve) => {
         const input = document.getElementById(inputId);
@@ -339,13 +337,13 @@ window.getSelectedFileInfo = function (id) {
     return null;
 };
 
-// Handle circuit reconnection
+// Hantera kretsåteranslutning
 window.handleCircuitReconnect = function () {
     try {
-        // Store last active page before refresh
+        // Lagra senast aktiva sida före uppdatering
         sessionStorage.setItem('lastPage', window.location.href);
 
-        // Safely check if Blazor reconnectionHandler exists before using it
+        // Kontrollera säkert om Blazor reconnectionHandler finns innan den används
         if (typeof Blazor !== 'undefined' && Blazor && Blazor.reconnectionHandler) {
             Blazor.reconnectionHandler.onConnectionUp = function () {
                 window.location.reload();
@@ -356,17 +354,16 @@ window.handleCircuitReconnect = function () {
     }
 };
 
-// Initialize reconnect handler only after Blazor is fully loaded
+// Initialisera återanslutningshanterare först efter att Blazor är fullständigt laddad
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof Blazor !== 'undefined') {
         window.handleCircuitReconnect();
     } else {
-        // If Blazor isn't available yet, wait for it
+        // Om Blazor inte är tillgänglig än, vänta på den
         window.addEventListener('blazorStarted', window.handleCircuitReconnect);
     }
 });
 
-// Lägg till i slutet av filen
 window.logFormData = function (data) {
     console.log("Form data:", data);
     return true;

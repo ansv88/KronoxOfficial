@@ -3,13 +3,18 @@
 <button id="scrollTopBtn"
         class="to-top btn @ButtonClass rounded-circle shadow position-fixed bottom-0 end-0 m-3 d-none"
         style="z-index:2000;"
-        @onclick="ScrollToTop">
-    <i class="fa-solid fa-angle-up @TextClass"></i>
+        @onclick="ScrollToTop"
+        aria-label="Tillbaka till toppen"
+        title="Tillbaka till toppen">
+    <i class="fa-solid fa-angle-up @TextClass" aria-hidden="true"></i>
 </button>
 
 @code {
     [Parameter]
     public bool IsDarkMode { get; set; } = false;
+
+    [Parameter]
+    public string Position { get; set; } = "bottom-0 end-0 m-3"; // Tillåter anpassad position
 
     private string ButtonClass => IsDarkMode ? "btn-dark" : "btn-light";
     private string TextClass => IsDarkMode ? "text-white" : "text-black";
@@ -20,8 +25,16 @@
     {
         if (firstRender)
         {
-            await JS.InvokeVoidAsync("initScrollTopButton");
-            jsInitialized = true;
+            try
+            {
+                await JS.InvokeVoidAsync("initScrollTopButton");
+                jsInitialized = true;
+            }
+            catch (Exception)
+            {
+                // Logga eventuellt fel men fortsätt
+                jsInitialized = false;
+            }
         }
     }
 

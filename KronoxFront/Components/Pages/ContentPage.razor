@@ -3,6 +3,12 @@
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
 @inject CmsService Cms
+@inject ILogger<ContentPage> Logger
+
+@*
+   Dynamisk sidkomponent som visar innehåll baserat på PageKey från CMS.
+*@
+
 
 <PageTitle>KronoX - @pageContent.Title</PageTitle>
 
@@ -51,23 +57,36 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var content = await Cms.GetPageContentAsync(PageKey);
+        try
+        {
+            var content = await Cms.GetPageContentAsync(PageKey);
 
-        if (content != null)
-        {
-            pageContent = content;
+            if (content != null)
+            {
+                pageContent = content;
+            }
+            else
+            {
+                pageContent = new PageContentViewModel
+                    {
+                        PageKey = PageKey,
+                        Title = "Sidan hittades inte",
+                        HtmlContent = "<p>Innehållet du söker finns inte tillgängligt.</p>",
+                        LastModified = DateTime.Now,
+                    };
+            }
         }
-        else
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid hämtning av sidinnehåll för {PageKey}", PageKey);
             pageContent = new PageContentViewModel
                 {
                     PageKey = PageKey,
-                    Title = "Sidan hittades inte",
-                    HtmlContent = "<p>Innehållet du söker finns inte tillgängligt.</p>",
+                    Title = "Tekniskt fel",
+                    HtmlContent = "<p>Ett tekniskt fel uppstod vid hämtning av sidan.</p>",
                     LastModified = DateTime.Now,
                 };
         }
-
         loading = false;
     }
 }
