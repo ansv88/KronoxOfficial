@@ -23,26 +23,31 @@
    Ger admin möjlighet att ladda upp, redigera, ta bort och kategorisera dokument samt hantera kategorier.
 *@
 
+<HeadContent>
+    <meta name="description" content="Hantera dokument och kategorier i KronoX. Ladda upp, redigera och ta bort filer samt organisera dokumentarkivet." />
+</HeadContent>
+
 <PageTitle>Dokumenthantering</PageTitle>
 
 <div class="container-fluid">
-    <h2 class="mb-4">
+    <h1 class="mb-4 h2">
         <i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering
-    </h2>
+    </h1>
 
     <div class="row mb-4">
         <!-- Upload -->
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header"><h5>Ladda upp dokument</h5></div>
+                <div class="card-header"><h2 class="h5">Ladda upp dokument</h2></div>
                 <div class="card-body">
                     <EditForm Model="uploadModel" OnValidSubmit="UploadDocument">
                         <DataAnnotationsValidator />
 
                         <!-- Filval -->
                         <div class="mb-3">
-                            <label>Dokument</label>
+                            <label for="uploadFile">Dokument</label>
                             <InputFile OnChange="OnInputFileChange"
+                                       id="uploadFile"
                                        accept=".pdf,.docx,.xlsx,.pptx,.txt"
                                        class="form-control" />
                             @if (selectedFile != null)
@@ -55,14 +60,14 @@
 
                         <!-- Huvudkategorier (obligatoriskt) -->
                         <div class="mb-3">
-                            <label class="fw-bold">
+                            <label class="fw-bold" for="mainCategorySelectUpload">
                                 Huvudkategorier <span class="text-danger">*</span>
                             </label>
                             <small class="text-muted d-block mb-2">
                                 <span class="text-danger">*</span> Minst en huvudkategori krävs.
                             </small>
                             <div class="d-flex flex-wrap gap-2">
-                                <select class="form-select"
+                                <select class="form-select" id="mainCategorySelectUpload"
                                 @bind="uploadModel.SelectedMainCategoryId">
                                     <option value="">-- Välj kategori --</option>
                                     @foreach (var mainCategory in mainCategoryDtos)
@@ -75,15 +80,16 @@
 
                         <!-- Underkategorier (valfritt) -->
                         <div class="mb-3">
-                            <label>Underkategorier (valfritt)</label>
+                            <span>Underkategorier (valfritt)</span>
                             <div class="d-flex flex-wrap gap-2">
                                 @foreach (var subCategory in subCategoryDtos)
                                 {
                                     <div class="form-check">
                                         <input type="checkbox"
                                         class="form-check-input"
+                                               id="subcat-upload-@subCategory.Id"
                                         @onchange="e => ToggleCategory(subCategory.Id,(bool)e.Value)" />
-                                        <label class="form-check-label">@subCategory.Name</label>
+                                        <label class="form-check-label" for="subcat-upload-@subCategory.Id">@subCategory.Name</label>
                                     </div>
                                 }
                             </div>
@@ -111,20 +117,20 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header d-flex justify-content-between">
-                    <h5>Hantera kategorier</h5>
+                    <h2 class="h5">Hantera kategorier</h2>
                 </div>
                 <div class="card-body">
                     <EditForm Model="newCategory" OnValidSubmit="AddCategory">
                         <DataAnnotationsValidator />
 
                         <div class="mb-3">
-                            <label>Namn</label>
-                            <InputText @bind-Value="newCategory.Name" class="form-control" />
+                            <label for="categoryName">Namn</label>
+                            <InputText id="categoryName" @bind-Value="newCategory.Name" class="form-control" />
                         </div>
 
                         <div class="mb-3">
-                            <label>Typ</label>
-                            <select class="form-select" @bind="newCategoryString" @bind:event="onchange">
+                            <label for="categoryType">Typ</label>
+                            <select id="categoryType" class="form-select" @bind="newCategoryString" @bind:event="onchange">
                                 <option value="">-- Välj Kategorinivå --</option>
                                 <option value="main">Huvudkategori</option>
                                 <option value="sub">Underkategori</option>
@@ -138,7 +144,7 @@
 
                     <!-- Lista över existerande kategorier -->
                     <div class="mt-4">
-                        <h6 class="border-bottom pb-2 fw-bold">Huvudkategorier</h6>
+                        <h3 class="border-bottom pb-2 fw-bold h6">Huvudkategorier</h3>
                         <ul class="list-group mb-3">
                             @if (!mainCategoryDtos.Any())
                             {
@@ -167,7 +173,7 @@
                             }
                         </ul>
 
-                        <h6 class="border-bottom pb-2 fw-bold">Underkategorier</h6>
+                        <h3 class="border-bottom pb-2 fw-bold h6">Underkategorier</h3>
                         <ul class="list-group">
                             @if (!subCategoryDtos.Any())
                             {
@@ -206,12 +212,10 @@
     <!-- Dokument‐tabell -->
     <div class="card">
         <div class="card-header d-flex justify-content-between">
-            <h5>Hantera dokument</h5>
+            <h2 class="h5">Hantera dokument</h2>
             <div class="form-check form-switch">
-                <input type="checkbox"
-                class="form-check-input"
-                @bind="showArchived" />
-                <label class="form-check-label">Visa arkiverade</label>
+                <input type="checkbox" class="form-check-input" id="showArchived" @bind="showArchived" />
+                <label class="form-check-label" for="showArchived">Visa arkiverade</label>
             </div>
         </div>
         <div class="card-body">
@@ -234,7 +238,7 @@
                                 <th>Huvudkategori</th>
                                 <th>Underkategorier</th>
                                 <th>Uppl.</th>
-                                <th></th>
+                                <th>Åtgärder</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -242,11 +246,7 @@
                             {
                                 <tr>
                                     <td>
-                                        <a href="javascript:void(0)"
-                                        @onclick="() => ViewDocument(document.Id, document.FileName)"
-                                        class="document-link">
                                             @document.FileName
-                                        </a>
                                     </td>
                                     <td>@FormatFileSize(document.FileSize)</td>
                                     <td><span class="badge bg-primary">@document.MainCategoryDto.Name</span></td>

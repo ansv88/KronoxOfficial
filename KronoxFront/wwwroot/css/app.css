@@ -257,26 +257,10 @@ a.btn,
     z-index: 1050
 }
 
-/* Styling for document page */
+/* Styling för dokumentsida */
 .document-list {
     max-width: 800px;
     margin: 0 auto;
-}
-
-.document-item {
-    transition: all 0.2s;
-    padding: 8px 16px;
-    border-radius: 4px;
-    border-bottom: 1px solid #eee;
-}
-
-.document-item:hover {
-   background-color: #f8f9fa;
-   transform: translateY(-1px);
-}
-
-.document-item:last-child {
-   border-bottom: none;
 }
 
 .document-icon {
@@ -294,11 +278,20 @@ a.btn,
     font-weight: bold;
 }
 
+/* Stabilisera footern för att minska layout shifts */
+.footer-custom {
+    min-height: 235px; /* Desktop-version */
+}
+
 @media (max-width: 768px) {
     .footer-custom hr {
         border-top: 1px solid #ffeeaa;
         width: 80%;
         margin: 10px auto;
+    }
+
+    .footer-custom {
+        min-height: 330px; /* Mobil-version */
     }
 }
 

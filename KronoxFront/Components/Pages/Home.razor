@@ -9,6 +9,10 @@
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Home> Logger
 
+<HeadContent>
+    <meta name="description" content="KronoX – Schemaläggning och bokningssystem för högre utbildning. Upptäck funktioner, nyheter och medlemsinformation." />
+</HeadContent>
+
 <PageTitle>KronoX  - @pageContent.Title</PageTitle>
 <h1 class="visually-hidden">@pageContent.Title</h1>
 
@@ -128,7 +132,7 @@ else
                                                         @if (!string.IsNullOrEmpty(logo.LinkUrl))
                                                         {
                                                             <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
-                                                                <img src="@logo.Url" class="img-fluid"
+                                                                <img src="@logo.Url" class="img-fluid" loading="lazy"
                                                                 style="max-height: 100%; object-fit: contain;"
                                                                 alt="@logo.AltText" />
                                                             </a>
@@ -249,14 +253,20 @@ else
                                     }
                                 </div>
                                 <div class="col-md-8">
-                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                    {
+                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    }
                                     <div>@((MarkupString)featureItem.Content)</div>
                                 </div>
                             }
                             else
                             {
                                 <div class="col-12 text-center">
-                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                    {
+                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    }
                                     <div>@((MarkupString)featureItem.Content)</div>
                                 </div>
                             }

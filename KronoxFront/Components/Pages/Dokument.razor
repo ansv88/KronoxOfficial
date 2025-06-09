@@ -29,6 +29,10 @@
    direkt filtrerar kategorierna baserat på användarens roller.
 *@
 
+<HeadContent>
+    <meta name="description" content="Ladda ner och läs viktiga dokument, manualer och riktlinjer för KronoX-systemet och dess användning." />
+</HeadContent>
+
 <PageTitle>Dokument</PageTitle>
 
 @if (loading)
@@ -63,7 +67,7 @@ else
     <section class="bg-light py-5 border-0" style="min-height: 320px;">
         <div class="container" style="max-width: 800px;">
             <div class="mb-2 text-uppercase fw-semibold text-start" style="letter-spacing: 0.5px;">
-                DOKUMENT
+                Dokument
             </div>
             <div class="text-center">
                 <h1 class="fw-semibold mb-3">
@@ -120,7 +124,7 @@ else
                            allDocuments.Any(doc => doc.MainCategoryId == c.Id)))
                             {
                                 <div class="document-category mb-5">
-                                    <h3 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark">@category.Name</h3>
+                                    <h2 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark h3">@category.Name</h2>
                                     <div class="document-list">
                                         @foreach (var doc in allDocuments
                                        .Where(d => d.MainCategoryId == category.Id)

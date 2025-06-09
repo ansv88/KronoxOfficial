@@ -550,7 +550,7 @@ namespace KronoxFront.Services
         {
             _logger.LogInformation("Synkroniserar bilder från API till wwwroot");
 
-       Medlemslogotyper
+       // Medlemslogotyper
             var logos = await GetMemberLogosAsync();
             var membersDir = Path.Combine(_env.WebRootPath, "images", "members");
             Directory.CreateDirectory(membersDir);

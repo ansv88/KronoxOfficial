@@ -65,8 +65,10 @@
                                             </button>
                                         </div>
                                         <div class="mt-2">
-                                            <label class="form-label">Bildbeskrivning (alt-text):</label>
-                                            <input type="text" class="form-control form-control-sm"
+                                            <label class="form-label" for="@($"image-alt-{index}")">Bildbeskrivning (alt-text):</label>
+                                            <input id="@($"image-alt-{index}")"
+                                                   type="text"
+                                                   class="form-control form-control-sm"
                                                    @bind="item.ImageAltText"
                                                    @bind:after="() => SectionsChanged()"
                                                    placeholder="Beskriv bilden för tillgänglighet"

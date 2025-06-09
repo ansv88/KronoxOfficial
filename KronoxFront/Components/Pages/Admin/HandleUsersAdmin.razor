@@ -12,10 +12,14 @@
 @inject IToastService Toast
 @inject ILogger<HandleUsersAdmin> Logger
 
+<HeadContent>
+    <meta name="description" content="Administrera användare i KronoX. Godkänn nya ansökningar, ändra roller och hantera användaruppgifter." />
+</HeadContent>
+
 <PageTitle>KronoX - Användarhantering</PageTitle>
 
 <div class="container-fluid">
-    <h2 class="mb-4"><i class="fa-solid fa-users me-2"></i>Användarhantering</h2>
+    <h1 class="mb-4 h2"><i class="fa-solid fa-users me-2"></i>Användarhantering</h1>
 
     <div class="row">
         <!-- Vänster panel för användarlista och nya ansökningar -->
@@ -48,8 +52,14 @@
                         <!-- Alla användare -->
                         <div class="tab-pane fade show active" id="all-users" role="tabpanel" aria-labelledby="all-users-tab">
                             <div class="input-group mb-3">
+                                <label for="searchUsers" class="visually-hidden">Sök användare</label>
                                 <span class="input-group-text"><i class="fa-solid fa-search"></i></span>
-                                <input type="text" class="form-control" placeholder="Sök användare..." @bind-value="searchTerm" @bind-value:event="oninput" />
+                                <input id="searchUsers"
+                                       type="text"
+                                       class="form-control"
+                                       placeholder="Sök användare..."
+                                       @bind-value="searchTerm"
+                                       @bind-value:event="oninput" />
                             </div>
 
                             @if (loading)
@@ -131,7 +141,7 @@
             {
                 <div class="card mb-4">
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Användardetaljer</h5>
+                        <h2 class="mb-0 h5">Användardetaljer</h2>
                         <div>
                             @if (selectedUser.Roles?.Contains("Ny användare") == true)
                             {
@@ -216,11 +226,11 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label class="fw-bold">Användarnamn:</label>
+                                        <span class="fw-bold">Användarnamn:</span>
                                         <div>@selectedUser.UserName</div>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="fw-bold">Roll:</label>
+                                        <span class="fw-bold">Roll:</span>
                                         <div>
                                             <span class="badge @GetRoleBadgeColor(selectedUser.Roles?.FirstOrDefault())">
                                                 @(selectedUser.Roles?.FirstOrDefault() ?? "Ingen roll")
@@ -228,21 +238,21 @@
                                         </div>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="fw-bold">Namn:</label>
+                                        <span class="fw-bold">Namn:</span>
                                         <div>@selectedUser.FirstName @selectedUser.LastName</div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label class="fw-bold">E-post:</label>
+                                        <span class="fw-bold">E-post:</span>
                                         <div>@selectedUser.Email</div>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="fw-bold">Lärosäte:</label>
+                                        <span class="fw-bold">Lärosäte:</span>
                                         <div>@selectedUser.Academy</div>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="fw-bold">Skapad:</label>
+                                        <span class="fw-bold">Skapad:</span>
                                         <div>@(selectedUser.CreatedDate.HasValue ? selectedUser.CreatedDate.Value.ToString("yyyy-MM-dd") : "Okänt")</div>
                                     </div>
                                 </div>
@@ -256,7 +266,7 @@
                 <div class="card mb-4">
                     <div class="card-body text-center text-muted py-5">
                         <i class="fa-solid fa-user fa-3x mb-3"></i>
-                        <h5>Välj en användare för att visa detaljer</h5>
+                        <h2 class="h5">Välj en användare för att visa detaljer</h2>
                         <p>Du kan visa och hantera användaruppgifter här.</p>
                     </div>
                 </div>

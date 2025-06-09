@@ -257,6 +257,32 @@ public class DocumentController : ControllerBase
         }
     }
 
+    [HttpDelete("{id}")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> DeleteDocument(int id)
+    {
+        try
+        {
+            var document = await _db.Documents.FindAsync(id);
+            if (document == null)
+                return NotFound();
+
+            // Ta bort filen från lagring
+            await _files.DeleteDocumentAsync(document.FilePath);
+
+            _db.Documents.Remove(document);
+            await _db.SaveChangesAsync();
+
+            _log.LogInformation("Dokument raderat: {FileName} (ID: {Id})", document.FileName, document.Id);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Fel vid borttagning av dokument med ID {Id}", id);
+            return StatusCode(500, "Ett oväntat fel inträffade vid borttagning av dokumentet.");
+        }
+    }
+
 
     // Hjälpmetod för att formatera kategorinamn till giltiga mappnamn
     private string FormatFolderName(string categoryName)

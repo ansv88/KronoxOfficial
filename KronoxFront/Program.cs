@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using KronoxFront.DTOs;
 using Microsoft.AspNetCore.Authentication;
 using KronoxFront.Services;
+using Microsoft.AspNetCore.ResponseCompression;
 
 namespace KronoxFront;
 
@@ -103,6 +104,12 @@ public class Program
 
         builder.Services.AddScoped<IToastService, ToastService>();
 
+        builder.Services.AddResponseCompression(options => {
+            options.EnableForHttps = true;
+            options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+                new[] { "application/javascript", "text/css", "image/svg+xml" });
+        });
+
         // Konfiguration av loggning
         if (builder.Environment.IsDevelopment())
         {
@@ -195,6 +202,13 @@ public class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
+        // Explicit hantering av robots.txt
+        app.Map("/robots.txt", async context =>
+        {
+            context.Response.ContentType = "text/plain";
+            await context.Response.WriteAsync("User-agent: *\nDisallow:");
+        });
+
         // Mappa Blazor-komponenter
         app.MapRazorComponents<App>()
            .AddInteractiveServerRenderMode();
@@ -258,6 +272,8 @@ public class Program
             // Fortsätt med nästa middleware om vi inte har hanterat förfrågan här
             await next();
         });
+
+        app.UseResponseCompression();
 
         // Hjälpfunktion för att bestämma content-type för olika filtyper
         string GetContentType(string extension)

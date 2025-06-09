@@ -5,6 +5,10 @@
 @using KronoxFront.DTOs
 @using KronoxFront.Requests
 
+<HeadContent>
+    <meta name="description" content="Registrera dig som ny användare i KronoX-portalen." />
+</HeadContent>
+
 <PageTitle>Registrera ny användare</PageTitle>
 
 <div class="container my-4">
@@ -74,7 +78,14 @@
         <div class="form-check">
             <InputCheckbox id="gdprConsent" class="form-check-input" @bind-Value="gdprConsent" />
             <label class="form-check-label" for="gdprConsent">
-                Jag godkänner <a href="javascript:void(0)" @onclick="ShowTermsModal" class="text-primary">behandling av personuppgifter</a>
+                Jag godkänner
+                                    <button type="button"
+                                            class="btn btn-link text-primary p-0 align-baseline"
+                                            style="vertical-align: baseline;"
+                                            @onclick="ShowTermsModal"
+                                            aria-haspopup="dialog">
+                                        behandling av personuppgifter
+                                    </button>
             </label>
         </div>
         @if (gdprConsentError)
