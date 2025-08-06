@@ -43,7 +43,7 @@
     <BannerImageUploader PageKey="home"
                          OnUploaded="@OnBannerUploaded" />
 
-    <!-- Intro-sektion -->
+    <!-- Introsektion -->
     <div class="card mb-4">
         <div class="card-header bg-light">
             <h3 class="h5 mb-0">Intro-sektion</h3>
@@ -102,8 +102,8 @@
                         <label for="introContent" class="form-label">Innehåll</label>
                         <textarea id="introContent"
                                   @bind="introSection.Content"
-                                  @bind:event="oninput"
-                                  @ref="introEditorRef">
+                                  class="form-control tinymce-editor"
+                                  rows="8">
                         </textarea>
                     </div>
                 </div>
@@ -213,11 +213,11 @@
             pageContent = await Cms.GetPageContentAsync("home") ?? new PageContentViewModel();
             memberLogos = await Cms.GetMemberLogosAsync() ?? new List<MemberLogoViewModel>();
 
-            // Hämta intro-sektion direkt från metadatafältet
+            // Hämta introsektion direkt från metadatafältet
             introSection = await Cms.GetIntroSectionAsync("home");
 
-            var homeSections = await Cms.GetHomeFeatureSectionsAsync("home");
-            featureSections = Cms.ConvertToAdminFeatureSections(homeSections);
+            var homeSections = await Cms.GetFeatureSectionsAsync("home");
+            featureSections = homeSections;
 
             // Om inga sektioner hittades, skapa en tom standardsektion
             if (featureSections.Count == 0)
@@ -259,17 +259,35 @@
         if (firstRender)
         {
             // Förstör eventuella existerande editorer först
-            await JS.InvokeVoidAsync("destroyAllEditors");
-            await Task.Delay(100);
+            try
+            {
+                await JS.InvokeVoidAsync("destroyAllEditors");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte förstöra befintliga editorer");
+            }
+            
+            // Längre fördröjning för att DOM ska vara redo
+            await Task.Delay(500);
 
-            // Initiera sedan intro-editor och feature-editorer
-            await InitializeIntroEditor();
-
-            // Om feature-section-managern är initialiserad kan du även uppdatera dess editorer
+            // Initiera feature-editorer först
             if (featureSectionManagerRef != null)
             {
-                await featureSectionManagerRef.RefreshEditors();
+                try
+                {
+                    await featureSectionManagerRef.RefreshEditors();
+                    Logger.LogInformation("Feature-editorer initierade");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte initiera feature-editorer");
+                }
             }
+            
+            // Sedan initiera introeditorn
+            await Task.Delay(200); // Vänta ytterligare mellan initieringarna
+            await InitializeIntroEditor();
         }
     }
 
@@ -370,19 +388,24 @@
         }
     }
 
-    private async Task OnBannerUploaded(PageImageViewModel img)
+    private async Task OnBannerUploaded(PageImageViewModel? img)
     {
-        var existingBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        if (existingBanner != null)
+        // Ladda om hela pageContent för att få uppdaterade bilder från databasen
+        try
         {
-            pageContent.Images.Remove(existingBanner);
+            pageContent = await Cms.GetPageContentAsync("home") ?? new PageContentViewModel();
+            Logger.LogInformation("PageContent omladdad efter bannerbildändring");
+            
+            await Toast.Success("Bannerbild uppladdad och sparad!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte ladda om pageContent efter bannerbildändring");
+            await Toast.Error("Bannerbilden laddades upp men sidan kunde inte uppdateras. Uppdatera sidan manuellt.");
         }
 
-        if (img != null)
-        {
-            pageContent.Images.Add(img);
-            await Toast.Success("Bannerbild uppladdad");
-        }
+        // Uppdatera UI
+        StateHasChanged();
     }
 
     private async Task HandleIntroImageSelected(InputFileChangeEventArgs e)
@@ -531,9 +554,11 @@
     {
         try
         {
+            // Synkronisera alla TinyMCE-editorer innan sparande
             try
             {
                 await JS.InvokeVoidAsync("syncAllEditors");
+                await Task.Delay(100); // Ge tid för synkronisering
             }
             catch (Exception ex)
             {

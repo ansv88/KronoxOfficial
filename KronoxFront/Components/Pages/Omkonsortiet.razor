@@ -1,7 +1,512 @@
 ﻿@page "/omkonsortiet"
+@using System.Text.Json
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components.Authorization
+@inject CmsService Cms
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthState
+@inject ILogger<Omkonsortiet> Logger
 
 <HeadContent>
     <meta name="description" content="Läs om KronoX-konsortiet, dess medlemmar och samarbete mellan svenska lärosäten kring schemaläggning och bokningssystem." />
 </HeadContent>
 
-<ContentPage PageKey="omkonsortiet" />
+<PageTitle>KronoX - Om konsortiet</PageTitle>
+<h1 class="visually-hidden">Om konsortiet</h1>
+
+@if (loading)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else
+{
+    @* ---------- Hero/banner ------------------------------------------------ *@
+    <section class="hero-banner position-relative">
+        @{
+            var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+            var heroBannerUrl = heroBanner != null ? heroBanner.Url : "images/hero/konsortiet_hero.jpg";
+            var heroBannerAlt = heroBanner != null ? heroBanner.AltText.Substring(5) : "KronoX konsortiet";
+        }
+        <img src="@heroBannerUrl" class="img-fluid w-100" alt="@heroBannerAlt" />
+        @if (isAdmin)
+        {
+            <div class="position-absolute top-0 end-0 m-3">
+                <a href="/admin/omkonsortiet" class="btn btn-dark btn-sm opacity-75">
+                    <i class="fa-solid fa-edit me-1"></i> Redigera sida
+                </a>
+            </div>
+        }
+    </section>
+
+    @* ---------- Breadcrumb-stil huvudrubrik -------------------------------- *@
+    <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
+        <div class="text-start mb-4">
+            <h2 class="h5 text-muted mb-0">OM KONSORTIET</h2>
+        </div>
+    </section>
+
+    @* ---------- Intro ------------------------------------------------------- *@
+    <section class="container mt-3" style="max-width:1000px; margin: 0 auto;">
+        <div class="row align-items-center">
+            @if (introSection.HasImage && !string.IsNullOrEmpty(introSection.ImageUrl))
+            {
+                <!-- Bild till vänster -->
+                <div class="col-md-4 mb-4 mb-md-0">
+                    <img src="@introSection.ImageUrl" class="img-fluid rounded-3 shadow"
+                         alt="@(string.IsNullOrEmpty(introSection.ImageAltText) ? introSection.Title : introSection.ImageAltText)"
+                         style="cursor:pointer"
+                         @onclick="() => ShowImage(introSection.ImageUrl)" />
+                </div>
+                
+                <!-- Textinnehåll -->
+                <div class="col-md-8 text-center">
+                    @if (!string.IsNullOrWhiteSpace(introSection.Title))
+                    {
+                        <h2 class="mb-4 fw-bold">@introSection.Title</h2>
+                    }
+                    <div class="intro-content">
+                        @((MarkupString)introSection.Content)
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Textinnehåll utan bild -->
+                <div class="col-12 text-center">
+                    @if (!string.IsNullOrWhiteSpace(introSection.Title))
+                    {
+                        <h2 class="mb-4 fw-bold">@introSection.Title</h2>
+                    }
+                    <div class="intro-content">
+                        @((MarkupString)introSection.Content)
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    @* ---------- Navigeringsknappar ------------------------------------------------- *@
+    <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 my-4">
+            <a class="btn btn-dark px-4 py-3 btn-arrow" href="/omsystemet">
+                Varför välja KronoX? <i class="fa-solid fa-arrow-right ms-2"></i>
+            </a>
+            <a class="btn btn-dark px-4 py-3 btn-arrow" href="/anvandartraffar">
+                Användarträffar <i class="fa-solid fa-arrow-right ms-2"></i>
+            </a>
+            <a class="btn btn-dark px-4 py-3 btn-arrow" href="/kontaktaoss">
+                Kontakta oss <i class="fa-solid fa-arrow-right ms-2"></i>
+            </a>
+        </div>
+    </section>
+
+    <div class="wrapper-div py-3">
+        @* ---------- Huvudinnehåll ---------------------------------------- *@
+        <section class="container mt-4 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+            <div style="max-width:800px; margin: 0 auto;">
+
+                @* ---------- Featuresektioner ---------------------------------------- *@
+                @if (featureSections.Count > 0)
+                {
+                    @foreach (var (featureItem, index) in featureSections.Select((s, i) => (s, i)))
+                    {
+                        <div class="feature-section row align-items-center mb-5">
+                            @if (featureItem.HasImage)
+                            {
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    @if (!string.IsNullOrEmpty(featureItem.ImageUrl))
+                                    {
+                                        <img src="@featureItem.ImageUrl"
+                                        class="img-thumbnail feature-thumb w-100"
+                                        style="cursor:pointer"
+                                        alt="@(!string.IsNullOrEmpty(featureItem.ImageAltText) ? featureItem.ImageAltText : $"Bild för {featureItem.Title}")"
+                                        @onclick="() => ShowImage(featureItem.ImageUrl)" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bg-light p-4 text-center rounded">
+                                            <i class="fa-solid fa-image text-muted fa-3x"></i>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="col-md-8">
+                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                    {
+                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    }
+
+                                    @* Visa dynamiskt innehåll med integrerad kontaktinformation *@
+                                    <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
+
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col-12 text-center">
+                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                    {
+                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    }
+
+                                    @* Visa dynamiskt innehåll med integrerad kontaktinformation *@
+                                    <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
+                                </div>
+                            }
+                        </div>
+
+                        @if (index < featureSections.Count - 1)
+                        {
+                            <div class="divider"></div>
+                        }
+                    }
+                }
+                else
+                {
+                    <div class="text-center text-muted">
+                        <p>Innehållet laddas...</p>
+                        @if (isAdmin)
+                        {
+                            <p><a href="/admin/omkonsortiet" class="btn btn-primary">Lägg till innehåll</a></p>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+
+        @* ---------- Bildkarusell medlemmar ----------- *@
+        <section class="py-5 text-center mb-2" style="max-width:1000px; margin: 0 auto;">
+            <h3 class="text-start mb-3 fs-5" style="color: rgba(255, 255, 255, 0.85);">Våra medlemmar:</h3>
+            <!-- Desktop Karusell (4 per slide) - visas bara på md och större skärmar -->
+            <div class="d-none d-md-block">
+                <div id="desktopCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+                    <div class="carousel-inner p-5 bg-white shadow rounded-3">
+                        @{
+                            var logoImages = memberLogos
+                                .Select(i => new
+                                {
+                                    Url = i.Url.StartsWith("/") ? i.Url : "/" + i.Url,
+                                    AltText = i.AltText, 
+                                    LinkUrl = i.LinkUrl
+                                })
+                                .ToArray();
+
+                            if (logoImages.Any())
+                            {
+                                // Gruppera för desktop (4 per slide)
+                                var desktopGroups = logoImages
+                                .Select((logo, index) => new { logo, index })
+                                .GroupBy(x => x.index / 4)
+                                .Select(g => g.Select(x => x.logo).ToList())
+                                .ToList();
+
+                                bool isFirstDesktop = true;
+                                foreach (var group in desktopGroups)
+                                {
+                                    <div class="carousel-item @(isFirstDesktop ? "active" : "")">
+                                        <div class="row mx-0 justify-content-center">
+                                            @foreach (var logo in group)
+                                            {
+                                                <div class="col-3 px-3">
+                                                    <div class="d-flex justify-content-center align-items-center" style="height: 100px">
+                                                        @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                                                        {
+                                                            <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                                                <img src="@logo.Url" class="img-fluid" loading="lazy"
+                                                                style="max-height: 100%; object-fit: contain;"
+                                                                alt="@logo.AltText" />
+                                                            </a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <img src="@logo.Url" class="img-fluid"
+                                                            style="max-height: 100%; object-fit: contain;" alt="@logo.AltText" />
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                    isFirstDesktop = false;
+                                }
+                            }
+                            else
+                            {
+                                <div class="carousel-item active">
+                                    <p class="my-4">Inga medlemslogotyper har lagts till ännu.</p>
+                                </div>
+                            }
+                        }
+                    </div>
+                    @if (logoImages.Count() > 4)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#desktopCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                            <span class="visually-hidden">Föregående</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#desktopCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                            <span class="visually-hidden">Nästa</span>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Mobilkarusell (1 per slide) - visas bara på mindre än md skärmar -->
+            <div class="d-block d-md-none">
+                <div id="mobileCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+                    <div class="carousel-inner p-2 bg-white shadow rounded-3">
+                        @{
+                            if (logoImages.Any())
+                            {
+                                bool isFirstMobile = true;
+                                foreach (var logo in logoImages)
+                                {
+                                    <div class="carousel-item @(isFirstMobile ? "active" : "")">
+                                        <div class="d-flex justify-content-center align-items-center px-4" style="height: 120px">
+                                            @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                                            {
+                                                <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                                    <img src="@logo.Url" class="img-fluid logo-link"
+                                                    style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <img src="@logo.Url" class="img-fluid"
+                                                style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                            }
+                                        </div>
+                                    </div>
+                                    isFirstMobile = false;
+                                }
+                            }
+                            else
+                            {
+                                <div class="carousel-item active">
+                                    <p class="my-4">Inga medlemslogotyper har lagts till ännu.</p>
+                                </div>
+                            }
+                        }
+                    </div>
+                    @if (logoImages.Count() > 1)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#mobileCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                            <span class="visually-hidden">Föregående</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#mobileCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                            <span class="visually-hidden">Nästa</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </section>
+    </div>
+
+    @* ---------- Bilder Modal ------------------------------------------------ *@
+    @if (!string.IsNullOrEmpty(activeImage))
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);"
+             role="dialog" aria-modal="true" aria-label="Förhandsgranskning av bild">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 bg-transparent">
+                    <button type="button" class="btn-close btn-close-white ms-auto me-n4 mt-n4" @onclick="CloseModal"></button>
+                    <img src="@activeImage" class="img-fluid rounded-3" />
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<style>
+    .contact-entry {
+        margin-bottom: 0.75rem;
+    }
+
+    .contact-name {
+        margin-bottom: 0.25rem;
+    }
+
+    .contact-detail {
+        margin-left: 1rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .contact-detail.member-only {
+        font-style: italic;
+    }
+
+    .integrated-contacts {
+        margin-top: 1rem;
+    }
+</style>
+
+@code {
+    private PageContentViewModel pageContent = new();
+    private bool loading = true;
+    private bool isAdmin = false;
+    private bool isLoggedIn = false;
+    private string? activeImage;
+    private IntroSectionViewModel introSection = new();
+    private List<FeatureSectionViewModel> featureSections = new();
+    private List<MemberLogoViewModel> memberLogos = new();
+
+    // Institution URL mapping för medlemslärosäten
+    private readonly Dictionary<string, string> institutionUrls = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Högskolan i Borås", "https://www.hb.se" },
+        { "Högskolan i Gävle", "https://www.hig.se" },
+        { "Högskolan Kristianstad", "https://www.hkr.se" },
+        { "Högskolan Väst", "https://www.hv.se" },
+        { "Johannelunds teologiska högskola", "https://www.jth.se" },
+        { "Konstfack", "https://www.konstfack.se" },
+        { "Luleå tekniska universitet", "https://www.ltu.se" },
+        { "Malmö universitet", "https://www.mau.se" },
+        { "Mälardalens universitet", "https://www.mdu.se" },
+        { "Södertörns högskola", "https://www.sh.se" },
+        { "Örebro universitet", "https://www.oru.se" }
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("initCarousel");
+                await JS.InvokeVoidAsync("initFeatureImageClicks");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte initiera JavaScript-funktioner");
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+        isLoggedIn = authState.User.Identity?.IsAuthenticated == true;
+        loading = true;
+
+        try
+        {
+            // Hämta sidinnehåll
+            pageContent = await Cms.GetPageContentAsync("omkonsortiet") ?? new PageContentViewModel
+            {
+                PageKey = "omkonsortiet",
+                Title = "Om konsortiet",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+
+            memberLogos = await Cms.GetMemberLogosAsync();
+            introSection = await Cms.GetIntroSectionAsync("omkonsortiet");
+
+            // Hämta med privat innehåll bara för inloggade
+            featureSections = await Cms.GetFeatureSectionsAsync("omkonsortiet", includePrivate: isLoggedIn);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid inläsning av Om konsortiet-sidan: {Message}", ex.Message);
+
+            // Minimal fallback - logga inte känslig information
+            introSection = new IntroSectionViewModel();
+            featureSections = new List<FeatureSectionViewModel>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private string GetEnhancedContent(FeatureSectionViewModel featureItem)
+    {
+        var content = featureItem.Content; // Publikt innehåll
+
+        // Lägg till medlemsinformation endast för inloggade användare
+        if (isLoggedIn && featureItem.HasPrivateContent)
+        {
+            // Lägg till privat textinnehåll
+            if (!string.IsNullOrEmpty(featureItem.PrivateContent))
+            {
+                content += featureItem.PrivateContent;
+            }
+
+            // Lägg till kontaktrubrik och kontakter
+            if (featureItem.ContactPersons.Any())
+            {
+                if (!string.IsNullOrEmpty(featureItem.ContactHeading))
+                {
+                    content += $"<h4 class='mt-4 mb-3 fw-bold'>{featureItem.ContactHeading}</h4>";
+                }
+
+                foreach (var contact in featureItem.ContactPersons)
+                {
+                    if (string.IsNullOrEmpty(contact.Name)) continue;
+
+                    var contactInfo = $"<div class='contact-enhanced mb-2'>";
+
+                    // Visa alltid namn och organisation för medlemmar
+                    contactInfo += $"<div class='fw-semibold'>{contact.Name}";
+                    if (!string.IsNullOrEmpty(contact.Organization))
+                    {
+                        contactInfo += $" <span class='text-muted'>({contact.Organization})</span>";
+                    }
+                    contactInfo += "</div>";
+
+                    // Visa e-post för medlemmar
+                    if (!string.IsNullOrEmpty(contact.Email))
+                    {
+                        contactInfo += $"<div class='text-muted small ms-3'>" +
+                                      $"<i class='fa-solid fa-envelope me-1'></i>" +
+                                      $"<a href='mailto:{contact.Email}' class='text-decoration-none'>{contact.Email}</a></div>";
+                    }
+
+                    // Visa telefon för medlemmar
+                    if (!string.IsNullOrEmpty(contact.Phone))
+                    {
+                        contactInfo += $"<div class='text-muted small ms-3'>" +
+                                      $"<i class='fa-solid fa-phone me-1'></i>{contact.Phone}</div>";
+                    }
+
+                    contactInfo += "</div>";
+                    content += contactInfo;
+                }
+            }
+        }
+
+        return content;
+    }
+
+    // Visa bild i modal
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    // Stäng bildmodal
+    private void CloseModal() => activeImage = null;
+
+    // Hämta institution URL för givet institutionsnamn
+    private string GetInstitutionUrl(string institutionName)
+    {
+        return institutionUrls.TryGetValue(institutionName, out var url) ? url : "";
+    }
+
+    // Kontrollera om detta är medlemssektionen för speciell formatering
+    private bool IsMembersSection(string title)
+    {
+        return title.Contains("medlemmar", StringComparison.OrdinalIgnoreCase) ||
+               title.Contains("konsortiet", StringComparison.OrdinalIgnoreCase);
+    }
+}

@@ -33,7 +33,7 @@ namespace KronoxApi.Migrations
                     FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Academy = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -73,6 +73,24 @@ namespace KronoxApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Documents",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FileName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    FilePath = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    FileSize = table.Column<long>(type: "bigint", nullable: false),
+                    MainCategoryId = table.Column<int>(type: "int", nullable: false),
+                    SubCategories = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Documents", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "FeatureSections",
                 columns: table => new
                 {
@@ -84,7 +102,10 @@ namespace KronoxApi.Migrations
                     ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ImageAltText = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     HasImage = table.Column<bool>(type: "bit", nullable: false),
-                    SortOrder = table.Column<int>(type: "int", nullable: false)
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    PrivateContent = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ContactPersonsJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    HasPrivateContent = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -142,7 +163,7 @@ namespace KronoxApi.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -276,53 +297,6 @@ namespace KronoxApi.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "Documents",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    FileName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    FilePath = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    FileSize = table.Column<long>(type: "bigint", nullable: false),
-                    MainCategoryId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Documents", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Documents_MainCategories_MainCategoryId",
-                        column: x => x.MainCategoryId,
-                        principalTable: "MainCategories",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "DocumentSubCategory",
-                columns: table => new
-                {
-                    DocumentsId = table.Column<int>(type: "int", nullable: false),
-                    SubCategoriesId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_DocumentSubCategory", x => new { x.DocumentsId, x.SubCategoriesId });
-                    table.ForeignKey(
-                        name: "FK_DocumentSubCategory_Documents_DocumentsId",
-                        column: x => x.DocumentsId,
-                        principalTable: "Documents",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_DocumentSubCategory_SubCategories_SubCategoriesId",
-                        column: x => x.SubCategoriesId,
-                        principalTable: "SubCategories",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -369,16 +343,6 @@ namespace KronoxApi.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_MainCategoryId",
-                table: "Documents",
-                column: "MainCategoryId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DocumentSubCategory_SubCategoriesId",
-                table: "DocumentSubCategory",
-                column: "SubCategoriesId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_MemberLogos_SortOrd",
                 table: "MemberLogos",
                 column: "SortOrd");
@@ -408,10 +372,13 @@ namespace KronoxApi.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "DocumentSubCategory");
+                name: "Documents");
 
             migrationBuilder.DropTable(
                 name: "FeatureSections");
+
+            migrationBuilder.DropTable(
+                name: "MainCategories");
 
             migrationBuilder.DropTable(
                 name: "MemberLogos");
@@ -423,22 +390,16 @@ namespace KronoxApi.Migrations
                 name: "PageImages");
 
             migrationBuilder.DropTable(
+                name: "SubCategories");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
 
             migrationBuilder.DropTable(
-                name: "Documents");
-
-            migrationBuilder.DropTable(
-                name: "SubCategories");
-
-            migrationBuilder.DropTable(
                 name: "ContentBlocks");
-
-            migrationBuilder.DropTable(
-                name: "MainCategories");
         }
     }
 }

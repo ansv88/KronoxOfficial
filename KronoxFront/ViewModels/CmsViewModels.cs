@@ -69,12 +69,11 @@ public class IntroSectionViewModel
     public bool HasImage { get; set; } = false;
 }
 
-// Feature-sektion för startsidan
-public class HomeFeatureSectionViewModel
+// För kontaktpersoner i privat information
+public class ContactPersonViewModel
 {
-    public string Title { get; set; } = "";
-    public string Content { get; set; } = "";
-    public string ImageUrl { get; set; } = "";
-    public string ImageAltText { get; set; } = "";
-    public bool HasImage { get; set; } = true;
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Organization { get; set; } = string.Empty;
 }

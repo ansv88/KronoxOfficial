@@ -1,0 +1,176 @@
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@inject CmsService Cms
+@inject ILogger<MemberLogosDisplay> Logger
+
+@if (ShowTitle)
+{
+    <h4 class="mb-4">Våra medlemmar:</h4>
+}
+
+<div class="members-logos @CssClass">
+    @if (memberLogos.Any())
+    {
+        @if (DisplayMode == LogoDisplayMode.Carousel)
+        {
+            <!-- Desktop Carousel (4 per slide) -->
+            <div class="d-none d-md-block">
+                <div id="@($"desktopCarousel-{ComponentId}")" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+                    <div class="carousel-inner p-5 bg-white shadow rounded-3">
+                        @{
+                            var desktopGroups = memberLogos
+                                .Select((logo, index) => new { logo, index })
+                                .GroupBy(x => x.index / 4)
+                                .Select(g => g.Select(x => x.logo).ToList())
+                                .ToList();
+                            
+                            bool isFirstDesktop = true;
+                        }
+                        @foreach (var group in desktopGroups)
+                        {
+                            <div class="carousel-item @(isFirstDesktop ? "active" : "")">
+                                <div class="row mx-0 justify-content-center">
+                                    @foreach (var logo in group)
+                                    {
+                                        <div class="col-3 px-3">
+                                            <div class="d-flex justify-content-center align-items-center" style="height: 100px">
+                                                @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                                                {
+                                                    <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                                        <img src="@logo.Url" class="img-fluid" loading="lazy"
+                                                             style="max-height: 100%; object-fit: contain;"
+                                                             alt="@logo.AltText" />
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <img src="@logo.Url" class="img-fluid"
+                                                         style="max-height: 100%; object-fit: contain;" alt="@logo.AltText" />
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            isFirstDesktop = false;
+                        }
+                    </div>
+                    @if (memberLogos.Count > 4)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#@($"desktopCarousel-{ComponentId}")" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                            <span class="visually-hidden">Föregående</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#@($"desktopCarousel-{ComponentId}")" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                            <span class="visually-hidden">Nästa</span>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Mobilkarusell (1 per slide) -->
+            <div class="d-block d-md-none">
+                <div id="@($"mobileCarousel-{ComponentId}")" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+                    <div class="carousel-inner p-2 bg-white shadow rounded-3">
+                        @{
+                            bool isFirstMobile = true;
+                        }
+                        @foreach (var logo in memberLogos)
+                        {
+                            <div class="carousel-item @(isFirstMobile ? "active" : "")">
+                                <div class="d-flex justify-content-center align-items-center px-4" style="height: 120px">
+                                    @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                                    {
+                                        <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                            <img src="@logo.Url" class="img-fluid logo-link"
+                                                 style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <img src="@logo.Url" class="img-fluid"
+                                             style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                    }
+                                </div>
+                            </div>
+                            isFirstMobile = false;
+                        }
+                    </div>
+                    @if (memberLogos.Count > 1)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#@($"mobileCarousel-{ComponentId}")" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                            <span class="visually-hidden">Föregående</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#@($"mobileCarousel-{ComponentId}")" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                            <span class="visually-hidden">Nästa</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Griddisplay -->
+            <div class="row justify-content-center align-items-center g-4">
+                @foreach (var logo in memberLogos.Take(MaxLogos))
+                {
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="d-flex justify-content-center align-items-center" style="height: 80px">
+                            @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                            {
+                                <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                    <img src="@logo.Url" class="img-fluid" 
+                                         style="max-height: 60px; max-width: 120px; object-fit: contain;" 
+                                         alt="@logo.AltText" />
+                                </a>
+                            }
+                            else
+                            {
+                                <img src="@logo.Url" class="img-fluid" 
+                                     style="max-height: 60px; max-width: 120px; object-fit: contain;" 
+                                     alt="@logo.AltText" />
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <p class="text-muted">@EmptyMessage</p>
+    }
+</div>
+
+@code {
+    [Parameter] public bool ShowTitle { get; set; } = true;
+    [Parameter] public string CssClass { get; set; } = "bg-light p-4 rounded";
+    [Parameter] public LogoDisplayMode DisplayMode { get; set; } = LogoDisplayMode.Grid;
+    [Parameter] public int MaxLogos { get; set; } = 12;
+    [Parameter] public string EmptyMessage { get; set; } = "Medlemslogotyper kommer att visas här.";
+
+    private List<MemberLogoViewModel> memberLogos = new();
+    private string ComponentId = Guid.NewGuid().ToString("N")[..8];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            memberLogos = await Cms.GetMemberLogosAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid hämtning av medlemslogotyper");
+            memberLogos = new List<MemberLogoViewModel>();
+        }
+    }
+
+    public enum LogoDisplayMode
+    {
+        Grid,
+        Carousel
+    }
+}

@@ -63,16 +63,35 @@ public static class DtoExtensions
 
     public static PageImageViewModel? ToImageViewModel(this string json)
     {
-        if (string.IsNullOrEmpty(json))
-            return null;
-            
         try
         {
-            var viewModel = JsonSerializer.Deserialize<PageImageViewModel>(json, _jsonOptions);
-            return viewModel;
+            if (string.IsNullOrEmpty(json))
+                return null;
+
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var result = JsonSerializer.Deserialize<PageImageViewModel>(json, options);
+
+            // Extra validering och logging
+            if (result != null)
+            {
+                // Säkerställ att URL inte är tom
+                if (string.IsNullOrEmpty(result.Url))
+                {
+                    return null;
+                }
+            }
+
+            return result;
         }
-        catch
+        catch (JsonException ex)
         {
+            // Logga felet om möjligt
+            System.Diagnostics.Debug.WriteLine($"JSON deserialization error in ToImageViewModel: {ex.Message}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Unexpected error in ToImageViewModel: {ex.Message}");
             return null;
         }
     }

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KronoxApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250521202524_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250804212819_AddContactHeadingToFeatureSection")]
+    partial class AddContactHeadingToFeatureSection
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,21 +24,6 @@ namespace KronoxApi.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("DocumentSubCategory", b =>
-                {
-                    b.Property<int>("DocumentsId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SubCategoriesId")
-                        .HasColumnType("int");
-
-                    b.HasKey("DocumentsId", "SubCategoriesId");
-
-                    b.HasIndex("SubCategoriesId");
-
-                    b.ToTable("DocumentSubCategory");
-                });
 
             modelBuilder.Entity("KronoxApi.Models.ApplicationUser", b =>
                 {
@@ -57,7 +42,7 @@ namespace KronoxApi.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("CreatedDate")
+                    b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
@@ -182,12 +167,14 @@ namespace KronoxApi.Migrations
                     b.Property<int>("MainCategoryId")
                         .HasColumnType("int");
 
+                    b.Property<string>("SubCategories")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("MainCategoryId");
 
                     b.ToTable("Documents");
                 });
@@ -200,11 +187,22 @@ namespace KronoxApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ContactHeading")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContactPersonsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("HasImage")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasPrivateContent")
                         .HasColumnType("bit");
 
                     b.Property<string>("ImageAltText")
@@ -216,6 +214,10 @@ namespace KronoxApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PageKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrivateContent")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -342,7 +344,8 @@ namespace KronoxApi.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 
@@ -482,32 +485,6 @@ namespace KronoxApi.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("DocumentSubCategory", b =>
-                {
-                    b.HasOne("KronoxApi.Models.Document", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("KronoxApi.Models.SubCategory", null)
-                        .WithMany()
-                        .HasForeignKey("SubCategoriesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KronoxApi.Models.Document", b =>
-                {
-                    b.HasOne("KronoxApi.Models.MainCategory", "MainCategory")
-                        .WithMany("Documents")
-                        .HasForeignKey("MainCategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("MainCategory");
-                });
-
             modelBuilder.Entity("KronoxApi.Models.PageImage", b =>
                 {
                     b.HasOne("KronoxApi.Models.ContentBlock", "ContentBlock")
@@ -574,11 +551,6 @@ namespace KronoxApi.Migrations
             modelBuilder.Entity("KronoxApi.Models.ContentBlock", b =>
                 {
                     b.Navigation("PageImages");
-                });
-
-            modelBuilder.Entity("KronoxApi.Models.MainCategory", b =>
-                {
-                    b.Navigation("Documents");
                 });
 #pragma warning restore 612, 618
         }

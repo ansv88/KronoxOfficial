@@ -18,4 +18,9 @@ public class FeatureSection
     public string ImageAltText { get; set; } = string.Empty;
     public bool HasImage { get; set; } = true;
     public int SortOrder { get; set; }
+
+    public string PrivateContent { get; set; } = string.Empty;
+    public string ContactPersonsJson { get; set; } = string.Empty;
+    public bool HasPrivateContent { get; set; } = false; // Flagga för om sektionen har privat innehåll
+    public string ContactHeading { get; set; } = string.Empty;
 }

@@ -1,0 +1,415 @@
+﻿@page "/admin/omkonsortiet"
+@using Microsoft.AspNetCore.Authorization
+@using KronoxFront.Components.Layout
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Text
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject CmsService Cms
+@inject IJSRuntime JS
+@inject ILogger<OmKonsortietAdmin> Logger
+@inject IToastService Toast
+
+<HeadContent>
+    <meta name="description" content="Redigera Om konsortiet-sidan för KronoX. Lägg till, ändra och hantera innehåll, bilder och sektioner." />
+</HeadContent>
+
+<PageTitle>@pageContent.Title</PageTitle>
+
+<h1 class="text-center">
+    Redigera @(string.IsNullOrEmpty(pageContent.Title) 
+        ? "Om konsortiet-sidan" 
+        : $"{pageContent.Title}-sidan")
+</h1>
+
+<EditForm Model="pageContent" OnValidSubmit="SaveAll">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="pageTitle" class="form-label">Sidans titel</label>
+        <InputText id="pageTitle"
+                   class="form-control"
+                   @bind-Value="pageContent.Title"
+                   aria-label="Sidans titel" />
+        <ValidationMessage For="() => pageContent.Title" />
+    </div>
+
+    <!-- Bannerbild-sektion -->
+    <BannerImageUploader PageKey="omkonsortiet"
+                         OnUploaded="@OnBannerUploaded" />
+
+    @if (loading)
+    {
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h3 class="h5 mb-0">Introtextsektion</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-2 form-check">
+                            <input type="checkbox" class="form-check-input" id="intro-has-image"
+                                   @bind="introSection.HasImage" aria-label="Inkludera bild i introsektionen" />
+                            <label class="form-check-label" for="intro-has-image">Inkludera bild</label>
+                        </div>
+                        @if (introSection.HasImage)
+                        {
+                            <label class="form-label">Introbild</label>
+                            <div class="border p-3 mb-2 bg-light text-center" style="min-height: 150px;">
+                                @if (!string.IsNullOrEmpty(introSection.ImageUrl))
+                                {
+                                    <img src="@introSection.ImageUrl" class="img-fluid img-thumbnail mb-2"
+                                         style="max-height: 150px; cursor: pointer" />
+                                    <div class="mt-2 d-flex justify-content-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage" aria-label="Ta bort introbild">
+                                            <i class="fa-solid fa-times"></i> Ta bort bild
+                                        </button>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label for="introImageAltText" class="form-label">Bildbeskrivning (alt-text):</label>
+                                        <input id="introImageAltText"
+                                               type="text"
+                                               class="form-control form-control-sm"
+                                               @bind="introSection.ImageAltText"
+                                               placeholder="Beskriv bilden för tillgänglighet" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div>
+                                        <InputFile OnChange="@HandleIntroImageSelected"
+                                                   class="form-control"
+                                                   accept="image/*"
+                                                   aria-label="Välj introbild" />
+                                        <div class="text-muted small mt-2">
+                                            Klicka för att välja bild (rekommenderad storlek: 800x600px)
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label for="introTitle" class="form-label">Rubrik</label>
+                            <input type="text" class="form-control" id="introTitle" @bind="introSection.Title" aria-label="Rubrik för introsektionen" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="introContent" class="form-label">Innehåll</label>
+                            <textarea id="introContent"
+                                      @bind="introSection.Content"
+                                      @bind:event="oninput"
+                                      class="form-control tinymce-editor"
+                                      rows="8"
+                                      @ref="introEditorRef">
+                            </textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Använd FeatureSectionManager-komponenten -->
+        <FeatureSectionManager Sections="featureSections"
+                               OnSectionsChanged="OnFeatureSectionsChanged"
+                               OnImageUpload="HandleFeatureImageUpload"
+                               OnImageDelete="HandleFeatureImageDelete" />
+
+        <div class="row">
+            <div class="col-md-12 mt-3">
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle me-2"></i>
+                    Medlemslogotyper hanteras centralt via startsidans administration.
+                    <a href="/admin/home" class="alert-link">Gå till startsidan</a> för att hantera medlemslogotyper.
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <button type="button" class="btn btn-success me-2" @onclick="SaveAll" aria-label="Spara innehåll">
+                <i class="fa-solid fa-save me-1"></i> Spara innehåll
+            </button>
+            <a href="/omkonsortiet" class="btn btn-outline-secondary" target="_blank" aria-label="Visa sidan i ny flik">
+                <i class="fa-solid fa-external-link-alt me-1"></i> Visa sidan
+            </a>
+        </div>
+    }
+</EditForm>
+
+@code {
+    private PageContentViewModel pageContent = new();
+    private bool loading = true;
+    private IntroSectionViewModel introSection = new();
+    private List<FeatureSectionViewModel> featureSections = new();
+    private ElementReference introEditorRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+
+        try
+        {
+            // Hämta sidinnehåll för titel och bannerbild
+            pageContent = await Cms.GetPageContentAsync("omkonsortiet") ?? new PageContentViewModel
+            {
+                PageKey = "omkonsortiet",
+                Title = "Om konsortiet",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+
+            // Hämta introsektioner och featuresektioner med privat information för admin
+            introSection = await Cms.GetIntroSectionAsync("omkonsortiet");
+            featureSections = await Cms.GetFeatureSectionsAsync("omkonsortiet", includePrivate: true);
+
+            // Om tom, skapa standardsektion
+            if (!featureSections.Any())
+            {
+                featureSections.Add(new FeatureSectionViewModel
+                {
+                    Title = "Ny sektion",
+                    Content = "<p>Skriv innehåll här...</p>",
+                    HasImage = false,
+                    HasPrivateContent = false,
+                    PrivateContent = "",
+                    ContactPersons = new List<ContactPersonViewModel>()
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av Om konsortiet admin-data");
+            await Toast.Error($"Fel vid laddning: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Förstör eventuella existerande editorer först
+            try
+            {
+                await JS.InvokeVoidAsync("destroyAllEditors");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte förstöra befintliga editorer");
+            }
+            
+            // Längre fördröjning för att DOM ska vara redo
+            await Task.Delay(500);
+
+            // Initiera intro-editorn
+            await InitializeIntroEditor();
+        }
+    }
+
+    private async Task InitializeIntroEditor()
+    {
+        try
+        {
+            string editorId = "introContent";
+            await Task.Delay(100);
+
+            // Försök initiera
+            await JS.InvokeVoidAsync("initTinyMCE", editorId);
+
+            // Verifiera att det lyckades
+            try
+            {
+                bool exists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
+                if (!exists)
+                {
+                    Logger.LogWarning("TinyMCE-editor skapades inte vid första försöket, försöker igen");
+                    await Task.Delay(200);
+                    await JS.InvokeVoidAsync("initTinyMCE", editorId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte verifiera TinyMCE-status");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initialisering av TinyMCE-editor för intro-sektion");
+        }
+    }
+
+    private async Task OnBannerUploaded(PageImageViewModel? img)
+    {
+        // Ladda om hela pageContent för att få uppdaterade bilder från databasen
+        try
+        {
+            pageContent = await Cms.GetPageContentAsync("omkonsortiet") ?? new PageContentViewModel();
+            Logger.LogInformation("PageContent omladdad efter bannerbildändring");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte ladda om pageContent efter bannerbildändring");
+            await Toast.Error("Bannerbilden laddades upp men sidan kunde inte uppdateras. Uppdatera sidan manuellt.");
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task HandleIntroImageSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File != null)
+        {
+            if (e.File.Size > 2 * 1024 * 1024)
+            {
+                await Toast.Error("Bilden är för stor. Maximal storlek är 2MB.");
+                return;
+            }
+
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml" };
+            if (!allowedTypes.Contains(e.File.ContentType))
+            {
+                await Toast.Error("Endast JPG, PNG, GIF, WebP och SVG-bilder tillåts.");
+                return;
+            }
+
+            await Toast.Info("Laddar upp bild...");
+
+            try
+            {
+                using var stream = e.File.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms, 81920);
+                ms.Position = 0;
+
+                var uploadedImage = await Cms.UploadFeatureImageAsync("omkonsortiet", ms, e.File.Name, "intro:0");
+
+                if (uploadedImage != null)
+                {
+                    if (!uploadedImage.Url.StartsWith("/"))
+                    {
+                        uploadedImage.Url = "/" + uploadedImage.Url;
+                    }
+
+                    introSection.ImageUrl = uploadedImage.Url;
+                    introSection.HasImage = true;
+                    introSection.ImageAltText = uploadedImage.AltText ?? introSection.Title;
+
+                    StateHasChanged();
+                    await Toast.Success("Introbild uppladdad");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid uppladdning av introbild");
+                await Toast.Error($"Ett fel inträffade vid uppladdning av bilden: {ex.Message}");
+            }
+        }
+    }
+
+    private void ClearIntroImage()
+    {
+        introSection.ImageUrl = "";
+        introSection.ImageAltText = "";
+    }
+
+    // Event handlers för FeatureSectionManager
+    private void OnFeatureSectionsChanged()
+    {
+        // Triggas när sektioner ändras
+        StateHasChanged();
+    }
+
+    private async Task HandleFeatureImageUpload(FeatureSectionManager.ImageUploadInfo info)
+    {
+        if (info.File == null || info.Section == null) return;
+
+        try
+        {
+            using var stream = info.File.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms, 81920);
+            ms.Position = 0;
+
+            var uploadedImage = await Cms.UploadFeatureImageAsync("omkonsortiet", ms, info.File.Name, $"feature:{info.SectionIndex}");
+
+            if (uploadedImage != null)
+            {
+                if (!uploadedImage.Url.StartsWith("/"))
+                {
+                    uploadedImage.Url = "/" + uploadedImage.Url;
+                }
+
+                info.Section.ImageUrl = uploadedImage.Url;
+                info.Section.ImageAltText = uploadedImage.AltText ?? info.Section.Title;
+
+                StateHasChanged();
+                await Toast.Success($"Bild uppladdad för sektion {info.SectionIndex + 1}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppladdning av sektionsbild");
+            await Toast.Error($"Ett fel inträffade vid uppladdning av bilden: {ex.Message}");
+        }
+        finally
+        {
+            info.CloseModal?.Invoke();
+        }
+    }
+
+    private async Task HandleFeatureImageDelete(FeatureSectionManager.ImageDeleteInfo info)
+    {
+        try
+        {
+            // Här kan man lägga till logik för att ta bort bildfilen från servern om det behövs
+            Logger.LogInformation("Bild {ImageUrl} markerad för borttagning från sektion {SectionIndex}", info.ImageUrl, info.SectionIndex);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av sektionsbild");
+            await Toast.Error("Ett fel inträffade när bilden skulle tas bort");
+        }
+    }
+
+    private async Task SaveAll()
+    {
+        try
+        {
+            // Synkronisera TinyMCE-editorer innan sparande
+            try
+            {
+                await JS.InvokeVoidAsync("syncAllEditors");
+                await Task.Delay(100);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning("Kunde inte synkronisera TinyMCE-editorer: {Message}", ex.Message);
+            }
+
+            // Spara sidinnehåll, introsektion och featuresektioner
+            await Cms.SavePageContentAsync("omkonsortiet", pageContent);
+            await Cms.SaveIntroSectionAsync("omkonsortiet", introSection);
+            await Cms.SaveFeatureSectionsAsync("omkonsortiet", featureSections);
+            
+            await Toast.Success("Alla ändringar har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av Om konsortiet-data");
+            await Toast.Error($"Fel vid sparande: {ex.Message}");
+        }
+    }
+}

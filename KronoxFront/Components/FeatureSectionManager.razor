@@ -107,8 +107,113 @@
                                           @bind:event="oninput"
                                           @ref="editorTextAreas[index]"
                                           aria-label="Innehåll för sektion @(index + 1)">
-                                    </textarea>
+                                </textarea>
                             </div>
+
+                            @* Privat innehåll sektion *@
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="@($"has-private-{index}")"
+                                           @bind="item.HasPrivateContent" @bind:after="() => HandlePrivateContentToggle(index)" />
+                                    <label class="form-check-label" for="@($"has-private-{index}")">
+                                        <i class="fa-solid fa-users me-1"></i> Inkludera medlemsinformation
+                                    </label>
+                                </div>
+                            </div>
+
+                            @if (item.HasPrivateContent)
+                            {
+                                <div class="border rounded p-3 mb-3 bg-light">
+                                    <small class="text-muted fw-bold">
+                                        <i class="fa-solid fa-lock me-1"></i> Medlemsinformation (visas endast för inloggade)
+                                    </small>
+
+                                    <div class="mb-3 mt-2">
+                                        <label class="form-label" for="@($"private-content-editor-{index}")">Privat innehåll</label>
+                                        <textarea id="@($"private-content-editor-{index}")"
+                                                  @bind="item.PrivateContent"
+                                                  @bind:event="oninput"
+                                                  class="form-control tinymce-editor"
+                                                  rows="4"
+                                                  placeholder="Extra text som endast visas för inloggade medlemmar"
+                                                  @ref="privateEditorTextAreas[index]">
+                                        </textarea>
+                                        <div class="form-text">Detta fält är för ytterligare text, t.ex. förklaringar eller instruktioner.</div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label" for="@($"contact-heading-{index}")">Rubrik för kontaktpersoner</label>
+                                        <input type="text" class="form-control" id="@($"contact-heading-{index}")"
+                                               @bind="item.ContactHeading" @bind:after="() => SectionsChanged()"
+                                               placeholder="T.ex. 'Kontaktinformation för styrelsen' eller 'Gruppen består av följande personer'"
+                                               aria-label="Rubrik för kontaktpersoner i sektion @(index + 1)" />
+                                        <div class="form-text">Denna rubrik visas ovanför kontaktpersonerna för inloggade medlemmar.</div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Kontaktpersoner</label>
+                                        <div class="form-text mb-2">
+                                            <i class="fa-solid fa-info-circle me-1"></i>
+                                            Kontaktpersoner visas endast för inloggade medlemmar.
+                                        </div>
+
+                                        <div class="border p-2 rounded bg-white">
+                                            @if (item.ContactPersons.Any())
+                                            {
+                                                @for (int contactIndex = 0; contactIndex < item.ContactPersons.Count; contactIndex++)
+                                                {
+                                                    var contact = item.ContactPersons[contactIndex];
+                                                    var localContactIndex = contactIndex;
+
+                                                    <div class="border rounded p-3 mb-3 bg-light">
+                                                        <div class="row mb-2">
+                                                            <div class="col-md-3">
+                                                                <label class="form-label small fw-bold">Namn *</label>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                       @bind="contact.Name" placeholder="Förnamn Efternamn"
+                                                                       @bind:after="() => SectionsChanged()" />
+                                                            </div>
+
+                                                            <div class="col-md-3">
+                                                                <label class="form-label small fw-bold">Organisation</label>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                       @bind="contact.Organization" placeholder="Högskola/Universitet"
+                                                                       @bind:after="() => SectionsChanged()" />
+                                                            </div>
+
+                                                            <div class="col-md-2">
+                                                                <label class="form-label small fw-bold">E-post</label>
+                                                                <input type="email" class="form-control form-control-sm"
+                                                                       @bind="contact.Email" placeholder="namn@domain.se"
+                                                                       @bind:after="() => SectionsChanged()" />
+                                                            </div>
+
+                                                            <div class="col-md-2">
+                                                                <label class="form-label small fw-bold">Telefon</label>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                       @bind="contact.Phone" placeholder="08-123 45 67"
+                                                                       @bind:after="() => SectionsChanged()" />
+                                                            </div>
+
+                                                            <div class="col-md-2 d-flex align-items-end">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger w-100"
+                                                                        @onclick="() => RemoveContactPerson(index, localContactIndex)"
+                                                                        title="Ta bort kontaktperson">
+                                                                    <i class="fa-solid fa-times"></i> Ta bort
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    @onclick="() => AddContactPerson(index)">
+                                                <i class="fa-solid fa-plus me-1"></i> Lägg till kontaktperson
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>
@@ -195,6 +300,7 @@
 
     // Texteditor-referenser
     private Dictionary<int, ElementReference> editorTextAreas = new();
+    private Dictionary<int, ElementReference> privateEditorTextAreas = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -209,12 +315,20 @@
     {
         try
         {
-            foreach (var (index, _) in Sections.Select((_, i) => (i, _)))
+            foreach (var (index, section) in Sections.Select((s, i) => (i, s)))
             {
+                // Initiera huvudeditor
                 var editorId = $"feature-editor-{index}";
                 await JS.InvokeVoidAsync("initTinyMCE", editorId);
 
-                // Verifiera att editorn skapades
+                // Initiera privat editor om den finns
+                if (section.HasPrivateContent)
+                {
+                    var privateEditorId = $"private-content-editor-{index}";
+                    await JS.InvokeVoidAsync("initTinyMCE", privateEditorId);
+                }
+
+                // Verifiera att editorerna skapades
                 try
                 {
                     var exists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
@@ -253,6 +367,31 @@
         }
     }
 
+    // Hanterar när privat innehåll toggles
+    private async Task HandlePrivateContentToggle(int index)
+    {
+        SectionsChanged();
+        StateHasChanged();
+
+        // Ge tid för DOM att uppdateras
+        await Task.Delay(200);
+
+        // Om privat innehåll aktiverades, initiera TinyMCE för det
+        if (Sections[index].HasPrivateContent)
+        {
+            var privateEditorId = $"private-content-editor-{index}";
+            try
+            {
+                await JS.InvokeVoidAsync("initTinyMCE", privateEditorId);
+                Logger.LogInformation("TinyMCE initierat för privat editor: {EditorId}", privateEditorId);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid initialisering av privat TinyMCE-editor {EditorId}", privateEditorId);
+            }
+        }
+    }
+
     // Lägger till en ny sektion och initierar dess TinyMCE-editor
     private async Task AddSection()
     {
@@ -270,13 +409,21 @@
                     ImageUrl = "",
                     ImageAltText = "",
                     HasImage = true,
-                    SortOrder = newIndex
+                    SortOrder = newIndex,
+                    HasPrivateContent = false,
+                    PrivateContent = "",
+                    ContactHeading = "",
+                    ContactPersons = new List<ContactPersonViewModel>()
                 });
 
-            // Skapa referens för textareaelement om den inte redan finns
+            // Skapa referenser för textareaelement om de inte redan finns
             if (!editorTextAreas.ContainsKey(newIndex))
             {
                 editorTextAreas[newIndex] = new ElementReference();
+            }
+            if (!privateEditorTextAreas.ContainsKey(newIndex))
+            {
+                privateEditorTextAreas[newIndex] = new ElementReference();
             }
 
             // Notifiera om ändringar och uppdatera UI
@@ -403,6 +550,32 @@
         }
     }
 
+    // Hantering av kontaktpersoner
+    private void AddContactPerson(int sectionIndex)
+    {
+        if (sectionIndex >= 0 && sectionIndex < Sections.Count)
+        {
+            Sections[sectionIndex].ContactPersons.Add(new ContactPersonViewModel
+            {
+                Name = "",
+                Email = "",
+                Phone = "",
+                Organization = ""
+            });
+            SectionsChanged();
+        }
+    }
+
+    private void RemoveContactPerson(int sectionIndex, int contactIndex)
+    {
+        if (sectionIndex >= 0 && sectionIndex < Sections.Count && 
+            contactIndex >= 0 && contactIndex < Sections[sectionIndex].ContactPersons.Count)
+        {
+            Sections[sectionIndex].ContactPersons.RemoveAt(contactIndex);
+            SectionsChanged();
+        }
+    }
+
     // Öppnar bildförhandsvisning
     private void PreviewImage(string imageUrl)
     {
@@ -452,13 +625,14 @@
     {
         if (selectedFile == null || !currentSectionIndex.HasValue || !OnImageUpload.HasDelegate)
         {
+            Logger.LogWarning("Kan inte ladda upp bild: selectedFile={SelectedFile}, currentSectionIndex={CurrentSectionIndex}, HasDelegate={HasDelegate}",
+                selectedFile != null, currentSectionIndex.HasValue, OnImageUpload.HasDelegate);
             CloseImageUploadDialog();
             return;
         }
 
         try
         {
-
             if (currentSectionIndex.Value < 0 || currentSectionIndex.Value >= Sections.Count)
             {
                 Logger.LogWarning("Ogiltigt sektionsindex vid bilduppladdning: {Index}", currentSectionIndex.Value);
@@ -469,17 +643,22 @@
             var section = Sections[currentSectionIndex.Value];
 
             var info = new ImageUploadInfo
-                {
-                    SectionIndex = currentSectionIndex.Value,
-                    File = selectedFile,
-                    Section = section,
-                    CloseModal = CloseImageUploadDialog
-                };
+            {
+                SectionIndex = currentSectionIndex.Value,
+                File = selectedFile,
+                Section = section,
+                CloseModal = CloseImageUploadDialog
+            };
 
             await OnImageUpload.InvokeAsync(info);
-            Sections[currentSectionIndex.Value].ImageAltText = tempAltText;
-            SectionsChanged();
 
+            // Sätt alt-text endast om den inte är tom
+            if (!string.IsNullOrWhiteSpace(tempAltText))
+            {
+                Sections[currentSectionIndex.Value].ImageAltText = tempAltText;
+            }
+
+            SectionsChanged();
             CloseImageUploadDialog();
         }
         catch (Exception ex)

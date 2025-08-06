@@ -5,6 +5,7 @@ using KronoxApi.Services;
 using KronoxApi.SwaggerFilter;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using System.Threading.RateLimiting;
 
@@ -162,6 +163,24 @@ public class Program
 
         app.UseStaticFiles();
 
+        // Servera bilder även för frontend-anrop
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(
+                Path.Combine(builder.Environment.ContentRootPath, "wwwroot")),
+            RequestPath = "/content",
+            OnPrepareResponse = ctx =>
+            {
+                // Lägg till CORS headers för bilder
+                ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
+                ctx.Context.Response.Headers.Append("Access-Control-Allow-Methods", "GET");
+                ctx.Context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type");
+
+                // Cache images för prestanda
+                ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
+            }
+        });
+
         var webRootPath = app.Services.GetRequiredService<IWebHostEnvironment>().WebRootPath;
         Directory.CreateDirectory(Path.Combine(webRootPath, "images", "members"));
         Directory.CreateDirectory(Path.Combine(webRootPath, "images", "pages"));
@@ -174,6 +193,13 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseCors("AllowBlazor");
+
+        app.UseCors(policy => policy
+       .WithOrigins("https://localhost:7122", "http://localhost:5291") // Frontend URLs
+       .AllowAnyMethod()
+       .AllowAnyHeader()
+       .AllowCredentials());
+
         app.UseAuthentication();
         app.UseAuthorization();
 

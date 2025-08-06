@@ -39,7 +39,7 @@ namespace KronoxApi.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("CreatedDate")
+                    b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
@@ -184,11 +184,22 @@ namespace KronoxApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ContactHeading")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContactPersonsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("HasImage")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasPrivateContent")
                         .HasColumnType("bit");
 
                     b.Property<string>("ImageAltText")
@@ -200,6 +211,10 @@ namespace KronoxApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PageKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrivateContent")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -326,7 +341,8 @@ namespace KronoxApi.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 

@@ -31,30 +31,64 @@ public class ContentController : ControllerBase
             .Include(cb => cb.PageImages)
             .FirstOrDefaultAsync(cb => cb.PageKey == pageKey);
 
+        // Om inget ContentBlock finns, skapa ett tomt men inkludera alla PageImages för sidan
         if (block == null)
-            return NotFound();
+        {
+            // Hämta alla bilder för denna pageKey direkt från PageImages-tabellen
+            var pageImages = await _db.PageImages
+                .Where(pi => pi.PageKey == pageKey)
+                .ToListAsync();
 
-        var dto = new ContentBlockDto
+            var dto = new ContentBlockDto
+            {
+                PageKey = pageKey,
+                Title = GetDefaultPageTitle(pageKey),
+                HtmlContent = "",
+                Metadata = "{}",
+                LastModified = DateTime.UtcNow,
+                Images = pageImages.Select(pi => new PageImageDto
+                {
+                    Id = pi.Id,
+                    Url = pi.Url,
+                    AltText = pi.AltText
+                }).ToList()
+            };
+
+            return Ok(dto);
+        }
+
+        // Returnera befintligt block med dess bilder
+        var resultDto = new ContentBlockDto
         {
             PageKey = block.PageKey,
             Title = block.Title,
             HtmlContent = block.HtmlContent,
             Metadata = block.Metadata,
             LastModified = block.LastModified,
-            Images = block.PageImages
-                               .Select(pi => new PageImageDto
-                               {
-                                   Id = pi.Id,
-                                   Url = pi.Url,
-                                   AltText = pi.AltText
-                               }).ToList()
+            Images = block.PageImages.Select(pi => new PageImageDto
+            {
+                Id = pi.Id,
+                Url = pi.Url,
+                AltText = pi.AltText
+            }).ToList()
         };
 
-        return Ok(dto);
+        return Ok(resultDto);
+    }
+
+    private string GetDefaultPageTitle(string pageKey)
+    {
+        return pageKey switch
+        {
+            "home" => "Startsida",
+            "omkonsortiet" => "Om konsortiet",
+            "visioner" => "Visioner & Verksamhetsidé",
+            _ => "Sida"
+        };
     }
 
 
-    // Skapar eller uppdaterar ett innehållsblock baserat på pageKey.
+    // Skapar eller uppdaterar ett innehållsblock baserat på pageKey
     [HttpPut("{pageKey}")]
     [RequireRole("Admin")]
     public async Task<IActionResult> UpdateContent(string pageKey, [FromBody] ContentBlockDto dto)
@@ -101,10 +135,15 @@ public class ContentController : ControllerBase
     // Uppdaterar alt-texten för en bild kopplad till ett innehållsblock.
     [HttpPut("{pageKey}/images/{id}/alttext")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> UpdateImageAltText(string pageKey, int id, [FromBody] dynamic dto)
+    public async Task<IActionResult> UpdateImageAltText(string pageKey, int id, [FromBody] UpdateAltTextDto dto)
     {
         try
         {
+            if (dto == null || string.IsNullOrEmpty(dto.AltText))
+            {
+                return BadRequest("AltText är obligatoriskt.");
+            }
+
             var pageImage = await _db.PageImages
                 .FirstOrDefaultAsync(pi => pi.Id == id && pi.PageKey == pageKey);
 
@@ -114,9 +153,10 @@ public class ContentController : ControllerBase
                 return NotFound();
             }
 
-            pageImage.AltText = dto.AltText.ToString();
+            pageImage.AltText = dto.AltText;
             await _db.SaveChangesAsync();
 
+            _logger.LogInformation("Alt-text uppdaterad för bild {Id} på {PageKey}", id, pageKey);
             return Ok();
         }
         catch (Exception ex)
@@ -134,23 +174,38 @@ public class ContentController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Börjar bilduppladdning för pageKey: {PageKey}", pageKey);
+
             if (!Request.HasFormContentType || !Request.Form.Files.Any())
+            {
+                _logger.LogWarning("Ingen fil hittades i request för {PageKey}", pageKey);
                 return BadRequest("Ingen fil hittades.");
+            }
 
             var file = Request.Form.Files[0];
             var altText = Request.Form["altText"].ToString() ?? "";
 
+            _logger.LogInformation("Fil mottagen: {FileName}, Storlek: {Size}, ContentType: {ContentType}",
+                file.FileName, file.Length, file.ContentType);
+
             var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml" };
             if (!allowedTypes.Contains(file.ContentType))
+            {
+                _logger.LogWarning("Otillåten filtyp: {ContentType} för fil {FileName}", file.ContentType, file.FileName);
                 return BadRequest("Filtypen stöds inte. Använd JPG, PNG, GIF, WebP eller SVG.");
+            }
 
-            var uploadsDir = Path.Combine("content", "images", "pages", pageKey);
+            var uploadsDir = Path.Combine("images", "pages", pageKey);
             var fullDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", uploadsDir);
+
+            _logger.LogInformation("Skapar katalog: {Directory}", fullDir);
             Directory.CreateDirectory(fullDir);
 
             var fileName = Path.GetFileName(file.FileName);
             var safeName = $"{DateTime.Now:yyyyMMddHHmmss}-{Path.GetFileNameWithoutExtension(fileName)}{Path.GetExtension(fileName)}";
             var filePath = Path.Combine(fullDir, safeName);
+
+            _logger.LogInformation("Sparar fil till: {FilePath}", filePath);
 
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
@@ -161,21 +216,23 @@ public class ContentController : ControllerBase
             var block = await _db.ContentBlocks.FirstOrDefaultAsync(cb => cb.PageKey == pageKey);
             if (block == null)
             {
+                _logger.LogInformation("Skapar nytt ContentBlock för {PageKey}", pageKey);
                 block = new ContentBlock { PageKey = pageKey, Title = pageKey };
                 _db.ContentBlocks.Add(block);
                 await _db.SaveChangesAsync();
             }
 
-            // Spara metadata i databasen
             var pageImage = new PageImage
             {
-                Url = $"/{uploadsDir}/{safeName}",
+                Url = $"/{uploadsDir}/{safeName}".Replace("\\", "/"), // Säkerställ forward slashes
                 AltText = altText,
                 PageKey = pageKey
             };
 
             _db.PageImages.Add(pageImage);
             await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Bild sparad i databas med ID: {Id} och URL: {Url}", pageImage.Id, pageImage.Url);
 
             var dto = new PageImageDto
             {
@@ -188,7 +245,7 @@ public class ContentController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppladdning av bild");
+            _logger.LogError(ex, "Fel vid uppladdning av bild för {PageKey}", pageKey);
             return StatusCode(500, "Ett serverfel inträffade vid uppladdning av bilden.");
         }
     }
@@ -220,7 +277,7 @@ public class ContentController : ControllerBase
 
             var pageImage = new PageImage
             {
-                Url = "/" + sourcePath,
+                Url = ("/" + sourcePath).Replace("\\", "/"), // Säkerställ forward slashes
                 AltText = dto.AltText,
                 PageKey = pageKey
             };

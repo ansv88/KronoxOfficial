@@ -94,7 +94,7 @@ else
         @* ---------- Bildkarusell medlemmar ------------------------------------------- *@
         <section class="py-5 text-center mb-2" style="max-width:1000px; margin: 0 auto;">
             <h3 class="text-start mb-3 fs-5" style="color: rgba(255, 255, 255, 0.85);">Våra medlemmar:</h3>
-            <!-- Desktop Carousel (4 per slide) - visas bara på md och större skärmar -->
+            <!-- Desktop karusell (4 per slide) - visas bara på md och större skärmar -->
             <div class="d-none d-md-block">
                 <div id="desktopCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
                     <div class="carousel-inner p-5 bg-white shadow rounded-3">
@@ -172,7 +172,7 @@ else
                 </div>
             </div>
 
-            <!-- Mobile Carousel (1 per slide) - visas bara på mindre än md skärmar -->
+            <!-- Mobilkarusell (1 per slide) - visas bara på mindre än md skärmar -->
             <div class="d-block d-md-none">
                 <div id="mobileCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
                     <div class="carousel-inner p-2 bg-white shadow rounded-3">
@@ -228,7 +228,7 @@ else
         <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
             <div style="max-width:800px; margin: 0 auto;">
 
-                @* ---------- Feature Sections ---------------------------------------- *@
+                @* ---------- Featuresektioner ---------------------------------------- *@
                 @if (featureSections.Count > 0)
                 {
                     @foreach (var (featureItem, index) in featureSections.Select((s, i) => (s, i)))
@@ -303,7 +303,7 @@ else
     private bool isAdmin = false;
     private string? activeImage;
     private IntroSectionViewModel introSection = new();
-    private List<HomeFeatureSectionViewModel> featureSections = new();
+    private List<FeatureSectionViewModel> featureSections = new();
     private List<MemberLogoViewModel> memberLogos = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -350,7 +350,7 @@ else
 
             // Hämta data direkt från CmsService
             introSection = await Cms.GetIntroSectionAsync("home");
-            featureSections = await Cms.GetHomeFeatureSectionsAsync("home");
+            featureSections = await Cms.GetFeatureSectionsAsync("home");
         }
         catch (Exception ex)
         {
@@ -362,7 +362,7 @@ else
                     Title = "Något gick fel",
                     Content = "<p>Det uppstod ett fel vid hämtning av innehållet.</p>"
                 };
-            featureSections = new List<HomeFeatureSectionViewModel>();
+            featureSections = new List<FeatureSectionViewModel>();
         }
         finally
         {
@@ -383,17 +383,17 @@ else
     private async Task ScrollToTop() => await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
 
     // Hjälpmetod för att ta bort metadata-div från HTML-innehållet (används inte längre men behålls för kompatibilitet)
-    private string RemoveMetadataDiv(string html)
-    {
-        if (string.IsNullOrEmpty(html))
-            return html;
+    // private string RemoveMetadataDiv(string html)
+    // {
+    //     if (string.IsNullOrEmpty(html))
+    //         return html;
 
-        // Ta bort metadata-diven men behåll resten av innehållet
-        return System.Text.RegularExpressions.Regex.Replace(
-            html,
-            @"<div[^>]*id=""page-metadata""[^>]*data-content=""([^""]*)"">.*?</div>",
-            "");
-    }
+    //     // Ta bort metadata-diven men behåll resten av innehållet
+    //     return System.Text.RegularExpressions.Regex.Replace(
+    //         html,
+    //         @"<div[^>]*id=""page-metadata""[^>]*data-content=""([^""]*)"">.*?</div>",
+    //         "");
+    // }
 
     // Hjälpmetod för att hämta LinkUrl för en logotyp
     private string GetLinkUrlForLogo(string logoUrl)

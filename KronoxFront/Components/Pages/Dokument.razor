@@ -348,10 +348,10 @@ else
 
             var (stream, fileName) = result.Value;
 
-            // Create a stream reference
+            // Skapa en stream reference
             var streamRef = new DotNetStreamReference(stream: stream);
 
-            // Pass the stream reference to JS for download
+            // Skicka vidare stream reference till JS för nedladdning
             await JSRuntime.InvokeVoidAsync("downloadFileFromStream", streamRef, fileName);
         }
         catch (Exception ex)

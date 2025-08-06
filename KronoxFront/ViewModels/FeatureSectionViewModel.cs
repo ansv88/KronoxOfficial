@@ -11,4 +11,8 @@ public class FeatureSectionViewModel
     public bool HasImage { get; set; }
     public int SortOrder { get; set; }
     public string PageKey { get; set; } = "";
+    public bool HasPrivateContent { get; set; } = false;
+    public string PrivateContent { get; set; } = "";
+    public string ContactHeading { get; set; } = "";
+    public List<ContactPersonViewModel> ContactPersons { get; set; } = new();
 }
