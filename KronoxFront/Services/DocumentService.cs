@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 namespace KronoxFront.Services;
 
 // Tjänst för att hantera dokumentrelaterade API-anrop, inklusive uppladdning, hämtning, uppdatering och borttagning av dokument.
-
 public class DocumentService
 {
     private readonly HttpClient _http;
@@ -20,9 +19,13 @@ public class DocumentService
         _logger = logger;
     }
 
-    // Hämtar alla dokument
+    // Hämtar alla dokument (endast admin)
     public Task<List<DocumentViewModel>> GetDocumentsAsync()
     => _http.GetFromJsonAsync<List<DocumentViewModel>>("api/documents")!;
+
+    // **NYCKELMETHOD** - Hämtar dokument baserat på användarens roller
+    public Task<List<DocumentViewModel>> GetAccessibleDocumentsAsync()
+        => _http.GetFromJsonAsync<List<DocumentViewModel>>("api/documents/accessible")!;
 
     // Laddar upp ett nytt dokument med tillhörande huvudkategorier.
     public async Task<bool> UploadDocumentAsync(IBrowserFile file, int mainCategoryId, List<SubCategoryDto> subCategoryIds)
@@ -44,8 +47,6 @@ public class DocumentService
                     form.Add(new StringContent(subCategory.Id.ToString()), "SubCategoryIds");
             }
 
-            form.Add(new StringContent("Admin"), "AllowedRoles");
-
             var res = await _http.PostAsync("api/documents/upload", form);
             return res.IsSuccessStatusCode;
         }
@@ -56,13 +57,35 @@ public class DocumentService
         }
     }
 
-    // Sparar ändringar: arkivera/unarkivera + nya kategorikopplingar.
-    public Task<bool> SaveDocumentChangesAsync(int id, List<int> categoryIds)
-        => _http.PutAsJsonAsync(
-                $"api/documents/{id}",
-                new { CategoryIds = categoryIds }
-           )
-           .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    // Arkiverar ett dokument
+    public async Task<bool> ArchiveDocumentAsync(int id)
+    {
+        try
+        {
+            var response = await _http.PostAsync($"api/documents/{id}/archive", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid arkivering av dokument {DocumentId}", id);
+            return false;
+        }
+    }
+
+    // Återställer ett arkiverat dokument
+    public async Task<bool> UnarchiveDocumentAsync(int id)
+    {
+        try
+        {
+            var response = await _http.PostAsync($"api/documents/{id}/unarchive", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid återställning av dokument {DocumentId}", id);
+            return false;
+        }
+    }
 
     // Uppdaterar ett dokuments kategorier.
     public async Task<bool> UpdateDocumentAsync(int documentId, UpdateDocumentRequest request)
@@ -108,18 +131,9 @@ public class DocumentService
         }
     }
 
-    // Hämtar alla dokument som aktuell användare har åtkomst till.
-    public Task<List<DocumentViewModel>> GetAccessibleDocumentsAsync()
-        => _http.GetFromJsonAsync<List<DocumentViewModel>>("api/documents/accessible")!;
-
     // Hämtar dokument kopplade till en specifik kategori (kontrollerar åtkomst per kategori).
     public Task<List<DocumentViewModel>> GetDocumentsByCategoryAsync(int categoryId)
         => _http.GetFromJsonAsync<List<DocumentViewModel>>(
-               $"api/documents/by-category/{categoryId}"
+               $"api/documents/by-maincategory/{categoryId}"
            )!;
-
-    // Återställer alla kategorikopplingar (adminfunktion).
-    public Task<bool> ResetCategoryRelationshipsAsync()
-        => _http.PostAsync("api/category/reset-all", null!)
-                .ContinueWith(t => t.Result.IsSuccessStatusCode);
 }

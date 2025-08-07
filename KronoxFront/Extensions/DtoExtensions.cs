@@ -1,5 +1,6 @@
 using System.Text.Json;
 using KronoxFront.ViewModels;
+using KronoxFront.DTOs;
 
 namespace KronoxFront.Extensions;
 
@@ -108,6 +109,41 @@ public static class DtoExtensions
         catch
         {
             return null;
+        }
+    }
+
+    public static List<FaqSectionViewModel> ToFaqSectionViewModels(this string json)
+    {
+        if (string.IsNullOrEmpty(json)) return new List<FaqSectionViewModel>();
+        
+        try
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var dtos = JsonSerializer.Deserialize<List<FaqSectionDto>>(json, options);
+            
+            return dtos?.Select(dto => new FaqSectionViewModel
+            {
+                Id = dto.Id,
+                PageKey = dto.PageKey,
+                Title = dto.Title,
+                Description = dto.Description,
+                SortOrder = dto.SortOrder,
+                FaqItems = dto.FaqItems.Select(item => new FaqItemViewModel
+                {
+                    Id = item.Id,
+                    FaqSectionId = item.FaqSectionId,
+                    Question = item.Question,
+                    Answer = item.Answer,
+                    ImageUrl = item.ImageUrl,
+                    ImageAltText = item.ImageAltText,
+                    HasImage = item.HasImage,
+                    SortOrder = item.SortOrder
+                }).ToList()
+            }).ToList() ?? new List<FaqSectionViewModel>();
+        }
+        catch
+        {
+            return new List<FaqSectionViewModel>();
         }
     }
 }

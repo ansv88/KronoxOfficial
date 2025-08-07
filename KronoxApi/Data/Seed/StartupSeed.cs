@@ -108,11 +108,57 @@ public static class StartupSeed
         if (await dbContext.MainCategories.AnyAsync())
         {
             logger.LogInformation("Kategorier finns redan i databasen");
+            
+            // Hämta alla kategorier först, sedan filtrera i minnet
+            logger.LogInformation("Kontrollerar kategorier utan roller...");
+            var allCategories = await dbContext.MainCategories.ToListAsync();
+            var categoriesWithoutRoles = allCategories
+                .Where(mc => mc.AllowedRoles == null || mc.AllowedRoles.Count == 0)
+                .ToList();
+                
+            if (categoriesWithoutRoles.Any())
+            {
+                logger.LogInformation("Uppdaterar {Count} kategorier med Admin-roller", categoriesWithoutRoles.Count);
+                foreach (var category in categoriesWithoutRoles)
+                {
+                    category.AllowedRoles = new List<string> { "Admin" };
+                    category.IsActive = true;
+                    category.UpdatedAt = DateTime.UtcNow;
+                }
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation("Kategorier uppdaterade med Admin-roller");
+            }
+            else
+            {
+                logger.LogInformation("Alla kategorier har redan roller tilldelade");
+            }
+            
             return;
         }
 
-        logger.LogInformation("Skapar huvudkategorier...");
-        var mainCategories = GetDefaultMainCategories().Select(name => new MainCategory { Name = name }).ToList();
+        logger.LogInformation("Skapar huvudkategorier med Admin-roller...");
+        
+        // Skapa kategorier med olika rollnivåer
+        var categoryData = new[]
+        {
+            new { Name = "Styrelsen", Roles = new[] { "Admin" } },
+            new { Name = "Användarträffar", Roles = new[] { "Admin" } },
+            new { Name = "Fokusträffar", Roles = new[] { "Admin" } },
+            new { Name = "Dokument", Roles = new[] { "Admin" } },
+            new { Name = "Tekniska dokument", Roles = new[] { "Admin" } },
+            new { Name = "VNSG", Roles = new[] { "Admin" } },
+            new { Name = "Stämmor", Roles = new[] { "Admin" } },
+            new { Name = "Övrigt", Roles = new[] { "Admin" } }
+        };
+
+        var mainCategories = categoryData.Select(cd => new MainCategory 
+        { 
+            Name = cd.Name,
+            AllowedRoles = cd.Roles.ToList(),
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        }).ToList();
+
         dbContext.MainCategories.AddRange(mainCategories);
         await dbContext.SaveChangesAsync();
 
@@ -121,23 +167,7 @@ public static class StartupSeed
         dbContext.SubCategories.AddRange(subCategories);
         await dbContext.SaveChangesAsync();
 
-        logger.LogInformation("Kategorier seedade framgångsrikt");
-    }
-
-    // Returnerar en lista med standardnamn för huvudkategorier
-    private static IEnumerable<string> GetDefaultMainCategories()
-    {
-        return new[]
-        {
-            "Användarträffar",
-            "Fokusträffar",
-            "Dokument",
-            "Övrigt",
-            "Styrelsen",
-            "Tekniska dokument",
-            "VNSG",
-            "Stämmor"
-        };
+        logger.LogInformation("Kategorier seedade framgångsrikt med Admin-roller");
     }
 
     // Returnerar en lista med standardnamn för underkategorier

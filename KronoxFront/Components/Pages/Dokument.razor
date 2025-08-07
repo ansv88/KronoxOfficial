@@ -5,29 +5,15 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Authorization
+@inject IServiceProvider ServiceProvider
+@inject CmsService CmsService
 @inject ILogger<Dokument> Logger
-@inject IHttpClientFactory HttpClientFactory
+@inject CategoryService CategoryService
+@inject DocumentService DocumentService
 @inject IJSRuntime JSRuntime
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
-@inject DocumentService DocumentService
 @attribute [Authorize(Policy = "ExcludeNewUser")]
-
-@*
-   Publik dokumentsida som visar dokument grupperade per kategori, med stöd för dynamisk banner och introtext.
-
-   TODO: Implementera rollbaserad åtkomst för kategorier
-   -----------------------------------------------------
-   För närvarande visas alla kategorier för alla autentiserade användare. En framtida implementation
-   bör innehålla:
-
-   1. Ett system för att knyta specifika roller till huvudkategorier 
-   2. Anpassning av kategorifiltrering baserad på användarroller
-   3. API-stöd för att endast hämta kategorier som användaren har tillgång till
-
-   Skapa ev en separat endpoint i API:et (t.ex. "api/category/accessible") som 
-   direkt filtrerar kategorierna baserat på användarens roller.
-*@
 
 <HeadContent>
     <meta name="description" content="Ladda ner och läs viktiga dokument, manualer och riktlinjer för KronoX-systemet och dess användning." />
@@ -56,41 +42,65 @@ else
         @if (isAdmin)
         {
             <div class="position-absolute top-0 end-0 m-3">
-                <a href="/admin/documents" class="btn btn-dark btn-sm opacity-75">
-                    <i class="fa-solid fa-edit me-1"></i> Redigera Dokument
+                <a href="/admin/dokument" class="btn btn-dark btn-sm opacity-75">
+                    <i class="fa-solid fa-edit me-1"></i> Redigera sidan
                 </a>
             </div>
         }
     </section>
 
-    <!-- Introsektion -->
+    @* ---------- Breadcrumb-stil huvudrubrik -------------------------------- *@
+    <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
+        <div class="text-start mb-4">
+            <h2 class="h5 text-muted mb-0">DOKUMENT</h2>
+        </div>
+    </section>
+
+    @* ---------- Introsektion ------------------------------------------------ *@
     <section class="bg-light py-5 border-0" style="min-height: 320px;">
         <div class="container" style="max-width: 800px;">
             <div class="mb-2 text-uppercase fw-semibold text-start" style="letter-spacing: 0.5px;">
                 Dokument
             </div>
             <div class="text-center">
-                <h1 class="fw-semibold mb-3">
-                    Ladda ner alla filer du behöver här
-                </h1>
-                <div class="mb-3 fs-5">
-                    Här hittar du alla mötesprotokoll, anteckningar, förvaltningsdokument med mera.
-                </div>
-                <div class="mb-4 fs-5">
-                    <a href="/manual" class="text-decoration-underline text-dark small">
-                        Letar du efter Manualen hittar du den här <i class="fa fa-arrow-right ms-1"></i>
-                    </a>
-                </div>
-                <div>
-                    <a href="/manual" class="btn btn-dark px-4 py-2 shadow-sm" style="min-width: 140px;">
-                        Manualen <i class="fa fa-arrow-right ms-2"></i>
-                    </a>
-                </div>
+                @if (string.IsNullOrEmpty(introSection.Title))
+                {
+                    <h1 class="fw-semibold mb-3">
+                        Ladda ner alla filer du behöver här
+                    </h1>
+                    <div class="mb-3 fs-5">
+                        Här hittar du alla mötesprotokoll, anteckningar, förvaltningsdokument med mera.
+                    </div>
+                    <div class="mb-4 fs-5">
+                        <a href="/manual" class="text-decoration-underline text-dark small">
+                            Letar du efter Manualen hittar du den här <i class="fa fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="/manual" class="btn btn-dark px-4 py-2 shadow-sm" style="min-width: 140px;">
+                            Manualen <i class="fa fa-arrow-right ms-2"></i>
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <h1 class="fw-semibold mb-3">
+                        @introSection.Title
+                    </h1>
+                    <div class="mb-3 fs-5">
+                        @((MarkupString)introSection.Content)
+                    </div>
+                    <div>
+                        <a href="/manual" class="btn btn-dark px-4 py-2 shadow-sm" style="min-width: 140px;">
+                            Manualen <i class="fa fa-arrow-right ms-2"></i>
+                        </a>
+                    </div>
+                }
             </div>
         </div>
     </section>
 
-    <!-- Huvudsektion med dokument -->
+    @* ---------- Huvudsektion med dokument ---------------------------------- *@
     <div class="wrapper-div py-3">
         <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
             <div style="max-width:800px; margin: 0 auto;">
@@ -110,33 +120,58 @@ else
                             Ett fel uppstod vid laddning av dokument. Vänligen försök igen senare.
                         </div>
                     }
-                    else if (loadError)
+                    else if (!accessibleDocuments.Any())
                     {
                         <div class="alert alert-info text-center">
-                            Inga dokument finns tillgängliga.
+                            Inga dokument finns tillgängliga för din behörighetsnivå.
                         </div>
                     }
                     else
                     {
-                        <!-- Dokumentlista grupperad per kategori -->
+                        @* ---------- Arkivfilter för admin ------------------------- *@
+                        @if (isAdmin)
+                        {
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" id="showArchived" @bind="showArchived" @bind:after="FilterDocuments" />
+                                    <label class="form-check-label" for="showArchived">Visa arkiverade dokument</label>
+                                </div>
+                            </div>
+                        }
+
+                        @* ---------- Dokumentlista grupperad per kategori -------- *@
                         <div class="document-categories mb-5">
-                            @foreach (var category in categories.Where(c =>
-                           allDocuments.Any(doc => doc.MainCategoryId == c.Id)))
+                            @foreach (var category in accessibleCategories.Where(c =>
+                                                filteredDocuments.Any(doc => doc.MainCategoryId == c.Id)))
                             {
                                 <div class="document-category mb-5">
-                                    <h2 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark h3">@category.Name</h2>
-                                    <div class="document-list">
-                                        @foreach (var doc in allDocuments
-                                       .Where(d => d.MainCategoryId == category.Id)
-                                       .OrderByDescending(d => d.UploadedAt))
+                                    <h2 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark h3">
+                                        @category.Name
+                                        @if (isAdmin)
                                         {
-                                            <div class="document-item py-2">
+                                            <small class="text-muted fs-6">
+                                                (@string.Join(", ", category.AllowedRoles))
+                                            </small>
+                                        }
+                                    </h2>
+                                    <div class="document-list">
+                                        @foreach (var doc in filteredDocuments
+                                                                    .Where(d => d.MainCategoryId == category.Id)
+                                                                    .OrderByDescending(d => d.UploadedAt))
+                                        {
+                                            <div class="document-item py-2 @(doc.IsArchived ? "opacity-50" : "")">
                                                 <div class="text-decoration-none text-dark d-flex align-items-center">
                                                     <div class="document-icon text-center flex-shrink-0 me-2">
                                                         <i class="@GetFileIcon(doc.FileName) fa-lg"></i>
                                                     </div>
                                                     <div class="document-details flex-grow-1">
-                                                        <div>@doc.FileName</div>
+                                                        <div>
+                                                            @doc.FileName
+                                                            @if (doc.IsArchived)
+                                                            {
+                                                                <span class="badge bg-secondary ms-2">Arkiverad</span>
+                                                            }
+                                                        </div>
                                                         <small class="text-muted">@doc.UploadedAt.ToString("yyyy-MM-dd")</small>
                                                     </div>
                                                     <div class="ms-auto">
@@ -145,11 +180,30 @@ else
                                                                 @onclick="() => ViewDocument(doc.Id, doc.FileName)">
                                                             <i class="fas fa-eye"></i>
                                                         </button>
-                                                        <button class="btn btn-sm btn-primary"
+                                                        <button class="btn btn-sm btn-primary me-1"
                                                                 title="Ladda ner dokument"
                                                                 @onclick="() => DownloadDocument(doc.Id)">
                                                             <i class="fas fa-download"></i>
                                                         </button>
+                                                        @if (isAdmin)
+                                                        {
+                                                            @if (doc.IsArchived)
+                                                            {
+                                                                <button class="btn btn-sm btn-success"
+                                                                        title="Återställ dokument"
+                                                                        @onclick="() => UnarchiveDocument(doc.Id)">
+                                                                    <i class="fas fa-undo"></i>
+                                                                </button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button class="btn btn-sm btn-warning"
+                                                                        title="Arkivera dokument"
+                                                                        @onclick="() => ArchiveDocument(doc.Id)">
+                                                                    <i class="fas fa-archive"></i>
+                                                                </button>
+                                                            }
+                                                        }
                                                     </div>
                                                 </div>
                                             </div>
@@ -162,23 +216,93 @@ else
                 </div>
             </div>
         </section>
+
+        @* ---------- Feature Sections (följer samma mönster som Omsystemet) -- *@
+        @if (featureSections.Count > 0)
+        {
+            <section class="container mt-4 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                <div style="max-width:800px; margin: 0 auto;">
+                    @foreach (var (featureItem, index) in featureSections.Select((s, i) => (s, i)))
+                    {
+                        <div class="feature-section row align-items-center mb-5">
+                            @if (featureItem.HasImage)
+                            {
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    @if (!string.IsNullOrEmpty(featureItem.ImageUrl))
+                                    {
+                                        <img src="@featureItem.ImageUrl"
+                                             class="img-thumbnail feature-thumb w-100"
+                                             style="cursor:pointer"
+                                             alt="@(!string.IsNullOrEmpty(featureItem.ImageAltText) ? featureItem.ImageAltText : $"Bild för {featureItem.Title}")"
+                                             @onclick="() => ShowImage(featureItem.ImageUrl)" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bg-light p-4 text-center rounded">
+                                            <i class="fa-solid fa-image text-muted fa-3x"></i>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="col-md-8">
+                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                    {
+                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    }
+                                    <div>@((MarkupString)featureItem.Content)</div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col-12 text-center">
+                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                    {
+                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                    }
+                                    <div>@((MarkupString)featureItem.Content)</div>
+                                </div>
+                            }
+                        </div>
+
+                        @if (index < featureSections.Count - 1)
+                        {
+                            <div class="divider"></div>
+                        }
+                    }
+                </div>
+            </section>
+        }
     </div>
 
-    <!-- Document Viewer Modal -->
-    <DocumentViewer IsVisible="@isViewerOpen"
-                    DocumentId="@selectedDocumentId"
-                    DocumentTitle="@selectedDocumentName"
-                    OnClose="CloseDocumentViewer"
-                    OnDownload="DownloadDocument" />
+    @* ---------- Bildmodal -------------------------------------------------- *@
+    @if (!string.IsNullOrEmpty(activeImage))
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);"
+             role="dialog" aria-modal="true" aria-label="Förhandsgranskning av bild">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 bg-transparent">
+                    <button type="button" class="btn-close btn-close-white ms-auto me-n4 mt-n4" @onclick="CloseModal"></button>
+                    <img src="@activeImage" class="img-fluid rounded-3" />
+                </div>
+            </div>
+        </div>
+    }
 }
 
+<!-- Document Viewer Modal -->
+<DocumentViewer IsVisible="@isViewerOpen"
+                DocumentId="@selectedDocumentId"
+                DocumentTitle="@selectedDocumentName"
+                OnClose="CloseDocumentViewer"
+                OnDownload="DownloadDocument" />
+
 @code {
-    private List<DocumentViewModel> allDocuments = new();
-    private List<MainCategoryDto> categories = new();
+    private List<DocumentViewModel> accessibleDocuments = new();
+    private List<DocumentViewModel> filteredDocuments = new();
+    private List<MainCategoryDto> accessibleCategories = new();
     private bool isLoading = true;
     private bool loadError = false;
     private string errorMessage = "";
-    private Dictionary<int, List<DocumentViewModel>> documentsByCategory = new();
+    private bool showArchived = false;
 
     private List<string> userRoles = new();
 
@@ -191,15 +315,12 @@ else
     private bool loading = true;
     private bool isAdmin = false;
 
-    // Introtext modell (för framtida användning med CMS)
-    private class IntroSection
-    {
-        public string Title { get; set; } = "Alla viktiga dokument på ett ställe";
-        public string Content { get; set; } = "<p>Här hittar du mötesprotokoll, ansökningar, förvaltningsdokument och andra viktiga filer. Använd kategorierna för att snabbt hitta det du söker och ladda ner dokumenten direkt.</p>";
-        public string? ImageUrl { get; set; }
-        public string? ImageAltText { get; set; }
-    }
-    private IntroSection introSection = new();
+    // CMS-innehåll
+    private IntroSectionViewModel introSection = new();
+    private List<FeatureSectionViewModel> featureSections = new();
+
+    // Bildmodal
+    private string? activeImage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -215,9 +336,11 @@ else
             // Kontrollera om användaren har Admin-rollen
             isAdmin = userRoles.Contains("Admin");
 
-            await LoadCategories();
-            await LoadDocuments();
-            await OrganizeDocumentsByCategory();
+            // Hämta CMS-innehåll
+            await LoadCmsContent();
+
+            // **NYCKEL** - Hämta endast tillgängliga kategorier och dokument
+            await LoadAccessibleData();
         }
         catch (Exception ex)
         {
@@ -232,91 +355,94 @@ else
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && loadError && !string.IsNullOrEmpty(errorMessage))
-        {
-            await ToastService.Error($"Kunde inte ladda dokumentsidan: {errorMessage}");
-        }
-    }
-
-    private async Task LoadCategories()
+    private async Task LoadCmsContent()
     {
         try
         {
-            var http = HttpClientFactory.CreateClient("KronoxAPI");
-            // TODO: Ändra till rollfiltrerad endpoint när implementerad
-            var result = await http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main");
-
-            if (result != null)
-            {
-                categories = result;
-            }
-            else
-            {
-                Logger.LogWarning("Inga kategorier returnerades från API");
-                categories = new List<MainCategoryDto>();
-            }
+            introSection = await CmsService.GetIntroSectionAsync("dokument");
+            featureSections = await CmsService.GetFeatureSectionsAsync("dokument");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid laddning av kategorier");
+            Logger.LogError(ex, "Fel vid laddning av CMS-innehåll för dokument-sidan");
+        }
+    }
+
+    // **NYCKELMETOD** - Hämtar endast data som användaren har tillgång till
+    private async Task LoadAccessibleData()
+    {
+        try
+        {
+            // Hämta kategorier baserat på användarens roller
+            accessibleCategories = await CategoryService.GetAccessibleMainCategoriesAsync();
+
+            // Hämta dokument baserat på användarens roller
+            accessibleDocuments = await DocumentService.GetAccessibleDocumentsAsync();
+            
+            FilterDocuments();
+
+            Logger.LogInformation("Hämtade {CategoryCount} tillgängliga kategorier och {DocumentCount} tillgängliga dokument", 
+                accessibleCategories.Count, accessibleDocuments.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av tillgänglig data");
             errorMessage = ex.Message;
             loadError = true;
         }
     }
 
-    // Laddar dokument från API
-    private async Task LoadDocuments()
+    private void FilterDocuments()
+    {
+        filteredDocuments = accessibleDocuments.Where(d => 
+            isAdmin ? (showArchived || !d.IsArchived) : !d.IsArchived)
+            .ToList();
+        
+        StateHasChanged();
+    }
+
+    private async Task ArchiveDocument(int documentId)
     {
         try
         {
-            var http = HttpClientFactory.CreateClient("KronoxAPI");
-            var result = await http.GetFromJsonAsync<List<DocumentViewModel>>("api/documents");
-            if (result != null)
+            var success = await DocumentService.ArchiveDocumentAsync(documentId);
+            if (success)
             {
-                allDocuments = result
-                    .OrderByDescending(d => d.UploadedAt)
-                    .ToList();
+                await LoadAccessibleData();
+                await ToastService.Success("Dokumentet har arkiverats");
             }
             else
             {
-                Logger.LogWarning("Inga dokument returnerades från API");
-                allDocuments = new List<DocumentViewModel>();
+                await ToastService.Error("Kunde inte arkivera dokumentet");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid laddning av dokument");
-            errorMessage = ex.Message;
-            loadError = true;
+            Logger.LogError(ex, "Fel vid arkivering av dokument");
+            await ToastService.Error("Ett fel uppstod vid arkivering");
         }
     }
 
-    // Organiserar dokument per kategori för snabbare åtkomst
-    private async Task OrganizeDocumentsByCategory()
+    private async Task UnarchiveDocument(int documentId)
     {
         try
         {
-            documentsByCategory.Clear();
-
-            foreach (var category in categories)
+            var success = await DocumentService.UnarchiveDocumentAsync(documentId);
+            if (success)
             {
-                var docsInCategory = allDocuments
-                    .Where(d => d.MainCategoryId == category.Id).ToList();
-
-                if (docsInCategory.Any())
-                {
-                    documentsByCategory[category.Id] = docsInCategory;
-                }
+                await LoadAccessibleData();
+                await ToastService.Success("Dokumentet har återställts");
+            }
+            else
+            {
+                await ToastService.Error("Kunde inte återställa dokumentet");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid organisering av dokument per kategori");
+            Logger.LogError(ex, "Fel vid återställning av dokument");
+            await ToastService.Error("Ett fel uppstod vid återställning");
         }
-
-        await Task.CompletedTask;
     }
 
     private void ViewDocument(int id, string fileName)
@@ -375,4 +501,12 @@ else
             _ => "fas fa-file"
         };
     }
+
+    // Bildmodal-metoder (lika som i Omsystemet.razor)
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    private void CloseModal() => activeImage = null;
 }

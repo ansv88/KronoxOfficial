@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 
-// API-kontroller för hantering av dokument och filuppladdning.
+// API-kontroller för hantering av dokument och filuppladdning med rollbaserad åtkomst.
 [ApiController]
 [Route("api/documents")]
 [RequireApiKey]
@@ -17,21 +17,23 @@ public class DocumentController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly IFileService _files;
+    private readonly IRoleValidationService _roleValidationService;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<DocumentController> _log;
 
     public DocumentController(
         ApplicationDbContext db,
         IFileService files,
+        IRoleValidationService roleValidationService,
         IWebHostEnvironment env,
         ILogger<DocumentController> log)
     {
         _db = db;
         _files = files;
+        _roleValidationService = roleValidationService;
         _env = env;
         _log = log;
     }
-
 
     // Laddar upp ett dokument och kopplar det till kategorier.
     [HttpPost("upload")]
@@ -48,10 +50,10 @@ public class DocumentController : ControllerBase
         try
         {
             var mainCategory = await _db.MainCategories.FindAsync(req.MainCategoryId);
-            if (mainCategory == null)
+            if (mainCategory == null || !mainCategory.IsActive)
             {
-                _log.LogWarning("Ogiltig huvudkategori vid uppladdning: {MainCategoryId}", req.MainCategoryId);
-                return BadRequest("Ogiltig huvudkategori");
+                _log.LogWarning("Ogiltig eller inaktiv huvudkategori vid uppladdning: {MainCategoryId}", req.MainCategoryId);
+                return BadRequest("Ogiltig eller inaktiv huvudkategori");
             }
 
             string categoryFolder = FormatFolderName(mainCategory.Name);
@@ -64,7 +66,8 @@ public class DocumentController : ControllerBase
                 UploadedAt = DateTime.UtcNow,
                 FileSize = req.File.Length,
                 MainCategoryId = req.MainCategoryId,
-                SubCategories = req.SubCategoryIds?.ToList() ?? new List<int>()
+                SubCategories = req.SubCategoryIds?.ToList() ?? new List<int>(),
+                IsArchived = false
             };
 
             _db.Documents.Add(document);
@@ -80,14 +83,17 @@ public class DocumentController : ControllerBase
         }
     }
 
-    // Returnerar en lista med alla dokument.
+    // Returnerar en lista med alla dokument (endast admin).
     [HttpGet]
     [RequireRole("Admin")]
     public async Task<IActionResult> ListAll()
     {
         try
         {
-            var allDocuments = await _db.Documents.ToListAsync();
+            var allDocuments = await _db.Documents
+                .Include(d => d.MainCategory)
+                .ToListAsync();
+
             return Ok(allDocuments);
         }
         catch (Exception ex)
@@ -97,19 +103,81 @@ public class DocumentController : ControllerBase
         }
     }
 
+    // **NYCKELMETHOD** - Hämtar dokument baserat på användarens roller
+    [HttpGet("accessible")]
+    [RequireRole("Admin", "Styrelse", "Medlem")]
+    public async Task<IActionResult> GetAccessibleDocuments()
+    {
+        try
+        {
+            var userRoles = Request.Headers["X-User-Roles"].ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries);
 
-    // Streama ner dokumentet från PrivateStorage, med åtkomstkontroll
+            // Admin kan se alla dokument
+            if (userRoles.Contains("Admin", StringComparer.OrdinalIgnoreCase))
+            {
+                var allDocuments = await _db.Documents
+                    .Include(d => d.MainCategory)
+                    .ToListAsync();
+                return Ok(allDocuments);
+            }
+
+            // Hämta kategorier som användaren har tillgång till
+            var accessibleCategoryIds = await _roleValidationService.GetAccessibleCategoryIdsAsync(userRoles);
+
+            // Filtrera dokument baserat på kategoriroller
+            var accessibleDocuments = await _db.Documents
+                .Include(d => d.MainCategory)
+                .Where(d => !d.IsArchived && 
+                           accessibleCategoryIds.Contains(d.MainCategoryId))
+                .ToListAsync();
+
+            return Ok(accessibleDocuments);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Fel vid hämtning av tillgängliga dokument");
+            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av dokument.");
+        }
+    }
+
+    // Streama ner dokumentet från PrivateStorage, med rollbaserad åtkomstkontroll
     [HttpGet("{id}")]
     [RequireRole("Admin", "Styrelse", "Medlem")]
     public async Task<IActionResult> Download(int id)
     {
         try
         {
-            var document = await _db.Documents.FindAsync(id);
+            var document = await _db.Documents
+                .Include(d => d.MainCategory)
+                .FirstOrDefaultAsync(d => d.Id == id);
+
             if (document == null)
             {
                 _log.LogWarning("Dokument med ID {Id} hittades inte vid nedladdning.", id);
                 return NotFound();
+            }
+
+            // Kontrollera rollbaserad åtkomst
+            var userRoles = Request.Headers["X-User-Roles"].ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+            // Admin kan ladda ner alla dokument
+            if (!userRoles.Contains("Admin", StringComparer.OrdinalIgnoreCase))
+            {
+                // Kontrollera om användaren har tillgång till dokumentets kategori
+                if (!await _roleValidationService.UserHasAccessToCategoryAsync(document.MainCategoryId, userRoles))
+                {
+                    _log.LogWarning("Användare utan behörighet försökte ladda ner dokument {Id}", id);
+                    return Forbid("Du har inte behörighet att ladda ner detta dokument.");
+                }
+
+                // Kontrollera att dokumentet inte är arkiverat (utom för admin)
+                if (document.IsArchived)
+                {
+                    _log.LogWarning("Försök att ladda ner arkiverat dokument {Id} av icke-admin", id);
+                    return NotFound();
+                }
             }
 
             var phys = Path.Combine(_env.ContentRootPath, "PrivateStorage", document.FilePath);
@@ -130,48 +198,79 @@ public class DocumentController : ControllerBase
         }
     }
 
-
-    // Hämtar dokument kopplade till en viss huvudkategori.
-    [HttpGet("by-maincategory/{mainCategoryId}")]
-    [Authorize]
-    public async Task<IActionResult> GetByMainCategory(int mainCategoryId)
+    // Arkiverar ett dokument
+    [HttpPost("{id}/archive")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> ArchiveDocument(int id)
     {
         try
         {
-            var documents = await _db.Documents
-                .Where(d => d.MainCategoryId == mainCategoryId)
-                .ToListAsync();
+            var document = await _db.Documents.FindAsync(id);
+            if (document == null)
+            {
+                _log.LogWarning("Dokument med ID {Id} hittades inte för arkivering.", id);
+                return NotFound();
+            }
 
-            return Ok(documents);
+            if (document.IsArchived)
+            {
+                return BadRequest("Dokumentet är redan arkiverat.");
+            }
+
+            document.IsArchived = true;
+            document.ArchivedAt = DateTime.UtcNow;
+            document.ArchivedBy = "Admin"; // Eller hämta från user context
+
+            await _db.SaveChangesAsync();
+
+            _log.LogInformation("Dokument arkiverat: {FileName} (ID: {Id}) av {User}", 
+                document.FileName, document.Id, document.ArchivedBy);
+
+            return Ok("Dokumentet har arkiverats.");
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid hämtning av dokument för huvudkategori {MainCategoryId}", mainCategoryId);
-            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av dokument.");
+            _log.LogError(ex, "Fel vid arkivering av dokument med ID {Id}", id);
+            return StatusCode(500, "Ett oväntat fel inträffade vid arkivering av dokumentet.");
         }
     }
 
-
-    // Hämtar dokument kopplade till en viss underkategori.
-    [HttpGet("by-subcategory/{subCategoryId}")]
-    [Authorize]
-    public async Task<IActionResult> GetBySubCategory(int subCategoryId)
+    // Återställer ett arkiverat dokument
+    [HttpPost("{id}/unarchive")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> UnarchiveDocument(int id)
     {
         try
         {
-            var documents = await _db.Documents
-                .Where(d => d.SubCategories.Contains(subCategoryId))
-                .ToListAsync();
+            var document = await _db.Documents.FindAsync(id);
+            if (document == null)
+            {
+                _log.LogWarning("Dokument med ID {Id} hittades inte för återställning.", id);
+                return NotFound();
+            }
 
-            return Ok(documents);
+            if (!document.IsArchived)
+            {
+                return BadRequest("Dokumentet är inte arkiverat.");
+            }
+
+            document.IsArchived = false;
+            document.ArchivedAt = null;
+            document.ArchivedBy = null;
+
+            await _db.SaveChangesAsync();
+
+            _log.LogInformation("Dokument återställt: {FileName} (ID: {Id})", 
+                document.FileName, document.Id);
+
+            return Ok("Dokumentet har återställts.");
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid hämtning av dokument för underkategori {SubCategoryId}", subCategoryId);
-            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av dokument.");
+            _log.LogError(ex, "Fel vid återställning av dokument med ID {Id}", id);
+            return StatusCode(500, "Ett oväntat fel inträffade vid återställning av dokumentet.");
         }
     }
-
 
     // Uppdaterar huvudkategori och underkategorier för ett dokument.
     [HttpPut("{id}")]
@@ -185,6 +284,14 @@ public class DocumentController : ControllerBase
             {
                 _log.LogWarning("Dokument med ID {Id} hittades inte vid uppdatering.", id);
                 return NotFound();
+            }
+
+            // Kontrollera att den nya huvudkategorin finns och är aktiv
+            var newMainCategory = await _db.MainCategories.FindAsync(req.MainCategoryId);
+            if (newMainCategory == null || !newMainCategory.IsActive)
+            {
+                _log.LogWarning("Ogiltig eller inaktiv ny huvudkategori vid uppdatering: {MainCategoryId}", req.MainCategoryId);
+                return BadRequest("Ogiltig eller inaktiv ny huvudkategori");
             }
 
             var oldMainCategoryId = document.MainCategoryId;
@@ -202,13 +309,6 @@ public class DocumentController : ControllerBase
             {
                 try
                 {
-                    var newMainCategory = await _db.MainCategories.FindAsync(req.MainCategoryId);
-                    if (newMainCategory == null)
-                    {
-                        _log.LogWarning("Ogiltig ny huvudkategori vid uppdatering: {MainCategoryId}", req.MainCategoryId);
-                        return BadRequest("Ogiltig ny huvudkategori");
-                    }
-
                     string newCategoryFolder = FormatFolderName(newMainCategory.Name);
                     var sourceFilePath = Path.Combine(_env.ContentRootPath, "PrivateStorage", oldFilePath);
                     if (!System.IO.File.Exists(sourceFilePath))
@@ -248,6 +348,9 @@ public class DocumentController : ControllerBase
             }
 
             await _db.SaveChangesAsync();
+
+            _log.LogInformation("Dokument uppdaterat: {FileName} (ID: {Id})", document.FileName, document.Id);
+
             return Ok(document);
         }
         catch (Exception ex)
@@ -283,18 +386,15 @@ public class DocumentController : ControllerBase
         }
     }
 
-
     // Hjälpmetod för att formatera kategorinamn till giltiga mappnamn
     private string FormatFolderName(string categoryName)
     {
-        // Konvertera till lowercase och ersätt ogiltiga tecken med understreck
         var folderName = categoryName.ToLowerInvariant()
             .Replace(" ", "_")
             .Replace("å", "a")
             .Replace("ä", "a")
             .Replace("ö", "o");
 
-        // Ta bort ogiltiga tecken för filsystem
         folderName = string.Join("", folderName.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
         return folderName;
     }

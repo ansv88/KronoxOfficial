@@ -1,9 +1,11 @@
 ﻿using KronoxFront.DTOs;
 using KronoxFront.Extensions;
 using KronoxFront.ViewModels;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace KronoxFront.Services;
 
@@ -860,5 +862,189 @@ public class CmsService
             ".txt" => "text/plain",
             _ => "application/octet-stream"
         };
+    }
+
+    public async Task<List<FaqSectionViewModel>> GetFaqSectionsAsync(string pageKey)
+    {
+        try
+        {
+            var response = await _http.GetAsync($"api/faq/{pageKey}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var faqSections = JsonSerializer.Deserialize<List<FaqSectionDto>>(json, _jsonOptions);
+
+                return faqSections?.Select(fs => new FaqSectionViewModel
+                {
+                    Id = fs.Id,
+                    PageKey = fs.PageKey,
+                    Title = fs.Title,
+                    Description = fs.Description,
+                    SortOrder = fs.SortOrder,
+                    FaqItems = fs.FaqItems.Select(fi => new FaqItemViewModel
+                    {
+                        Id = fi.Id,
+                        FaqSectionId = fi.FaqSectionId,
+                        Question = fi.Question,
+                        Answer = fi.Answer,
+                        ImageUrl = fi.ImageUrl,
+                        ImageAltText = fi.ImageAltText,
+                        HasImage = fi.HasImage,
+                        SortOrder = fi.SortOrder
+                    }).ToList()
+                }).ToList() ?? new List<FaqSectionViewModel>();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av FAQ-sektioner för {PageKey}", pageKey);
+        }
+
+        return new List<FaqSectionViewModel>();
+    }
+
+    public async Task SaveFaqSectionsAsync(string pageKey, List<FaqSectionViewModel> faqSections)
+    {
+        try
+        {
+            // Konvertera till DTOs
+            var faqSectionDtos = faqSections.Select(fs => new FaqSectionDto
+            {
+                Id = fs.Id,
+                PageKey = fs.PageKey,
+                Title = fs.Title,
+                Description = fs.Description,
+                SortOrder = fs.SortOrder,
+                FaqItems = fs.FaqItems.Select(fi => new FaqItemDto
+                {
+                    Id = fi.Id,
+                    FaqSectionId = fi.FaqSectionId,
+                    Question = fi.Question,
+                    Answer = fi.Answer,
+                    ImageUrl = fi.ImageUrl,
+                    ImageAltText = fi.ImageAltText,
+                    HasImage = fi.HasImage,
+                    SortOrder = fi.SortOrder
+                }).ToList()
+            }).ToList();
+
+            // Uppdatera varje sektion individuellt
+            foreach (var section in faqSectionDtos)
+            {
+                if (section.Id == 0)
+                {
+                    // Skapa ny sektion
+                    var createDto = new CreateFaqSectionDto
+                    {
+                        PageKey = section.PageKey,
+                        Title = section.Title,
+                        Description = section.Description,
+                        SortOrder = section.SortOrder
+                    };
+
+                    var response = await _http.PostAsJsonAsync("api/faq/section", createDto);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var createdSection = await response.Content.ReadFromJsonAsync<FaqSectionDto>();
+                        if (createdSection != null)
+                        {
+                            // Skapa items för den nya sektionen
+                            foreach (var item in section.FaqItems)
+                            {
+                                var createItemDto = new CreateFaqItemDto
+                                {
+                                    FaqSectionId = createdSection.Id,
+                                    Question = item.Question,
+                                    Answer = item.Answer,
+                                    ImageUrl = item.ImageUrl,
+                                    ImageAltText = item.ImageAltText,
+                                    HasImage = item.HasImage,
+                                    SortOrder = item.SortOrder
+                                };
+                                await _http.PostAsJsonAsync("api/faq/item", createItemDto);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Uppdatera befintlig sektion
+                    await _http.PutAsJsonAsync($"api/faq/section/{section.Id}", section);
+                    
+                    // Uppdatera items
+                    foreach (var item in section.FaqItems)
+                    {
+                        if (item.Id == 0)
+                        {
+                            // Skapa ny item
+                            var createItemDto = new CreateFaqItemDto
+                            {
+                                FaqSectionId = section.Id,
+                                Question = item.Question,
+                                Answer = item.Answer,
+                                ImageUrl = item.ImageUrl,
+                                ImageAltText = item.ImageAltText,
+                                HasImage = item.HasImage,
+                                SortOrder = item.SortOrder
+                            };
+                            await _http.PostAsJsonAsync("api/faq/item", createItemDto);
+                        }
+                        else
+                        {
+                            // Uppdatera befintlig item
+                            await _http.PutAsJsonAsync($"api/faq/item/{item.Id}", item);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid sparning av FAQ-sektioner för {PageKey}", pageKey);
+            throw;
+        }
+    }
+
+    public async Task DeleteFaqSectionsAsync(string pageKey)
+    {
+        try
+        {
+            await _http.DeleteAsync($"api/faq/page/{pageKey}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid borttagning av FAQ-sektioner för {PageKey}", pageKey);
+            throw;
+        }
+    }
+
+    public async Task<string> UploadImageAsync(IBrowserFile file, string pageKey)
+    {
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var stream = file.OpenReadStream(maxAllowedSize: 10_000_000);
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(file.Name));
+            
+            content.Add(fileContent, "file", file.Name);
+            content.Add(new StringContent("Uppladdad bild"), "altText");
+
+            var response = await _http.PostAsync($"api/content/{pageKey}/images", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var imageResult = json.ToImageViewModel();
+                return imageResult?.Url ?? "";
+            }
+            
+            throw new Exception("Bilduppladdning misslyckades");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppladdning av bild");
+            throw;
+        }
     }
 }

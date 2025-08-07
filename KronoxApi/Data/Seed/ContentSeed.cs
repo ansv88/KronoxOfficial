@@ -49,6 +49,15 @@ public static class ContentSeed
 
             // Seeda feature-sektioner för Visioner & Verksamhetsidé
             await SeedFeatureSectionsFromMetadataAsync(serviceProvider, logger, "visioner");
+
+            // Seeda intro-sektion för Dokument
+            await SeedDokumentIntroSectionAsync(serviceProvider, logger);
+
+            // Seeda feature-sektioner för Dokument
+            await SeedFeatureSectionsFromMetadataAsync(serviceProvider, logger, "dokument");
+
+            // Seeda FAQ-sektioner för Om systemet
+            await SeedFaqSectionsAsync(serviceProvider, logger);
         }
         catch (Exception ex)
         {
@@ -78,6 +87,7 @@ public static class ContentSeed
                 "home" => GetDefaultFeatureSections(),
                 "omkonsortiet" => GetOmkonsortietsFeatureSections(),
                 "visioner" => GetVisionerFeatureSections(),
+                "dokument" => GetDokumentFeatureSections(),
                 _ => GetDefaultFeatureSections()
             };
 
@@ -147,6 +157,19 @@ public static class ContentSeed
         {
             title = "Vision",
             content = "<p>KronoX är, med sin inriktning mot högskolor och universitet, en viktig aktör på marknaden för system för schemaläggning och relaterade aktiviteter. Som konsortium tillhandahåller KronoX, i nära samverkan med sina medlemmar, efterfrågade tjänster med hög service och kvalitet på ett effektivt sätt. Allt fler lärosäten efterfrågar KronoX tjänster.</p>",
+            hasImage = false,
+            imageUrl = "",
+            imageAltText = ""
+        };
+    }
+
+    // Returnerar intro-sektion för Dokument-sidan.
+    private static dynamic GetDokumentIntroSection()
+    {
+        return new
+        {
+            title = "Ladda ner alla filer du behöver här",
+            content = "<p>Här hittar du alla mötesprotokoll, anteckningar, förvaltningsdokument med mera.</p><p>Letar du efter Manualen hittar du den <a href=\"/manual\" class=\"text-decoration-underline text-dark\">här <i class=\"fa fa-arrow-right ms-1\"></i></a></p>",
             hasImage = false,
             imageUrl = "",
             imageAltText = ""
@@ -590,6 +613,44 @@ public static class ContentSeed
         };
     }
 
+    // Returnerar feature-sektioner för Dokument-sidan.
+    private static dynamic[] GetDokumentFeatureSections()
+    {
+        return new[]
+        {
+            new {
+                title = "Organiserat efter kategorier",
+                content = "<p>Alla dokument är organiserade i tydliga kategorier för enkel navigation. Hitta snabbt det du söker genom att browsa efter typ av dokument.</p>",
+                imageUrl = "",
+                imageAltText = "",
+                hasImage = false,
+                hasPrivateContent = false,
+                privateContent = "",
+                contactPersons = new List<object>()
+            },
+            new {
+                title = "Rollbaserad åtkomst",
+                content = "<p>Olika dokument visas baserat på din användarroll. Detta säkerställer att känslig information endast är tillgänglig för behöriga personer.</p>",
+                imageUrl = "",
+                imageAltText = "",
+                hasImage = false,
+                hasPrivateContent = false,
+                privateContent = "",
+                contactPersons = new List<object>()
+            },
+            new {
+                title = "Enkel filhantering",
+                content = "<p>Ladda ner dokument direkt eller förhandsgranska dem i webbläsaren. Alla filer är optimerade för snabb nedladdning och visning.</p>",
+                imageUrl = "",
+                imageAltText = "",
+                hasImage = false,
+                hasPrivateContent = false,
+                privateContent = "",
+                contactPersons = new List<object>()
+            }
+        };
+    }
+
     // Seedar standardinnehåll för startsidan och andra standardsidor.
     private static async Task SeedDefaultContentAsync(ApplicationDbContext dbContext, ILogger logger)
     {
@@ -688,6 +749,38 @@ public static class ContentSeed
             logger.LogInformation("Visioner & Verksamhetsidé-sidans innehåll har seedats framgångsrikt.");
         }
 
+        // Seeda Dokument-sidan
+        if (await dbContext.ContentBlocks.AnyAsync(c => c.PageKey == "dokument"))
+        {
+            logger.LogInformation("Dokument-sidans innehåll finns redan. Hoppar över seeding.");
+        }
+        else
+        {
+            logger.LogInformation("Börjar seeda standardinnehåll för Dokument-sidan...");
+
+            var dokumentIntroSection = GetDokumentIntroSection();
+            var dokumentFeatureSections = GetDokumentFeatureSections();
+
+            var dokumentMetadataJson = JsonSerializer.Serialize(new
+            {
+                introSection = dokumentIntroSection,
+                features = dokumentFeatureSections
+            });
+
+            var dokumentContent = new ContentBlock
+            {
+                PageKey = "dokument",
+                Title = "Dokument",
+                HtmlContent = CreateDokumentContent(),
+                Metadata = dokumentMetadataJson,
+                LastModified = DateTime.UtcNow
+            };
+
+            dbContext.ContentBlocks.Add(dokumentContent);
+            await dbContext.SaveChangesAsync();
+            logger.LogInformation("Dokument-sidans innehåll har seedats framgångsrikt.");
+        }
+
         // Seeda andra standardsidor
         var standardPages = new List<(string key, string title)>
         {
@@ -715,9 +808,9 @@ public static class ContentSeed
 
     // Kopierar och registrerar medlemslogotyper från frontend och seedar dem i databasen.
     private static async Task EnsureMemberLogosAsync(
-    IWebHostEnvironment env,
-    ILogger logger,
-    ApplicationDbContext dbContext)
+        IWebHostEnvironment env,
+        ILogger logger,
+        ApplicationDbContext dbContext)
     {
         var membersDir = Path.Combine(env.WebRootPath, "images", "members");
         Directory.CreateDirectory(membersDir);
@@ -1056,6 +1149,83 @@ public static class ContentSeed
         }
     }
 
+    // Seedar eller uppdaterar intro-sektionen för Dokument-sidan.
+    private static async Task SeedDokumentIntroSectionAsync(IServiceProvider serviceProvider, ILogger logger)
+    {
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var dokumentContent = await dbContext.ContentBlocks.FirstOrDefaultAsync(c => c.PageKey == "dokument");
+            if (dokumentContent == null)
+            {
+                logger.LogWarning("Kunde inte hitta ContentBlock för Dokument-sidan, skapar ingen intro-sektion.");
+                return;
+            }
+
+            var introSection = GetDokumentIntroSection();
+
+            if (string.IsNullOrEmpty(dokumentContent.Metadata))
+            {
+                dokumentContent.Metadata = JsonSerializer.Serialize(new
+                {
+                    introSection,
+                    features = GetDokumentFeatureSections()
+                });
+            }
+            else
+            {
+                try
+                {
+                    var metadata = JsonDocument.Parse(dokumentContent.Metadata);
+                    var root = metadata.RootElement;
+
+                    using var ms = new MemoryStream();
+                    using var writer = new Utf8JsonWriter(ms);
+                    writer.WriteStartObject();
+
+                    writer.WritePropertyName("introSection");
+                    writer.WriteStartObject();
+                    writer.WriteString("title", introSection.title);
+                    writer.WriteString("content", introSection.content);
+                    writer.WriteBoolean("hasImage", introSection.hasImage);
+                    writer.WriteString("imageUrl", introSection.imageUrl);
+                    writer.WriteString("imageAltText", introSection.imageAltText);
+                    writer.WriteEndObject();
+
+                    foreach (var property in root.EnumerateObject())
+                    {
+                        if (property.Name != "introSection")
+                        {
+                            property.WriteTo(writer);
+                        }
+                    }
+
+                    writer.WriteEndObject();
+                    writer.Flush();
+
+                    dokumentContent.Metadata = Encoding.UTF8.GetString(ms.ToArray());
+                }
+                catch (JsonException)
+                {
+                    dokumentContent.Metadata = JsonSerializer.Serialize(new
+                    {
+                        introSection,
+                        features = GetDokumentFeatureSections()
+                    });
+                }
+            }
+
+            await dbContext.SaveChangesAsync();
+            logger.LogInformation("Seedade intro-sektion för Dokument-sidan");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Fel vid seeding av intro-sektion för Dokument");
+        }
+    }
+
     // Skapar HTML för startsidan baserat på standardvärden.
     private static string CreateDefaultHomeContent()
     {
@@ -1079,6 +1249,15 @@ public static class ContentSeed
     {
         var introSection = GetVisionerIntroSection();
         var featureSections = GetVisionerFeatureSections();
+
+        return BuildHtmlContent(introSection.content, featureSections);
+    }
+
+    // Skapar HTML för Dokument-sidan baserat på standardvärden.
+    private static string CreateDokumentContent()
+    {
+        var introSection = GetDokumentIntroSection();
+        var featureSections = GetDokumentFeatureSections();
 
         return BuildHtmlContent(introSection.content, featureSections);
     }
@@ -1113,9 +1292,9 @@ public static class ContentSeed
 
     // Kopierar och registrerar feature-bilder från seed-mapp till wwwroot och databasen.
     private static async Task EnsureFeatureImagesAndRegisterAsync(
-     IWebHostEnvironment env,
-     ILogger logger,
-     ApplicationDbContext dbContext)
+        IWebHostEnvironment env,
+        ILogger logger,
+        ApplicationDbContext dbContext)
     {
         var seedImageDir = Path.Combine(env.ContentRootPath, "SeedAssets", "FeatureImages");
         var wwwrootImageDir = Path.Combine(env.WebRootPath, "images", "pages", "home");
@@ -1129,12 +1308,12 @@ public static class ContentSeed
         }
 
         var fileMappings = new Dictionary<string, (string sectionId, string altText)>
-    {
-        { "KronoX-bokningsdialogen-med-lagerfunktionen.png", ("feature:1", "Illustration av systemets flexibilitet") },
-        { "bokningsdialogen.png", ("feature:2", "Användare med olika behov") },
-        { "oversikt.png", ("feature:3", "Informationsöverblick") },
-        { "debiteringsflik.png", ("feature:4", "Debiteringsfunktion") }
-    };
+        {
+            { "KronoX-bokningsdialogen-med-lagerfunktionen.png", ("feature:1", "Illustration av systemets flexibilitet") },
+            { "bokningsdialogen.png", ("feature:2", "Användare med olika behov") },
+            { "oversikt.png", ("feature:3", "Informationsöverblick") },
+            { "debiteringsflik.png", ("feature:4", "Debiteringsfunktion") }
+        };
 
         foreach (var file in Directory.GetFiles(seedImageDir))
         {
@@ -1171,4 +1350,117 @@ public static class ContentSeed
 
         await dbContext.SaveChangesAsync();
     }
+
+    // Seedar FAQ-sektioner för Om systemet-sidan
+    private static async Task SeedFaqSectionsAsync(IServiceProvider serviceProvider, ILogger logger)
+    {
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Kontrollera om FAQ-sektioner redan finns för omsystemet
+            if (await dbContext.FaqSections.AnyAsync(fs => fs.PageKey == "omsystemet"))
+            {
+                logger.LogInformation("FAQ-sektioner för omsystemet finns redan. Hoppar över seeding.");
+                return;
+            }
+
+            logger.LogInformation("Seedar FAQ-sektioner för Om systemet-sidan...");
+
+            // Skapa FAQ-sektion
+            var faqSection = new FaqSection
+            {
+                PageKey = "omsystemet",
+                Title = "Enkelt, kraftfullt och flexibelt",
+                Description = "Här hittar du svar på vanliga frågor om KronoX-systemet och dess funktioner.",
+                SortOrder = 0,
+                FaqItems = new List<FaqItem>
+                {
+                    new FaqItem
+                    {
+                        Question = "Förenklar livet för studenter",
+                        Answer = "<p>KronoX gör det enkelt att oavsett var du befinner dig, via webben eller vår app (för iPhone och Android) lösa dina schemaproblem - från det mest självklara, att få ut ditt schema, till att boka grupprum och av-/anmäla dig till tentor.</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 0
+                    },
+                    new FaqItem
+                    {
+                        Question = "Underlätta vardagen för lärare",
+                        Answer = "<p>Som lärare får du förstås också ut ditt schema med samma lätthet som dina studenter. Långt före kursstart har KronoX redan börjat förenkla din tillvaro. Kopiera upplägg för hela kurser, lägg beställningar till centrala schemaläggare eller boka helt på egen hand. Lista dina krav på lokaler och hjälpmedel och få förslag på lediga resurser för de tillfällen du vill boka. Slipp problem med dubbelbokade lokaler och bli påmind i tid före tentamenstillfället om när det är dags att lämna in provet.</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 1
+                    },
+                    new FaqItem
+                    {
+                        Question = "Ger professionella schemaläggare ett genomtänkt stöd",
+                        Answer = "<p>Som professionell schemaläggare och centralbokare behöver du ett system som enkelt låter dig lägga schemat så som du behöver ha det, med stöd för att kunna undvika dubbelbokningar och möjlighet att kringgå dessa spärrar när verksamheten så kräver. Schemalägg enkelt på olika gruppnivåer utan att fundera över schemavisning för studenter då systemet hanterar det åt dig. Du handskas även smidigt med lärares önskemålsbokningar och får stöd av systemet för att hitta förslag på lediga resurser som uppfyller önskemålen, till lägsta möjliga kostnad. Systemet ger bara förslag, du bestämmer!</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 2
+                    },
+                    new FaqItem
+                    {
+                        Question = "Förenklad administration för tentamensadministratörer",
+                        Answer = "<p>Minska dubbeladministrationen genom att du kan arbeta mot Ladok inne i KronoX och skapa både tentamenstillfällen, samt av-/anmäla studenter och hantera beviljat stöd så att du enkelt kan placera tentanderna på bästa möjliga sätt.</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 3
+                    },
+                    new FaqItem
+                    {
+                        Question = "Låter ekonomer ägna sig åt annat än interndebitering",
+                        Answer = "<p>Spara tid och pengar med marknadens mest kompetenta och flexibla stöd för interndebitering med olika taxor baserade på tid på dygnet, veckodag och klassning av lokaler och hjälpmedel.</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 4
+                    },
+                    new FaqItem
+                    {
+                        Question = "Ger fastighetsförvaltare bättre statistik och styrmedel",
+                        Answer = "<p>Tomma, outnyttjade lokaler kostar pengar. I synnerhet när andra lokaler är överbelagda. Analysera lokalutnyttjandegraden per lokal eller fastighet. Locka fler att boka lågutnyttjade tider genom att sänka hyror och stimulera ett bättre utnyttjande av befintliga resurser, istället för att dra på er ännu fler kostnader för externa lokaler.</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 5
+                    },
+                    new FaqItem
+                    {
+                        Question = "Möjliggör för controllers att få en bättre överblick",
+                        Answer = "<p>Få en överblick över hyreskostnader för genomförda utbildningar (avser endast schemalagd arbetstid, inte övrig arbetstid för lärarkåren som t ex rättning, förberedelser mm) och använd underlaget för uppföljning av gjorda investeringar i t ex hjälpmedel och fast utrustning.</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 6
+                    },
+                   new FaqItem
+                    {
+                        Question = "Lätt för systemadministratörer att integrera",
+                        Answer = "<p>Synkronisera med lätthet data från era kringsystem till KronoX för att slippa manuell administration av användarkonton, studenter, lärare, lokaler, hjälpmedel, kurser och program. Samkör KronoX med Ladok för tentamensadministration via LPW-tjänster och/eller integrera med er befintliga studentportal. Ta emot notifieringar från systemet för händelser till exempelvis växel-/passagesystem för automatisk hänvisning när lärare har undervisning och upplåsning av utrymmen för berörda lärare och studentgrupper.</p>",
+                        HasImage = false,
+                        ImageUrl = "",
+                        ImageAltText = "",
+                        SortOrder = 7
+                    }
+                }
+            };
+
+            dbContext.FaqSections.Add(faqSection);
+            await dbContext.SaveChangesAsync();
+
+            logger.LogInformation($"Seedade {faqSection.FaqItems.Count} FAQ-items för Om systemet-sidan");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Fel vid seeding av FAQ-sektioner");
+        }
+    }
+
 }

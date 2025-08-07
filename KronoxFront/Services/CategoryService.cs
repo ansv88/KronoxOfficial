@@ -12,6 +12,10 @@ public class CategoryService
     public Task<List<MainCategoryDto>> GetMainCategoriesAsync()
         => _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main")!;
 
+    // **NYCKELMETHOD** - Hämtar kategorier baserat på användarens roller
+    public Task<List<MainCategoryDto>> GetAccessibleMainCategoriesAsync()
+        => _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main/accessible")!;
+
     public Task<List<SubCategoryDto>> GetSubCategoriesAsync()
     => _http.GetFromJsonAsync<List<SubCategoryDto>>("api/category/sub")!;
 
@@ -21,16 +25,16 @@ public class CategoryService
     public Task<SubCategoryDto> GetSubCategoryByIdAsync(int id)
         => _http.GetFromJsonAsync<SubCategoryDto>($"api/category/sub/{id}")!;
 
-    public Task<bool> AddMainCategoryAsync(string name)
-    => _http.PostAsJsonAsync("api/category/main", new { Name = name })
+    public Task<bool> AddMainCategoryAsync(string name, List<string> allowedRoles)
+    => _http.PostAsJsonAsync("api/category/main", new { Name = name, AllowedRoles = allowedRoles })
             .ContinueWith(t => t.Result.IsSuccessStatusCode);
 
     public Task<bool> AddSubCategoryAsync(string name)
     => _http.PostAsJsonAsync("api/category/sub", new { Name = name })
             .ContinueWith(t => t.Result.IsSuccessStatusCode);
 
-    public Task<bool> EditMainCategoryAsync(int id, string name)
-        => _http.PutAsJsonAsync($"api/category/main/{id}", new { Name = name })
+    public Task<bool> EditMainCategoryAsync(int id, string name, List<string> allowedRoles)
+        => _http.PutAsJsonAsync($"api/category/main/{id}", new { Name = name, AllowedRoles = allowedRoles })
                 .ContinueWith(t => t.Result.IsSuccessStatusCode);
 
     public Task<bool> EditSubCategoryAsync(int id, string name)

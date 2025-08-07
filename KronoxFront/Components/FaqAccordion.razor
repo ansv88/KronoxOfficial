@@ -1,0 +1,105 @@
+﻿@using KronoxFront.ViewModels
+@inject IJSRuntime JS
+
+@if (FaqSections.Any())
+{
+    <div class="container mt-4 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+        <div style="max-width:800px; margin: 0 auto;">
+            @foreach (var faqSection in FaqSections)
+            {
+                <div class="faq-section mb-5">
+                    @if (!string.IsNullOrWhiteSpace(faqSection.Title))
+                    {
+                        <h3 class="mb-4 fw-bold text-center">@faqSection.Title</h3>
+                    }
+                    
+                    @if (!string.IsNullOrWhiteSpace(faqSection.Description))
+                    {
+                        <div class="mb-4 text-center">
+                            @((MarkupString)faqSection.Description)
+                        </div>
+                    }
+
+                    @if (faqSection.FaqItems.Any())
+                    {
+                        <div class="accordion" id="accordion-@faqSection.Id">
+                            @for (int i = 0; i < faqSection.FaqItems.Count; i++)
+                            {
+                                var item = faqSection.FaqItems[i];
+                                var index = i;
+                                var collapseId = $"collapse-{faqSection.Id}-{item.Id}";
+                                var headingId = $"heading-{faqSection.Id}-{item.Id}";
+                                
+                                <div class="accordion-item">
+                                    <h4 class="accordion-header" id="@headingId">
+                                        <button class="accordion-button @(index == 0 ? "" : "collapsed")" 
+                                                type="button" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#@collapseId" 
+                                                aria-expanded="@(index == 0 ? "true" : "false")" 
+                                                aria-controls="@collapseId">
+                                            @item.Question
+                                        </button>
+                                    </h4>
+                                    <div id="@collapseId" 
+                                         class="accordion-collapse collapse @(index == 0 ? "show" : "")" 
+                                         aria-labelledby="@headingId" 
+                                         data-bs-parent="#accordion-@faqSection.Id">
+                                        <div class="accordion-body">
+                                            @if (item.HasImage && !string.IsNullOrEmpty(item.ImageUrl))
+                                            {
+                                                <div class="row">
+                                                    <div class="col-md-4 mb-3">
+                                                        <img src="@item.ImageUrl" 
+                                                             class="img-fluid rounded shadow"
+                                                             alt="@(string.IsNullOrEmpty(item.ImageAltText) ? item.Question : item.ImageAltText)"
+                                                             style="cursor:pointer"
+                                                             @onclick="() => ShowImage(item.ImageUrl)" />
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        @((MarkupString)item.Answer)
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                @((MarkupString)item.Answer)
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* Bildmodal *@
+@if (!string.IsNullOrEmpty(activeImage))
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);"
+         role="dialog" aria-modal="true" aria-label="Förhandsgranskning av bild">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 bg-transparent">
+                <button type="button" class="btn-close btn-close-white ms-auto me-n4 mt-n4" @onclick="CloseModal"></button>
+                <img src="@activeImage" class="img-fluid rounded-3" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public List<FaqSectionViewModel> FaqSections { get; set; } = new();
+    
+    private string? activeImage;
+
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    private void CloseModal() => activeImage = null;
+}

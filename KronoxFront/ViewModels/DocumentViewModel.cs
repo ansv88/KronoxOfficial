@@ -3,7 +3,6 @@
 namespace KronoxFront.ViewModels;
 
 // ViewModel för dokument, inklusive koppling till huvud- och underkategorier.
-
 public class DocumentViewModel
 {
     public int Id { get; set; }
@@ -15,4 +14,9 @@ public class DocumentViewModel
     public List<int>? SubCategories { get; set; } = new();
     public MainCategoryDto MainCategoryDto { get; set; } = new();
     public List<SubCategoryDto>? SubCategoryDtos { get; set; } = new();
+    
+    // Fält för arkivering
+    public bool IsArchived { get; set; } = false;
+    public DateTime? ArchivedAt { get; set; }
+    public string? ArchivedBy { get; set; }
 }

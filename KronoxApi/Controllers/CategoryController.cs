@@ -2,14 +2,17 @@
 using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
+using KronoxApi.Requests;
+using KronoxApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace KronoxApi.Controllers;
 
 /// <summary>
 /// API-kontroller för hantering av huvud- och underkategorier.
-/// Endast åtkomlig för administratörer.
+/// Stöder rollbaserad åtkomst för kategorier.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -17,34 +20,101 @@ namespace KronoxApi.Controllers;
 public class CategoryController : ControllerBase
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IRoleValidationService _roleValidationService;
     private readonly ILogger<CategoryController> _log;
 
-    public CategoryController(ApplicationDbContext dbContext, ILogger<CategoryController> log)
+    public CategoryController(
+        ApplicationDbContext dbContext,
+        IRoleValidationService roleValidationService,
+        ILogger<CategoryController> log)
     {
         _dbContext = dbContext;
+        _roleValidationService = roleValidationService;
         _log = log;
     }
 
-
-    // Hämtar alla huvudkategorier.
+    // Hämtar alla huvudkategorier (endast admin).
     [HttpGet("main")]
     [RequireRole("Admin")]
     public async Task<IActionResult> ListAllMainCategories()
     {
-        var allMainCategories = await _dbContext.MainCategories.ToListAsync();
-        return Ok(allMainCategories);
+        try
+        {
+            var categories = await _dbContext.MainCategories
+                .Where(mc => mc.IsActive)
+                .Select(mc => new MainCategoryDto
+                {
+                    Id = mc.Id,
+                    Name = mc.Name,
+                    AllowedRoles = mc.AllowedRoles,
+                    IsActive = mc.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(categories);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Fel vid hämtning av huvudkategorier");
+            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av kategorier.");
+        }
     }
 
+    // **NYCKELMETHOD** - Hämtar kategorier baserat på användarens roller
+    [HttpGet("main/accessible")]
+    [RequireRole("Admin", "Styrelse", "Medlem")]
+    public async Task<IActionResult> GetAccessibleMainCategories()
+    {
+        try
+        {
+            var userRoles = Request.Headers["X-User-Roles"].ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+            var accessibleCategoryIds = await _roleValidationService.GetAccessibleCategoryIdsAsync(userRoles);
+            
+            var categories = await _dbContext.MainCategories
+                .Where(mc => accessibleCategoryIds.Contains(mc.Id))
+                .Select(mc => new MainCategoryDto
+                {
+                    Id = mc.Id,
+                    Name = mc.Name,
+                    AllowedRoles = mc.AllowedRoles,
+                    IsActive = mc.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(categories);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Fel vid hämtning av tillgängliga kategorier");
+            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av kategorier.");
+        }
+    }
 
     // Hämtar alla underkategorier.
     [HttpGet("sub")]
     [RequireRole("Admin")]
     public async Task<IActionResult> ListAllSubCategories()
     {
-        var allSubCategories = await _dbContext.SubCategories.ToListAsync();
-        return Ok(allSubCategories);
-    }
+        try
+        {
+            var allSubCategories = await _dbContext.SubCategories
+                .Select(c => new SubCategoryDto
+                {
+                    Id = c.Id,
+                    Name = c.Name
+                })
+                .ToListAsync();
 
+            return Ok(allSubCategories);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Fel vid hämtning av underkategorier");
+            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av underkategorier.");
+        }
+    }
 
     // Hämtar en huvudkategori baserat på ID.
     [HttpGet("main/{id}")]
@@ -59,7 +129,16 @@ public class CategoryController : ControllerBase
                 _log.LogWarning("Huvudkategorin med ID {Id} hittades inte.", id);
                 return NotFound("Kategorin hittades inte.");
             }
-            return Ok(mainCategory);
+
+            var dto = new MainCategoryDto
+            {
+                Id = mainCategory.Id,
+                Name = mainCategory.Name,
+                AllowedRoles = mainCategory.AllowedRoles,
+                IsActive = mainCategory.IsActive
+            };
+
+            return Ok(dto);
         }
         catch (Exception ex)
         {
@@ -67,7 +146,6 @@ public class CategoryController : ControllerBase
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av kategorin.");
         }
     }
-
 
     // Hämtar en underkategori baserat på ID.
     [HttpGet("sub/{id}")]
@@ -82,7 +160,14 @@ public class CategoryController : ControllerBase
                 _log.LogWarning("Underkategorin med ID {Id} hittades inte.", id);
                 return NotFound("Kategorin hittades inte.");
             }
-            return Ok(subCategory);
+
+            var dto = new SubCategoryDto
+            {
+                Id = subCategory.Id,
+                Name = subCategory.Name
+            };
+
+            return Ok(dto);
         }
         catch (Exception ex)
         {
@@ -91,29 +176,47 @@ public class CategoryController : ControllerBase
         }
     }
 
-
-    // Skapar en ny huvudkategori.
+    // Skapar en ny huvudkategori med rollbaserad åtkomst.
     [HttpPost("main")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> CreateMainCategory([FromBody] MainCategory model)
+    public async Task<IActionResult> CreateMainCategory([FromBody] CreateMainCategoryRequest request)
     {
-        if (string.IsNullOrWhiteSpace(model.Name))
+        if (!ModelState.IsValid)
         {
-            _log.LogWarning("Försök att skapa huvudkategori utan namn.");
-            return BadRequest("Namn krävs.");
+            return BadRequest(ModelState);
         }
 
         try
         {
-            _dbContext.MainCategories.Add(model);
+            // Validera att rollerna existerar
+            if (request.AllowedRoles.Any() && !await _roleValidationService.ValidateRolesAsync(request.AllowedRoles))
+            {
+                return BadRequest("En eller flera angivna roller existerar inte.");
+            }
+
+            var mainCategory = new MainCategory
+            {
+                Name = request.Name,
+                AllowedRoles = request.AllowedRoles,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.MainCategories.Add(mainCategory);
             await _dbContext.SaveChangesAsync();
 
-            var mainCategoryDto = new MainCategoryDto
+            var dto = new MainCategoryDto
             {
-                Id = model.Id,
-                Name = model.Name
+                Id = mainCategory.Id,
+                Name = mainCategory.Name,
+                AllowedRoles = mainCategory.AllowedRoles,
+                IsActive = mainCategory.IsActive
             };
-            return Ok(mainCategoryDto);
+
+            _log.LogInformation("Huvudkategori '{Name}' skapad med roller: {Roles}", 
+                mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
+
+            return CreatedAtAction(nameof(GetMainCategory), new { id = mainCategory.Id }, dto);
         }
         catch (Exception ex)
         {
@@ -122,29 +225,35 @@ public class CategoryController : ControllerBase
         }
     }
 
-
     // Skapar en ny underkategori.
     [HttpPost("sub")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> CreateSubCategory([FromBody] SubCategory model)
+    public async Task<IActionResult> CreateSubCategory([FromBody] CreateSubCategoryRequest request)
     {
-        if (string.IsNullOrWhiteSpace(model.Name))
+        if (!ModelState.IsValid)
         {
-            _log.LogWarning("Försök att skapa underkategori utan namn.");
-            return BadRequest("Namn krävs.");
+            return BadRequest(ModelState);
         }
 
         try
         {
-            _dbContext.SubCategories.Add(model);
+            var subCategory = new SubCategory
+            {
+                Name = request.Name
+            };
+
+            _dbContext.SubCategories.Add(subCategory);
             await _dbContext.SaveChangesAsync();
 
-            var subCategoryDto = new SubCategoryDto
+            var dto = new SubCategoryDto
             {
-                Id = model.Id,
-                Name = model.Name
+                Id = subCategory.Id,
+                Name = subCategory.Name
             };
-            return Ok(subCategoryDto);
+
+            _log.LogInformation("Underkategori '{Name}' skapad", subCategory.Name);
+
+            return CreatedAtAction(nameof(GetSubCategory), new { id = subCategory.Id }, dto);
         }
         catch (Exception ex)
         {
@@ -153,12 +262,16 @@ public class CategoryController : ControllerBase
         }
     }
 
-
     // Uppdaterar en huvudkategori.
     [HttpPut("main/{id}")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> UpdateMainCategory(int id, [FromBody] MainCategory update)
+    public async Task<IActionResult> UpdateMainCategory(int id, [FromBody] UpdateMainCategoryRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         try
         {
             var mainCategory = await _dbContext.MainCategories.FindAsync(id);
@@ -168,14 +281,21 @@ public class CategoryController : ControllerBase
                 return NotFound("Kategorin hittades inte.");
             }
 
-            if (string.IsNullOrWhiteSpace(update.Name))
+            // Validera att rollerna existerar
+            if (request.AllowedRoles.Any() && !await _roleValidationService.ValidateRolesAsync(request.AllowedRoles))
             {
-                _log.LogWarning("Försök att uppdatera huvudkategori med tomt namn.");
-                return BadRequest("Namn krävs.");
+                return BadRequest("En eller flera angivna roller existerar inte.");
             }
 
-            mainCategory.Name = update.Name;
+            mainCategory.Name = request.Name;
+            mainCategory.AllowedRoles = request.AllowedRoles;
+            mainCategory.UpdatedAt = DateTime.UtcNow;
+
             await _dbContext.SaveChangesAsync();
+
+            _log.LogInformation("Huvudkategori '{Name}' uppdaterad med roller: {Roles}", 
+                mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
+
             return Ok();
         }
         catch (Exception ex)
@@ -185,12 +305,16 @@ public class CategoryController : ControllerBase
         }
     }
 
-
     // Uppdaterar en underkategori.
     [HttpPut("sub/{id}")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> UpdateSubCategory(int id, [FromBody] SubCategory update)
+    public async Task<IActionResult> UpdateSubCategory(int id, [FromBody] UpdateSubCategoryRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         try
         {
             var subCategory = await _dbContext.SubCategories.FindAsync(id);
@@ -200,14 +324,10 @@ public class CategoryController : ControllerBase
                 return NotFound("Underkategorin hittades inte.");
             }
 
-            if (string.IsNullOrWhiteSpace(update.Name))
-            {
-                _log.LogWarning("Försök att uppdatera underkategori med tomt namn.");
-                return BadRequest("Namn krävs.");
-            }
-
-            subCategory.Name = update.Name;
+            subCategory.Name = request.Name;
             await _dbContext.SaveChangesAsync();
+
+            _log.LogInformation("Underkategori '{Name}' uppdaterad", subCategory.Name);
 
             return Ok();
         }
@@ -218,8 +338,7 @@ public class CategoryController : ControllerBase
         }
     }
 
-
-    // Tar bort en huvudkategori.
+    // Tar bort en huvudkategori (soft delete).
     [HttpDelete("main/{id}")]
     [RequireRole("Admin")]
     public async Task<IActionResult> DeleteMainCategory(int id)
@@ -233,9 +352,27 @@ public class CategoryController : ControllerBase
                 return NotFound("Huvudkategorin hittades inte.");
             }
 
-            _dbContext.MainCategories.Remove(mainCategory);
+            // Kontrollera att inga aktiva dokument använder denna kategori
+            var activeDocuments = await _dbContext.Documents
+                .Where(d => d.MainCategoryId == id && !d.IsArchived)
+                .CountAsync();
+
+            if (activeDocuments > 0)
+            {
+                _log.LogWarning("Försök att ta bort huvudkategori {Id} som används av {Count} aktiva dokument", 
+                    id, activeDocuments);
+                return BadRequest($"Kategorin används av {activeDocuments} aktiva dokument och kan inte tas bort.");
+            }
+
+            // Soft delete - markera som inaktiv
+            mainCategory.IsActive = false;
+            mainCategory.UpdatedAt = DateTime.UtcNow;
+
             await _dbContext.SaveChangesAsync();
-            return Ok($"Huvudkategori '{mainCategory.Name}' har tagits bort.");
+
+            _log.LogInformation("Huvudkategori '{Name}' inaktiverad", mainCategory.Name);
+
+            return Ok($"Huvudkategori '{mainCategory.Name}' har inaktiverats.");
         }
         catch (Exception ex)
         {
@@ -243,7 +380,6 @@ public class CategoryController : ControllerBase
             return StatusCode(500, "Ett oväntat fel inträffade vid borttagning av huvudkategorin.");
         }
     }
-
 
     // Tar bort en underkategori.
     [HttpDelete("sub/{id}")]
@@ -259,8 +395,22 @@ public class CategoryController : ControllerBase
                 return NotFound("Underkategorin hittades inte.");
             }
 
+            // Kontrollera att inga dokument använder denna underkategori
+            var documentsUsingCategory = await _dbContext.Documents
+                .Where(d => d.SubCategories.Contains(id))
+                .CountAsync();
+
+            if (documentsUsingCategory > 0)
+            {
+                _log.LogWarning("Försök att ta bort underkategori {Id} som används av {Count} dokument", 
+                    id, documentsUsingCategory);
+                return BadRequest($"Underkategorin används av {documentsUsingCategory} dokument och kan inte tas bort.");
+            }
+
             _dbContext.SubCategories.Remove(subCategory);
             await _dbContext.SaveChangesAsync();
+
+            _log.LogInformation("Underkategori '{Name}' borttagen", subCategory.Name);
 
             return Ok($"Underkategori '{subCategory.Name}' har tagits bort.");
         }

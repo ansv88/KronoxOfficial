@@ -100,6 +100,8 @@ public class Program
         builder.Services.AddScoped<IFileService, FileService>();
         //builder.Services.AddScoped<ICmsService, CmsService>();
 
+        builder.Services.AddScoped<IRoleValidationService, RoleValidationService>();
+
         builder.Services.ConfigureApplicationCookie(options =>
         {
             // När en icke‐autentiserad träffar [Authorize] på /api/*

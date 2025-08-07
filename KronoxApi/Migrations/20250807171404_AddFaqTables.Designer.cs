@@ -4,6 +4,7 @@ using KronoxApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KronoxApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250807171404_AddFaqTables")]
+    partial class AddFaqTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -150,30 +153,16 @@ namespace KronoxApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("ArchivedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ArchivedBy")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FilePath")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint");
-
-                    b.Property<bool>("IsArchived")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<int>("MainCategoryId")
                         .HasColumnType("int");
@@ -183,15 +172,9 @@ namespace KronoxApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("UploadedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("UploadedAt");
-
-                    b.HasIndex("MainCategoryId", "IsArchived");
 
                     b.ToTable("Documents");
                 });
@@ -332,31 +315,11 @@ namespace KronoxApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AllowedRoles")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("IsActive");
 
                     b.ToTable("MainCategories");
                 });
@@ -596,17 +559,6 @@ namespace KronoxApi.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("KronoxApi.Models.Document", b =>
-                {
-                    b.HasOne("KronoxApi.Models.MainCategory", "MainCategory")
-                        .WithMany("Documents")
-                        .HasForeignKey("MainCategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("MainCategory");
-                });
-
             modelBuilder.Entity("KronoxApi.Models.FaqItem", b =>
                 {
                     b.HasOne("KronoxApi.Models.FaqSection", "FaqSection")
@@ -689,11 +641,6 @@ namespace KronoxApi.Migrations
             modelBuilder.Entity("KronoxApi.Models.FaqSection", b =>
                 {
                     b.Navigation("FaqItems");
-                });
-
-            modelBuilder.Entity("KronoxApi.Models.MainCategory", b =>
-                {
-                    b.Navigation("Documents");
                 });
 #pragma warning restore 612, 618
         }

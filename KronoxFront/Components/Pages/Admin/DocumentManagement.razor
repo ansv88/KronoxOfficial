@@ -1,4 +1,4 @@
-﻿@page "/admin/documents"
+﻿@page "/admin/documents/manage"
 @using KronoxFront.Components
 @using KronoxFront.DTOs
 @using KronoxFront.Services
@@ -12,27 +12,37 @@
 @inject CacheService CacheService
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
-@inject ILogger<DocumentAdmin> Logger
+@inject ILogger<DocumentManagement> Logger
 
 @attribute [Authorize(Policy = "RequireAdmin")]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 
 @*
-   Administrationssida för dokument, kategorier och uppladdning.
-   Ger admin möjlighet att ladda upp, redigera, ta bort och kategorisera dokument samt hantera kategorier.
+   Teknisk modul för dokumenthantering - uppladdning, kategorier och rollhantering.
+   Denna sida är separerad från CMS-hanteringen av publika dokument-sidan.
 *@
 
 <HeadContent>
     <meta name="description" content="Hantera dokument och kategorier i KronoX. Ladda upp, redigera och ta bort filer samt organisera dokumentarkivet." />
 </HeadContent>
 
-<PageTitle>Dokumenthantering</PageTitle>
+<PageTitle>Dokumenthantering - Modul</PageTitle>
 
 <div class="container-fluid">
-    <h1 class="mb-4 h2">
-        <i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering
-    </h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">
+            <i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering
+        </h1>
+        <div>
+            <a href="/admin/page/dokument" class="btn btn-outline-secondary me-2">
+                <i class="fa-solid fa-edit me-1"></i> Redigera Dokument-sidan
+            </a>
+            <a href="/dokument" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-eye me-1"></i> Visa publika sidan
+            </a>
+        </div>
+    </div>
 
     <div class="row mb-4">
         <!-- Uppladdning -->
@@ -72,7 +82,9 @@
                                     <option value="">-- Välj kategori --</option>
                                     @foreach (var mainCategory in mainCategoryDtos)
                                     {
-                                        <option value="@mainCategory.Id">@mainCategory.Name</option>
+                                        <option value="@mainCategory.Id">
+                                            @mainCategory.Name (@string.Join(", ", mainCategory.AllowedRoles))
+                                        </option>
                                     }
                                 </select>
                             </div>
@@ -113,7 +125,7 @@
             </div>
         </div>
 
-        <!-- Category Admin -->
+        <!-- Category Admin med Rollhantering -->
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header d-flex justify-content-between">
@@ -137,6 +149,26 @@
                             </select>
                         </div>
 
+                        @if (newCategoryString == "main")
+                        {
+                            <div class="mb-3">
+                                <label>Tillåtna roller</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var role in availableRoles)
+                                    {
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   class="form-check-input"
+                                                   id="role-@role"
+                                                   checked="@newCategory.AllowedRoles.Contains(role)"
+                                                   @onchange="e => ToggleNewCategoryRole(role, (bool)e.Value)" />
+                                            <label class="form-check-label" for="role-@role">@role</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
                         <div class="d-flex justify-content-end">
                             <button class="btn btn-primary">Lägg till ny kategori</button>
                         </div>
@@ -155,7 +187,11 @@
                                 @foreach (var category in mainCategoryDtos)
                                 {
                                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>@category.Name</span>
+                                        <div>
+                                            <strong>@category.Name</strong>
+                                            <br />
+                                            <small class="text-muted">Roller: @string.Join(", ", category.AllowedRoles)</small>
+                                        </div>
                                         <div class="d-flex gap-1">
                                             <button class="btn btn-sm btn-warning me-1"
                                             title="Redigera kategori"
@@ -188,7 +224,7 @@
                                         <div class="d-flex gap-1">
                                             <button class="btn btn-sm btn-warning me-1"
                                             title="Redigera kategori"
-                                            @onclick="() => StartEditCategory(category, true)">
+                                            @onclick="() => StartEditCategory(category, false)">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button class="btn btn-sm btn-danger"
@@ -237,6 +273,7 @@
                                 <th>Storlek</th>
                                 <th>Huvudkategori</th>
                                 <th>Underkategorier</th>
+                                <th>Status</th>
                                 <th>Uppl.</th>
                                 <th>Åtgärder</th>
                             </tr>
@@ -244,19 +281,40 @@
                         <tbody>
                             @foreach (var document in FilteredDocuments)
                             {
-                                <tr>
+                                <tr class="@(document.IsArchived ? "table-secondary" : "")">
                                     <td>
-                                            @document.FileName
-                                    </td>
-                                    <td>@FormatFileSize(document.FileSize)</td>
-                                    <td><span class="badge bg-primary">@document.MainCategoryDto.Name</span></td>
-                                    <td>
-                                        @foreach (var subCategory in document.SubCategoryDtos)
+                                        @document.FileName
+                                        @if (document.IsArchived)
                                         {
-                                            <span class="badge bg-secondary">@subCategory.Name</span>
+                                            <span class="badge bg-secondary ms-1">Arkiverad</span>
                                         }
                                     </td>
-                                    <td>@document.UploadedAt</td>
+                                    <td>@FormatFileSize(document.FileSize)</td>
+                                    <td>
+                                        <span class="badge bg-primary">@document.MainCategoryDto.Name</span>
+                                        <br />
+                                        <small class="text-muted">(@string.Join(", ", document.MainCategoryDto.AllowedRoles))</small>
+                                    </td>
+                                    <td>
+                                        @if (document.SubCategoryDtos != null)
+                                        {
+                                            @foreach (var subCategory in document.SubCategoryDtos)
+                                            {
+                                                <span class="badge bg-secondary">@subCategory.Name</span>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (document.IsArchived)
+                                        {
+                                            <span class="text-muted">Arkiverad @document.ArchivedAt?.ToString("yyyy-MM-dd")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-success">Aktiv</span>
+                                        }
+                                    </td>
+                                    <td>@document.UploadedAt.ToString("yyyy-MM-dd")</td>
                                     <td>
                                         <button class="btn btn-sm btn-warning me-1"
                                         title="Redigera kategorier för dokumentet"
@@ -273,6 +331,22 @@
                                         @onclick="() => DownloadDocument(document.Id)">
                                             <i class="fas fa-download"></i>
                                         </button>
+                                        @if (document.IsArchived)
+                                        {
+                                            <button class="btn btn-sm btn-success me-1"
+                                            title="Återställ dokument"
+                                            @onclick="() => UnarchiveDocument(document.Id)">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-secondary me-1"
+                                            title="Arkivera dokument"
+                                            @onclick="() => ArchiveDocument(document.Id)">
+                                                <i class="fas fa-archive"></i>
+                                            </button>
+                                        }
                                         <button class="btn btn-sm btn-danger"
                                         title="Radera dokumentet"
                                         @onclick="() => DeleteDocument(document.Id)">
@@ -289,7 +363,7 @@
     </div>
 </div>
 
-<!-- EditCategory-modal -->
+<!-- Redigera dokument modal -->
 @if (documentToEdit != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)"
@@ -314,7 +388,9 @@
                                 <option value="">-- Välj kategori --</option>
                                 @foreach (var mainCategory in mainCategoryDtos)
                                 {
-                                    <option value="@mainCategory.Id">@mainCategory.Name</option>
+                                    <option value="@mainCategory.Id">
+                                        @mainCategory.Name (@string.Join(", ", mainCategory.AllowedRoles))
+                                    </option>
                                 }
                             </select>
                         </div>
@@ -360,8 +436,7 @@
     </div>
 }
 
-
-<!-- EditCategory-modal -->
+<!-- EditCategory-modal med rollstöd -->
 @if (isEditCategoryModalOpen)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)"
@@ -385,6 +460,27 @@
                             <label for="newCategoryName">Nytt namn</label>
                             <InputText id="newCategoryName" @bind-Value="editCategoryModel.Name" class="form-control" />
                         </div>
+                        
+                        @if (editCategoryIsMain)
+                        {
+                            <div class="mb-3">
+                                <label>Tillåtna roller</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var role in availableRoles)
+                                    {
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   class="form-check-input"
+                                                   id="editrole-@role"
+                                                   checked="@editCategoryModel.AllowedRoles.Contains(role)"
+                                                   @onchange="e => ToggleEditCategoryRole(role, (bool)e.Value)" />
+                                            <label class="form-check-label" for="editrole-@role">@role</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        
                         <div class="d-flex justify-content-end">
                             <button type="button" class="btn btn-secondary me-2" @onclick="CloseEditCategoryModal">Avbryt</button>
                             <button type="submit" class="btn btn-primary">Spara</button>
@@ -394,7 +490,7 @@
             </div>
         </div>
     </div>
-    }
+}
 
 <DocumentViewer IsVisible="@isViewerOpen"
 DocumentId="@selectedDocumentId"
@@ -421,12 +517,15 @@ OnDownload="DownloadDocument" />
     private class CategoryFormModel
     {
         public string Name { get; set; } = "";
+        public List<string> AllowedRoles { get; set; } = new();
     }
 
     private class EditCategoryModel
     {
         public string Name { get; set; } = "";
+        public List<string> AllowedRoles { get; set; } = new();
     }
+    
     private EditCategoryModel editCategoryModel = new();
 
     UploadModel uploadModel = new();
@@ -443,19 +542,18 @@ OnDownload="DownloadDocument" />
     private bool isEditCategoryModalOpen = false;
     private bool editCategoryIsMain;
     private int editCategoryId;
-    private string editCategoryName = "";
-
+    
     private bool isViewerOpen = false;
     private int selectedDocumentId = 0;
     private string selectedDocumentName = "";
 
-
     List<DocumentViewModel> documents = new();
     List<MainCategoryDto> mainCategoryDtos = new();
     List<SubCategoryDto> subCategoryDtos = new();
+    List<string> availableRoles = new() { "Admin", "Styrelse", "Medlem" };
 
     IEnumerable<DocumentViewModel> FilteredDocuments =>
-    documents.OrderByDescending(d => d.UploadedAt);
+        documents.Where(d => showArchived || !d.IsArchived).OrderByDescending(d => d.UploadedAt);
 
     protected override async Task OnInitializedAsync()
     {
@@ -494,25 +592,26 @@ OnDownload="DownloadDocument" />
 
     private async Task<List<DocumentViewModel>> CreateDocumentDto()
     {
-        var documentsDto = new List<DocumentViewModel>();
-        var mainCategoryForDocument = new MainCategoryDto();
-
-        documentsDto = await DocumentService.GetDocumentsAsync();
+        var documentsDto = await DocumentService.GetDocumentsAsync();
 
         foreach (var document in documentsDto)
         {
-            mainCategoryForDocument = await CategoryService.GetMainCategoryByIdAsync(document.MainCategoryId);
+            var mainCategoryForDocument = await CategoryService.GetMainCategoryByIdAsync(document.MainCategoryId);
             if (mainCategoryForDocument != null)
             {
                 document.MainCategoryDto = mainCategoryForDocument;
             }
 
-            foreach (var subCategoryId in document.SubCategories)
+            if (document.SubCategories != null)
             {
-                var subCategory = await CategoryService.GetSubCategoryByIdAsync(subCategoryId);
-                if (subCategory != null)
+                foreach (var subCategoryId in document.SubCategories)
                 {
-                    document.SubCategoryDtos.Add(subCategory);
+                    var subCategory = await CategoryService.GetSubCategoryByIdAsync(subCategoryId);
+                    if (subCategory != null)
+                    {
+                        document.SubCategoryDtos ??= new List<SubCategoryDto>();
+                        document.SubCategoryDtos.Add(subCategory);
+                    }
                 }
             }
         }
@@ -540,6 +639,32 @@ OnDownload="DownloadDocument" />
             var toRemove = uploadModel.SelectedSubCategoryIds.FirstOrDefault(s => s.Id == id);
             if (toRemove != null)
                 uploadModel.SelectedSubCategoryIds.Remove(toRemove);
+        }
+    }
+
+    void ToggleNewCategoryRole(string role, bool on)
+    {
+        if (on)
+        {
+            if (!newCategory.AllowedRoles.Contains(role))
+                newCategory.AllowedRoles.Add(role);
+        }
+        else
+        {
+            newCategory.AllowedRoles.Remove(role);
+        }
+    }
+
+    void ToggleEditCategoryRole(string role, bool on)
+    {
+        if (on)
+        {
+            if (!editCategoryModel.AllowedRoles.Contains(role))
+                editCategoryModel.AllowedRoles.Add(role);
+        }
+        else
+        {
+            editCategoryModel.AllowedRoles.Remove(role);
         }
     }
 
@@ -613,8 +738,8 @@ OnDownload="DownloadDocument" />
         bool ok;
         if (newCategoryString.Equals("main"))
         {
-            // Skapa huvudkategori med endast namn
-            ok = await CategoryService.AddMainCategoryAsync(newCategory.Name);
+            // Skapa huvudkategori med roller
+            ok = await CategoryService.AddMainCategoryAsync(newCategory.Name, newCategory.AllowedRoles);
         }
         else
         {
@@ -626,6 +751,7 @@ OnDownload="DownloadDocument" />
         {
             await ToastService.Success("Kategori skapad");
             newCategory = new CategoryFormModel();
+            newCategoryString = "";
 
             // Uppdatera listor över kategorier
             mainCategoryDtos = await CategoryService.GetMainCategoriesAsync();
@@ -643,26 +769,30 @@ OnDownload="DownloadDocument" />
         editCategoryIsMain = isMain;
         editCategoryId = category.Id;
         editCategoryModel.Name = category.Name;
+        editCategoryModel.AllowedRoles = new List<string>(category.AllowedRoles);
     }
+
     void StartEditCategory(SubCategoryDto category, bool isMain)
     {
         isEditCategoryModalOpen = true;
         editCategoryIsMain = isMain;
         editCategoryId = category.Id;
         editCategoryModel.Name = category.Name;
+        editCategoryModel.AllowedRoles = new List<string>();
     }
+
     void CloseEditCategoryModal()
     {
         isEditCategoryModalOpen = false;
         editCategoryId = 0;
-        editCategoryModel.Name = "";
+        editCategoryModel = new EditCategoryModel();
     }
 
     private async Task SaveEditCategory()
     {
         bool ok;
         if (editCategoryIsMain)
-            ok = await CategoryService.EditMainCategoryAsync(editCategoryId, editCategoryModel.Name);
+            ok = await CategoryService.EditMainCategoryAsync(editCategoryId, editCategoryModel.Name, editCategoryModel.AllowedRoles);
         else
             ok = await CategoryService.EditSubCategoryAsync(editCategoryId, editCategoryModel.Name);
 
@@ -736,11 +866,11 @@ OnDownload="DownloadDocument" />
 
         // Initialize the edit model with current values
         editModel = new EditModel
-            {
-                DocumentId = document.Id,
-                SelectedMainCategoryId = document.MainCategoryId,
-                SelectedSubCategoryIds = document.SubCategories?.ToList() ?? new List<int>()
-            };
+        {
+            DocumentId = document.Id,
+            SelectedMainCategoryId = document.MainCategoryId,
+            SelectedSubCategoryIds = document.SubCategories?.ToList() ?? new List<int>()
+        };
     }
 
     void CloseEditModal()
@@ -782,10 +912,10 @@ OnDownload="DownloadDocument" />
         try
         {
             var updateRequest = new UpdateDocumentRequest
-                {
-                    MainCategoryId = editModel.SelectedMainCategoryId,
-                    SubCategoryIds = editModel.SelectedSubCategoryIds.ToList()
-                };
+            {
+                MainCategoryId = editModel.SelectedMainCategoryId,
+                SubCategoryIds = editModel.SelectedSubCategoryIds.ToList()
+            };
 
             var success = await DocumentService.UpdateDocumentAsync(documentToEdit.Id, updateRequest);
 
@@ -814,7 +944,55 @@ OnDownload="DownloadDocument" />
         }
     }
 
-    // Ladda ner dokument och hantera fel
+    // Arkiverar ett dokument
+    private async Task ArchiveDocument(int documentId)
+    {
+        try
+        {
+            var success = await DocumentService.ArchiveDocumentAsync(documentId);
+            if (success)
+            {
+                CacheService.InvalidateDocumentsCache();
+                documents = await GetDocumentsFromCacheOrDatabase();
+                await ToastService.Success("Dokumentet har arkiverats");
+            }
+            else
+            {
+                await ToastService.Error("Kunde inte arkivera dokumentet");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid arkivering av dokument");
+            await ToastService.Error("Ett fel uppstod vid arkivering");
+        }
+    }
+
+    // Återställer ett arkiverat dokument
+    private async Task UnarchiveDocument(int documentId)
+    {
+        try
+        {
+            var success = await DocumentService.UnarchiveDocumentAsync(documentId);
+            if (success)
+            {
+                CacheService.InvalidateDocumentsCache();
+                documents = await GetDocumentsFromCacheOrDatabase();
+                await ToastService.Success("Dokumentet har återställts");
+            }
+            else
+            {
+                await ToastService.Error("Kunde inte återställa dokumentet");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid återställning av dokument");
+            await ToastService.Error("Ett fel uppstod vid återställning");
+        }
+    }
+
+    // Laddar ner dokument och hantera fel
     async Task DownloadDocument(int id)
     {
         try
@@ -869,6 +1047,4 @@ OnDownload="DownloadDocument" />
         }
         return $"{size:0.##} {suf[idx]}";
     }
-
-    private void FilterDocuments() => StateHasChanged();
-    }
+}
