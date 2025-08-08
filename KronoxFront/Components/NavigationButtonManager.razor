@@ -1,0 +1,201 @@
+@using KronoxFront.ViewModels
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h3 class="h5 mb-0">Navigeringsknappar</h3>
+    </div>
+    <div class="card-body">
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="show-nav-buttons"
+                   @bind="ShowNavigationButtons" @bind:after="OnShowNavigationButtonsChanged" />
+            <label class="form-check-label" for="show-nav-buttons">Visa navigeringsknappar</label>
+        </div>
+
+        @if (ShowNavigationButtons)
+        {
+            @if (NavigationButtons.Any())
+            {
+                <div class="mb-3">
+                    <h6>Befintliga knappar:</h6>
+                    @foreach (var (button, index) in NavigationButtons.OrderBy(b => b.SortOrder).Select((b, i) => (b, i)))
+                    {
+                        <div class="row mb-2 p-2 border rounded">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control form-control-sm" 
+                                       placeholder="Knapptext" 
+                                       @bind="button.Text" />
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control form-control-sm" 
+                                       placeholder="Länk (t.ex. /omsystemet)" 
+                                       @bind="button.Url" />
+                            </div>
+                            <div class="col-md-2">
+                                <input type="text" class="form-control form-control-sm" 
+                                       placeholder="Ikon" 
+                                       @bind="button.IconClass" />
+                            </div>
+                            <div class="col-md-2">
+                                <div class="btn-group">
+                                    @if (index > 0)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                @onclick="() => MoveButtonUp(button)" title="Flytta upp">
+                                            <i class="fa-solid fa-arrow-up"></i>
+                                        </button>
+                                    }
+                                    @if (index < NavigationButtons.Count - 1)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                @onclick="() => MoveButtonDown(button)" title="Flytta ner">
+                                            <i class="fa-solid fa-arrow-down"></i>
+                                        </button>
+                                    }
+                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            @onclick="() => RemoveButton(button)" title="Ta bort">
+                                        <i class="fa-solid fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="mb-3">
+                <h6>Lägg till ny knapp:</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" 
+                               placeholder="Knapptext" 
+                               @bind="newButtonText" />
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" 
+                               placeholder="Länk (t.ex. /omsystemet)" 
+                               @bind="newButtonUrl" />
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control" 
+                               placeholder="Ikon" 
+                               @bind="newButtonIcon" 
+                               value="fa-solid fa-arrow-right" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-primary" @onclick="AddButton">
+                            <i class="fa-solid fa-plus"></i> Lägg till
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @if (NavigationButtons.Any())
+            {
+                <div class="alert alert-info">
+                    <strong>Förhandsgranskning:</strong><br />
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        @foreach (var button in NavigationButtons.OrderBy(b => b.SortOrder))
+                        {
+                            <span class="btn btn-dark btn-sm px-3 py-2">
+                                @button.Text <i class="@button.IconClass ms-1"></i>
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool ShowNavigationButtons { get; set; }
+    [Parameter] public List<NavigationButtonViewModel> NavigationButtons { get; set; } = new();
+    [Parameter] public EventCallback<bool> ShowNavigationButtonsChanged { get; set; }
+    [Parameter] public EventCallback NavigationButtonsChanged { get; set; }
+
+    private string newButtonText = "";
+    private string newButtonUrl = "";
+    private string newButtonIcon = "fa-solid fa-arrow-right";
+
+    private async Task OnShowNavigationButtonsChanged()
+    {
+        if (ShowNavigationButtonsChanged.HasDelegate)
+        {
+            await ShowNavigationButtonsChanged.InvokeAsync(ShowNavigationButtons);
+        }
+    }
+
+    private async Task AddButton()
+    {
+        if (string.IsNullOrWhiteSpace(newButtonText) || string.IsNullOrWhiteSpace(newButtonUrl))
+            return;
+
+        NavigationButtons.Add(new NavigationButtonViewModel
+        {
+            Text = newButtonText,
+            Url = newButtonUrl,
+            IconClass = string.IsNullOrWhiteSpace(newButtonIcon) ? "fa-solid fa-arrow-right" : newButtonIcon,
+            SortOrder = NavigationButtons.Count
+        });
+
+        // Rensa fälten
+        newButtonText = "";
+        newButtonUrl = "";
+        newButtonIcon = "fa-solid fa-arrow-right";
+
+        await NotifyChange();
+    }
+
+    private async Task RemoveButton(NavigationButtonViewModel button)
+    {
+        NavigationButtons.Remove(button);
+        // Uppdatera sorteringsordning
+        for (int i = 0; i < NavigationButtons.Count; i++)
+        {
+            NavigationButtons[i].SortOrder = i;
+        }
+        await NotifyChange();
+    }
+
+    private async Task MoveButtonUp(NavigationButtonViewModel button)
+    {
+        var index = NavigationButtons.IndexOf(button);
+        if (index > 0)
+        {
+            NavigationButtons.RemoveAt(index);
+            NavigationButtons.Insert(index - 1, button);
+            
+            // Uppdatera sorteringsordning
+            for (int i = 0; i < NavigationButtons.Count; i++)
+            {
+                NavigationButtons[i].SortOrder = i;
+            }
+            await NotifyChange();
+        }
+    }
+
+    private async Task MoveButtonDown(NavigationButtonViewModel button)
+    {
+        var index = NavigationButtons.IndexOf(button);
+        if (index < NavigationButtons.Count - 1)
+        {
+            NavigationButtons.RemoveAt(index);
+            NavigationButtons.Insert(index + 1, button);
+            
+            // Uppdatera sorteringsordning
+            for (int i = 0; i < NavigationButtons.Count; i++)
+            {
+                NavigationButtons[i].SortOrder = i;
+            }
+            await NotifyChange();
+        }
+    }
+
+    private async Task NotifyChange()
+    {
+        if (NavigationButtonsChanged.HasDelegate)
+        {
+            await NavigationButtonsChanged.InvokeAsync();
+        }
+    }
+}
