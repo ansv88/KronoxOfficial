@@ -12,142 +12,175 @@
 @inject ILogger<VisionerAdmin> Logger
 @inject IToastService Toast
 
-<HeadContent>
-    <meta name="description" content="Redigera Visioner & Verksamhetsidé-sidan för KronoX. Lägg till, ändra och hantera innehåll, bilder och sektioner." />
-</HeadContent>
+<PageTitle>Admin - Visioner & Verksamhetsidé</PageTitle>
 
-<PageTitle>@pageContent.Title</PageTitle>
-
-<h1 class="text-center">
-    Redigera @(string.IsNullOrEmpty(pageContent.Title) 
-        ? "Visioner & Verksamhetsidé-sidan" 
-        : $"{pageContent.Title}-sidan")
-</h1>
-
-<EditForm Model="pageContent" OnValidSubmit="SaveAll">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <div class="mb-3">
-        <label for="pageTitle" class="form-label">Sidans titel</label>
-        <InputText id="pageTitle"
-                   class="form-control"
-                   @bind-Value="pageContent.Title"
-                   aria-label="Sidans titel" />
-        <ValidationMessage For="() => pageContent.Title" />
-    </div>
-
-    <!-- Bannerbild-sektion -->
-    <BannerImageUploader PageKey="visioner"
-                         OnUploaded="@OnBannerUploaded" />
-
-    @if (loading)
-    {
-        <div class="spinner-border" role="status">
-            <span class="visually-hidden">Laddar...</span>
-        </div>
-    }
-    else
-    {
-        <div class="card mb-4">
-            <div class="card-header bg-light">
-                <h3 class="h5 mb-0">Introtextsektion</h3>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="mb-2 form-check">
-                            <input type="checkbox" class="form-check-input" id="intro-has-image"
-                                   @bind="introSection.HasImage" aria-label="Inkludera bild i introsektionen" />
-                            <label class="form-check-label" for="intro-has-image">Inkludera bild</label>
-                        </div>
-                        @if (introSection.HasImage)
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Redigera Visioner & Verksamhetsidé-sidan</h1>
+                <div>
+                    <a href="/visioner" class="btn btn-outline-secondary me-2">
+                        <i class="fa-solid fa-eye me-1"></i> Förhandsgranska
+                    </a>
+                    <button type="button" class="btn btn-success" @onclick="SaveAll" disabled="@isSaving">
+                        @if (isSaving)
                         {
-                            <label class="form-label">Introbild</label>
-                            <div class="border p-3 mb-2 bg-light text-center" style="min-height: 150px;">
-                                @if (!string.IsNullOrEmpty(introSection.ImageUrl))
-                                {
-                                    <img src="@introSection.ImageUrl" class="img-fluid img-thumbnail mb-2"
-                                         style="max-height: 150px; cursor: pointer" />
-                                    <div class="mt-2 d-flex justify-content-center">
-                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage" aria-label="Ta bort introbild">
-                                            <i class="fa-solid fa-times"></i> Ta bort bild
-                                        </button>
-                                    </div>
-                                    <div class="mt-2">
-                                        <label for="introImageAltText" class="form-label">Bildbeskrivning (alt-text):</label>
-                                        <input id="introImageAltText"
-                                               type="text"
-                                               class="form-control form-control-sm"
-                                               @bind="introSection.ImageAltText"
-                                               placeholder="Beskriv bilden för tillgänglighet" />
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div>
-                                        <InputFile OnChange="@HandleIntroImageSelected"
-                                                   class="form-control"
-                                                   accept="image/*"
-                                                   aria-label="Välj introbild" />
-                                        <div class="text-muted small mt-2">
-                                            Klicka för att välja bild (rekommenderad storlek: 800x600px)
-                                        </div>
-                                    </div>
-                                }
-                            </div>
+                            <span class="spinner-border spinner-border-sm me-1"></span>
                         }
+                        else
+                        {
+                            <i class="fa-solid fa-save me-1"></i>
+                        }
+                        Spara ändringar
+                    </button>
+                </div>
+            </div>
+
+            @if (loading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Laddar...</span>
                     </div>
-                    <div class="col-md-8">
-                        <div class="mb-3">
-                            <label for="introTitle" class="form-label">Rubrik</label>
-                            <input type="text" class="form-control" id="introTitle" @bind="introSection.Title" aria-label="Rubrik för introsektionen" />
+                </div>
+            }
+            else
+            {
+                @* ---------- Sidans titel ------------------------------------ *@
+                <EditForm Model="pageContent" OnValidSubmit="SavePageContent">
+                    <DataAnnotationsValidator />
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h3 class="h5 mb-0">Sidans titel</h3>
                         </div>
-                        <div class="mb-3">
-                            <label for="introContent" class="form-label">Innehåll</label>
-                            <textarea id="introContent"
-                                      @bind="introSection.Content"
-                                      @bind:event="oninput"
-                                      class="form-control tinymce-editor"
-                                      rows="8"
-                                      @ref="introEditorRef">
-                            </textarea>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="pageTitle" class="form-label">Titel</label>
+                                <InputText id="pageTitle"
+                                           class="form-control"
+                                           @bind-Value="pageContent.Title"
+                                           placeholder="T.ex. Visioner & Verksamhetsidé" />
+                                <ValidationMessage For="() => pageContent.Title" />
+                                <div class="form-text">Denna titel visas i webbläsarens flik och som sidhuvud</div>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+
+                @* ---------- Banner Image Upload ------------------------------------ *@
+                <BannerImageUploader PageKey="visioner"
+                                     OnUploaded="OnBannerUploaded" />
+
+                @* ---------- Intro Section ------------------------------------------- *@
+                <EditForm Model="introSection" OnValidSubmit="SaveIntroSection">
+                    <DataAnnotationsValidator />
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h3 class="h5 mb-0">Intro-sektion</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Breadcrumb-titel (visas ovanför introt)</label>
+                                <InputText class="form-control" 
+                                           @bind-Value="introSection.BreadcrumbTitle" 
+                                           placeholder="T.ex. VISIONER & VERKSAMHETSIDÉ" />
+                                <ValidationMessage For="() => introSection.BreadcrumbTitle" />
+                                <div class="form-text">Lämna tomt för att dölja breadcrumb-titeln</div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-2 form-check">
+                                        <InputCheckbox class="form-check-input" 
+                                                       id="intro-has-image"
+                                                       @bind-Value="introSection.HasImage" />
+                                        <label class="form-check-label" for="intro-has-image">Inkludera bild</label>
+                                    </div>
+                                    @if (introSection.HasImage)
+                                    {
+                                        <div class="border p-3 mb-2 bg-light text-center" style="min-height: 150px;">
+                                            @if (!string.IsNullOrEmpty(introSection.ImageUrl))
+                                            {
+                                                <img src="@introSection.ImageUrl" class="img-fluid img-thumbnail mb-2"
+                                                     style="max-height: 150px; cursor: pointer" />
+                                                <div class="mt-2 d-flex justify-content-center">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage">
+                                                        <i class="fa-solid fa-times"></i> Ta bort bild
+                                                    </button>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <label class="form-label">Bildbeskrivning:</label>
+                                                    <InputText class="form-control form-control-sm"
+                                                               @bind-Value="introSection.ImageAltText"
+                                                               placeholder="Beskriv bilden för tillgänglighet" />
+                                                    <ValidationMessage For="() => introSection.ImageAltText" />
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div>
+                                                    <InputFile OnChange="HandleIntroImageSelected"
+                                                               class="form-control"
+                                                               accept="image/*" />
+                                                    <div class="text-muted small mt-2">
+                                                        Klicka för att välja bild (rekommenderad storlek: 800x600px)
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rubrik</label>
+                                        <InputText class="form-control" @bind-Value="introSection.Title" />
+                                        <ValidationMessage For="() => introSection.Title" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Innehåll</label>
+                                        <InputTextArea id="introContent"
+                                                       @bind-Value="introSection.Content"
+                                                       class="form-control tinymce-editor"
+                                                       rows="8" />
+                                        <ValidationMessage For="() => introSection.Content" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+
+                @* ---------- Navigation Buttons Manager --------------------------- *@
+                <NavigationButtonManager ShowNavigationButtons="introSection.ShowNavigationButtons"
+                                          NavigationButtons="introSection.NavigationButtons"
+                                          ShowNavigationButtonsChanged="OnShowNavigationButtonsChanged"
+                                          NavigationButtonsChanged="OnNavigationButtonsChanged" />
+
+                @* ---------- Feature Sections Manager -------------------------------- *@
+                <FeatureSectionManager Sections="featureSections"
+                                       OnSectionsChanged="OnFeatureSectionsChanged"
+                                       OnImageUpload="HandleFeatureImageUpload"
+                                       OnImageDelete="HandleFeatureImageDelete" />
+
+                <div class="row">
+                    <div class="col-md-12 mt-3">
+                        <div class="alert alert-info">
+                            <i class="fa-solid fa-info-circle me-2"></i>
+                            Medlemslogotyper hanteras centralt via startsidans administration.
+                            <a href="/admin/home" class="alert-link">Gå till startsidan</a> för att hantera medlemslogotyper.
                         </div>
                     </div>
                 </div>
-            </div>
+            }
         </div>
-
-        <!-- Använd FeatureSectionManager-komponenten -->
-        <FeatureSectionManager Sections="featureSections"
-                               OnSectionsChanged="OnFeatureSectionsChanged"
-                               OnImageUpload="HandleFeatureImageUpload"
-                               OnImageDelete="HandleFeatureImageDelete" />
-
-        <div class="row">
-            <div class="col-md-12 mt-3">
-                <div class="alert alert-info">
-                    <i class="fa-solid fa-info-circle me-2"></i>
-                    Medlemslogotyper hanteras centralt via startsidans administration.
-                    <a href="/admin/home" class="alert-link">Gå till startsidan</a> för att hantera medlemslogotyper.
-                </div>
-            </div>
-        </div>
-
-        <div class="mb-4">
-            <button type="button" class="btn btn-success me-2" @onclick="SaveAll" aria-label="Spara innehåll">
-                <i class="fa-solid fa-save me-1"></i> Spara innehåll
-            </button>
-            <a href="/visioner" class="btn btn-outline-secondary" target="_blank" aria-label="Visa sidan i ny flik">
-                <i class="fa-solid fa-external-link-alt me-1"></i> Visa sidan
-            </a>
-        </div>
-    }
-</EditForm>
+    </div>
+</div>
 
 @code {
     private PageContentViewModel pageContent = new();
     private bool loading = true;
+    private bool isSaving = false;
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private ElementReference introEditorRef;
@@ -158,7 +191,6 @@
 
         try
         {
-            // Hämta sidinnehåll för titel och bannerbild
             pageContent = await Cms.GetPageContentAsync("visioner") ?? new PageContentViewModel
             {
                 PageKey = "visioner",
@@ -168,11 +200,9 @@
                 Images = new List<PageImageViewModel>()
             };
 
-            // Hämta introsektioner och featuresektioner med privat information för admin
             introSection = await Cms.GetIntroSectionAsync("visioner");
             featureSections = await Cms.GetFeatureSectionsAsync("visioner", includePrivate: true);
 
-            // Om tom, skapa standardsektion
             if (!featureSections.Any())
             {
                 featureSections.Add(new FeatureSectionViewModel
@@ -247,7 +277,6 @@
 
     private async Task OnBannerUploaded(PageImageViewModel? img)
     {
-        // Ladda om hela pageContent för att få uppdaterade bilder från databasen
         try
         {
             pageContent = await Cms.GetPageContentAsync("visioner") ?? new PageContentViewModel();
@@ -319,7 +348,6 @@
         introSection.ImageAltText = "";
     }
 
-    // Event handlers för FeatureSectionManager
     private void OnFeatureSectionsChanged()
     {
         StateHasChanged();
@@ -376,11 +404,49 @@
         }
     }
 
-    private async Task SaveAll()
+    private async Task OnShowNavigationButtonsChanged(bool value)
+    {
+        introSection.ShowNavigationButtons = value;
+    }
+
+    private async Task OnNavigationButtonsChanged()
+    {
+        StateHasChanged();
+    }
+
+    private async Task SavePageContent()
     {
         try
         {
-            // Synkronisera TinyMCE-editorer
+            await Cms.SavePageContentAsync("visioner", pageContent);
+            await Toast.Success("Sidans titel har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av sidtitel");
+            await Toast.Error("Fel vid sparande av sidtitel");
+        }
+    }
+
+    private async Task SaveIntroSection()
+    {
+        try
+        {
+            await Cms.SaveIntroSectionAsync("visioner", introSection);
+            await Toast.Success("Intro-sektion har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av intro-sektion");
+            await Toast.Error("Fel vid sparande av intro-sektion");
+        }
+    }
+
+    private async Task SaveAll()
+    {
+        isSaving = true;
+        try
+        {
             try
             {
                 await JS.InvokeVoidAsync("syncAllEditors");
@@ -391,7 +457,6 @@
                 Logger.LogWarning("Kunde inte synkronisera TinyMCE-editorer: {Message}", ex.Message);
             }
 
-            // Spara alla delar - bannerbilden är redan sparad via BannerImageUploader
             await Cms.SavePageContentAsync("visioner", pageContent);
             await Cms.SaveIntroSectionAsync("visioner", introSection);
             await Cms.SaveFeatureSectionsAsync("visioner", featureSections);
@@ -402,6 +467,10 @@
         {
             Logger.LogError(ex, "Fel vid sparande av Visioner & Verksamhetsidé-data");
             await Toast.Error($"Fel vid sparande: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
         }
     }
 }

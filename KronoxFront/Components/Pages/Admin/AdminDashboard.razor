@@ -167,7 +167,9 @@
             </div>
         </div>
     </div>
+</div>
 
+<div class="row">
     <!-- Användarhantering -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
@@ -202,6 +204,27 @@
             </div>
         </div>
     </div>
+
+    <!-- Medlemslogotyphantering -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h2 class="h5 mb-0"><i class="fa-solid fa-university me-2"></i>Medlemslogotyper</h2>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Hantera logotyper för konsortiets medlemmar som visas på webbplatsen.</p>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Registrerade logotyper</span>
+                        <span class="badge bg-info rounded-pill">@memberLogosCount</span>
+                    </li>
+                </ul>
+                <a href="/admin/memberlogos" class="btn btn-primary">
+                    <i class="fa-solid fa-images me-2"></i>Hantera logotyper
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="row">
@@ -227,7 +250,7 @@
                         <span class="badge bg-secondary rounded-pill">@subCategoryCount</span>
                     </li>
                 </ul>
-                <a href="/admin/documents" class="btn btn-primary">
+                <a href="/admin/documents/manage" class="btn btn-primary">
                     <i class="fa-solid fa-folder-open me-2"></i>Hantera dokument
                 </a>
             </div>
@@ -264,6 +287,7 @@
     private int mainCategoryCount = 0;
     private int subCategoryCount = 0;
     private int newsCount = 0;
+    private int memberLogosCount = 0;
 
     private bool showNewPageModal = false;
 
@@ -359,6 +383,21 @@
         {
             Logger.LogError(ex, "Kunde inte hämta nyhetsdata från API.");
             newsCount = 0;
+        }
+
+        // Hämta medlemslogotyper
+        try
+        {
+            var logosResponse = await http.GetFromJsonAsync<List<object>>("api/cms/logos");
+            if (logosResponse != null)
+            {
+                memberLogosCount = logosResponse.Count;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Kunde inte hämta medlemslogotyper från API.");
+            memberLogosCount = 0;
         }
     }
 

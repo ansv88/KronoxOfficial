@@ -1,6 +1,7 @@
 namespace KronoxFront.ViewModels;
 
-// Innehåller ViewModels för CMS-data såsom sidor, bilder, logotyper och startsidans sektioner.
+// Innehåller ViewModels för CMS-data såsom sidor, bilder, logotyper.
+// OBS: IntroSectionViewModel har flyttats till separat fil.
 
 // Motsvarar PageContentDto i API-projektet
 public class PageContentViewModel
@@ -57,16 +58,6 @@ public class LogoMoveRequest
 {
     public int LogoId { get; set; }
     public int Direction { get; set; }  // -1 = upp, 1 = ner
-}
-
-// Intro-sektion för startsidan
-public class IntroSectionViewModel
-{
-    public string Title { get; set; } = "";
-    public string Content { get; set; } = "";
-    public string ImageUrl { get; set; } = "";
-    public string ImageAltText { get; set; } = "";
-    public bool HasImage { get; set; } = false;
 }
 
 // För kontaktpersoner i privat information

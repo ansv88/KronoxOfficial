@@ -265,13 +265,39 @@ public class CmsService
                         ? hasImageEl.GetBoolean()
                         : !string.IsNullOrEmpty(imageUrl);
 
+                    var breadcrumbTitle = introElement.TryGetProperty("breadcrumbTitle", out var breadcrumbTitleEl)
+                        ? breadcrumbTitleEl.GetString() ?? ""
+                        : "";
+
+                    var showNavigationButtons = introElement.TryGetProperty("showNavigationButtons", out var showNavEl)
+                        ? showNavEl.GetBoolean()
+                        : false;
+
+                    var navigationButtons = new List<NavigationButtonViewModel>();
+                    if (introElement.TryGetProperty("navigationButtons", out var navButtonsEl))
+                    {
+                        foreach (var buttonEl in navButtonsEl.EnumerateArray())
+                        {
+                            navigationButtons.Add(new NavigationButtonViewModel
+                            {
+                                Text = buttonEl.TryGetProperty("text", out var textEl) ? textEl.GetString() ?? "" : "",
+                                Url = buttonEl.TryGetProperty("url", out var urlEl) ? urlEl.GetString() ?? "" : "",
+                                IconClass = buttonEl.TryGetProperty("iconClass", out var iconEl) ? iconEl.GetString() ?? "fa-solid fa-arrow-right" : "fa-solid fa-arrow-right",
+                                SortOrder = buttonEl.TryGetProperty("sortOrder", out var sortEl) ? sortEl.GetInt32() : 0
+                            });
+                        }
+                    }
+
                     return new IntroSectionViewModel
                     {
                         Title = title,
                         Content = content,
                         ImageUrl = imageUrl,
                         ImageAltText = imageAltText,
-                        HasImage = hasImage
+                        HasImage = hasImage,
+                        BreadcrumbTitle = breadcrumbTitle,
+                        ShowNavigationButtons = showNavigationButtons,
+                        NavigationButtons = navigationButtons
                     };
                 }
 
@@ -599,13 +625,27 @@ public class CmsService
                 content = introSection.Content,
                 imageUrl = introSection.ImageUrl,
                 imageAltText = introSection.ImageAltText,
-                hasImage = introSection.HasImage
+                hasImage = introSection.HasImage,
+                breadcrumbTitle = introSection.BreadcrumbTitle,
+                showNavigationButtons = introSection.ShowNavigationButtons,
+                navigationButtons = introSection.NavigationButtons.Select(nb => new
+                {
+                    text = nb.Text,
+                    url = nb.Url,
+                    iconClass = nb.IconClass,
+                    sortOrder = nb.SortOrder
+                }).ToArray()
             };
 
             pageContent.Metadata = JsonSerializer.Serialize(existingMetadata);
             pageContent.LastModified = DateTime.Now;
 
-            await SavePageContentAsync(pageKey, pageContent);
+            var json = JsonSerializer.Serialize(pageContent);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var resp = await _http.PutAsync($"api/content/{pageKey}", content);
+            resp.EnsureSuccessStatusCode();
+
+            _logger.LogInformation("Intro-sektion sparad för {PageKey}", pageKey);
         }
         catch (Exception ex)
         {
@@ -679,35 +719,35 @@ public class CmsService
         return json.ToLogoViewModels() ?? new();
     }
 
-    public async Task<MemberLogoViewModel?> UploadLogoAsync(MemberLogoUploadDto dto)
-    {
-        try
-        {
-            using var content = new MultipartFormDataContent();
-            var stream = dto.File.OpenReadStream(maxAllowedSize: 10_000_000);
-            var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(dto.File.ContentType));
-            content.Add(fileContent, "File", dto.File.Name);
-            content.Add(new StringContent(dto.AltText), "AltText");
-            content.Add(new StringContent(dto.SortOrd.ToString()), "SortOrd");
-            content.Add(new StringContent(dto.LinkUrl), "LinkUrl");
+    //public async Task<MemberLogoViewModel?> UploadLogoAsync(MemberLogoUploadDto dto)
+    //{
+    //    try
+    //    {
+    //        using var content = new MultipartFormDataContent();
+    //        var stream = dto.File.OpenReadStream(maxAllowedSize: 10_000_000);
+    //        var fileContent = new StreamContent(stream);
+    //        fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(dto.File.ContentType));
+    //        content.Add(fileContent, "File", dto.File.Name);
+    //        content.Add(new StringContent(dto.AltText), "AltText");
+    //        content.Add(new StringContent(dto.SortOrd.ToString()), "SortOrd");
+    //        content.Add(new StringContent(dto.LinkUrl), "LinkUrl");
 
-            var resp = await _http.PostAsync("api/cms/logos/upload", content);
-            if (!resp.IsSuccessStatusCode)
-            {
-                var errorJson = await resp.Content.ReadAsStringAsync();
-                _logger.LogError("Misslyckades med uppladdning av logotyp: {Error}", errorJson);
-                throw new ApplicationException($"Upload failed: {errorJson}");
-            }
-            var json = await resp.Content.ReadAsStringAsync();
-            return json.ToLogoViewModel();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fel vid uppladdning av logotyp");
-            throw;
-        }
-    }
+    //        var resp = await _http.PostAsync("api/cms/logos/upload", content);
+    //        if (!resp.IsSuccessStatusCode)
+    //        {
+    //            var errorJson = await resp.Content.ReadAsStringAsync();
+    //            _logger.LogError("Misslyckades med uppladdning av logotyp: {Error}", errorJson);
+    //            throw new ApplicationException($"Upload failed: {errorJson}");
+    //        }
+    //        var json = await resp.Content.ReadAsStringAsync();
+    //        return json.ToLogoViewModel();
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Fel vid uppladdning av logotyp");
+    //        throw;
+    //    }
+    //}
 
     // Metadata-register (filer som redan ligger i wwwroot/images/members)
     public async Task<MemberLogoViewModel?> RegisterLogoMetadataAsync(string sourcePath,
@@ -731,34 +771,167 @@ public class CmsService
         return json.ToLogoViewModel();
     }
 
-    public async Task DeleteLogoAsync(int logoId)
+    //public async Task DeleteLogoAsync(int logoId)
+    //{
+    //    _logger.LogInformation("Tar bort logotyp {LogoId}", logoId);
+    //    var resp = await _http.DeleteAsync($"api/cms/logos/{logoId}");
+    //    resp.EnsureSuccessStatusCode();
+    //}
+
+    //public async Task<bool> MoveLogoAsync(int logoId, int direction)
+    //{
+    //    var payload = new { LogoId = logoId, Direction = direction };
+    //    var resp = await _http.PostAsJsonAsync("api/cms/logos/move", payload);
+    //    return resp.IsSuccessStatusCode;
+    //}
+
+    //public async Task<bool> UpdateLogoDescriptionAsync(int logoId, string description)
+    //{
+    //    var resp = await _http.PutAsJsonAsync(
+    //        $"api/cms/logos/{logoId}/description",
+    //        new { Description = description });
+    //    return resp.IsSuccessStatusCode;
+    //}
+
+    //public async Task<bool> UpdateLogoLinkUrlAsync(int logoId, string linkUrl)
+    //{
+    //    var resp = await _http.PutAsJsonAsync(
+    //        $"api/cms/logos/{logoId}/link",
+    //        new { LinkUrl = linkUrl });
+    //    return resp.IsSuccessStatusCode;
+    //}
+
+    // Ladda upp ny medlemslogotyp
+    public async Task<MemberLogoViewModel?> UploadMemberLogoAsync(MemberLogoUploadDto uploadDto)
     {
-        _logger.LogInformation("Tar bort logotyp {LogoId}", logoId);
-        var resp = await _http.DeleteAsync($"api/cms/logos/{logoId}");
-        resp.EnsureSuccessStatusCode();
+        try
+        {
+            using var content = new MultipartFormDataContent();
+
+            if (uploadDto.File != null)
+            {
+                var stream = uploadDto.File.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
+                var fileContent = new StreamContent(stream);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(uploadDto.File.ContentType));
+                content.Add(fileContent, "File", uploadDto.File.Name);
+            }
+
+            if (!string.IsNullOrEmpty(uploadDto.AltText))
+                content.Add(new StringContent(uploadDto.AltText), "AltText");
+
+            if (!string.IsNullOrEmpty(uploadDto.LinkUrl))
+                content.Add(new StringContent(uploadDto.LinkUrl), "LinkUrl");
+
+            if (uploadDto.SortOrd > 0)
+                content.Add(new StringContent(uploadDto.SortOrd.ToString()), "SortOrd");
+
+            var response = await _http.PostAsync("api/cms/logos/upload", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var logoDto = JsonSerializer.Deserialize<MemberLogoDto>(json, _jsonOptions);
+                return logoDto?.ToViewModel();
+            }
+
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _logger.LogError("Medlemslogotyp uppladdning misslyckades: {StatusCode} - {Content}", response.StatusCode, errorContent);
+            throw new HttpRequestException($"Upload failed: {response.StatusCode}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppladdning av medlemslogotyp");
+            throw;
+        }
     }
 
-    public async Task<bool> MoveLogoAsync(int logoId, int direction)
+    // Uppdatera beskrivning för medlemslogotyp
+    public async Task UpdateMemberLogoDescriptionAsync(int logoId, string description)
     {
-        var payload = new { LogoId = logoId, Direction = direction };
-        var resp = await _http.PostAsJsonAsync("api/cms/logos/move", payload);
-        return resp.IsSuccessStatusCode;
+        try
+        {
+            var dto = new { Description = description };
+            var response = await _http.PutAsJsonAsync($"api/cms/logos/{logoId}/description", dto);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Kunde inte uppdatera logotypbeskrivning: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                throw new HttpRequestException($"Failed to update description: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av logotypbeskrivning för logoId: {LogoId}", logoId);
+            throw;
+        }
     }
 
-    public async Task<bool> UpdateLogoDescriptionAsync(int logoId, string description)
+    // Uppdatera länk för medlemslogotyp
+    public async Task UpdateMemberLogoLinkAsync(int logoId, string linkUrl)
     {
-        var resp = await _http.PutAsJsonAsync(
-            $"api/cms/logos/{logoId}/description",
-            new { Description = description });
-        return resp.IsSuccessStatusCode;
+        try
+        {
+            var dto = new { LinkUrl = linkUrl };
+            var response = await _http.PutAsJsonAsync($"api/cms/logos/{logoId}/link", dto);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Kunde inte uppdatera logotyplänk: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                throw new HttpRequestException($"Failed to update link: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av logotyplänk för logoId: {LogoId}", logoId);
+            throw;
+        }
     }
 
-    public async Task<bool> UpdateLogoLinkUrlAsync(int logoId, string linkUrl)
+    // Flytta medlemslogotyp upp eller ner i ordningen
+    public async Task MoveMemberLogoAsync(int logoId, int direction)
     {
-        var resp = await _http.PutAsJsonAsync(
-            $"api/cms/logos/{logoId}/link",
-            new { LinkUrl = linkUrl });
-        return resp.IsSuccessStatusCode;
+        try
+        {
+            var dto = new { LogoId = logoId, Direction = direction };
+            var response = await _http.PostAsJsonAsync("api/cms/logos/move", dto);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Kunde inte flytta logotyp: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                throw new HttpRequestException($"Failed to move logo: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid flytt av logotyp för logoId: {LogoId}", logoId);
+            throw;
+        }
+    }
+
+    // Ta bort medlemslogotyp
+    public async Task DeleteMemberLogoAsync(int logoId)
+    {
+        try
+        {
+            var response = await _http.DeleteAsync($"api/cms/logos/{logoId}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Kunde inte ta bort logotyp: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                throw new HttpRequestException($"Failed to delete logo: {response.StatusCode}");
+            }
+
+            _logger.LogInformation("Medlemslogotyp borttagen: {LogoId}", logoId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid borttagning av logotyp för logoId: {LogoId}", logoId);
+            throw;
+        }
     }
 
     // ---------------------------------------------------

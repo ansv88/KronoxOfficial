@@ -1,0 +1,41 @@
+﻿@using KronoxFront.ViewModels
+
+<section class="container mt-3" style="max-width:1000px; margin: 0 auto;">
+    <div class="row align-items-center">
+        @if (Model.HasImage && !string.IsNullOrEmpty(Model.ImageUrl))
+        {
+            <div class="col-md-4 mb-4 mb-md-0">
+                <img src="@Model.ImageUrl" class="img-fluid rounded-3 shadow"
+                     alt="@(string.IsNullOrEmpty(Model.ImageAltText) ? Model.Title : Model.ImageAltText)"
+                     style="cursor:pointer"
+                     @onclick="() => OnImageClick.InvokeAsync(Model.ImageUrl)" />
+            </div>
+            <div class="col-md-8">
+                @if (!string.IsNullOrWhiteSpace(Model.Title))
+                {
+                    <h2 class="mb-4 fw-bold">@Model.Title</h2>
+                }
+                <div class="intro-content">
+                    @((MarkupString)Model.Content)
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="col-12 text-center">
+                @if (!string.IsNullOrWhiteSpace(Model.Title))
+                {
+                    <h2 class="mb-4 fw-bold">@Model.Title</h2>
+                }
+                <div class="intro-content">
+                    @((MarkupString)Model.Content)
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public IntroSectionViewModel Model { get; set; } = new();
+    [Parameter] public EventCallback<string> OnImageClick { get; set; }
+}

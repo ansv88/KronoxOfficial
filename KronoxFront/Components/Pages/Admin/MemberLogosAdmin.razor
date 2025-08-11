@@ -1,0 +1,525 @@
+﻿@page "/admin/memberlogos"
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using KronoxFront.Services
+@inject CmsService Cms
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject ILogger<MemberLogosAdmin> Logger
+
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+
+<HeadContent>
+    <meta name="description" content="Hantera medlemslogotyper för KronoX-konsortiet. Ladda upp, ordna och länka medlemslogotyper." />
+</HeadContent>
+
+<PageTitle>KronoX - Medlemslogotyper</PageTitle>
+
+<div class="container-fluid">
+    <h1 class="mb-4 h2"><i class="fa-solid fa-university me-2"></i>Medlemslogotyper</h1>
+
+    <div class="row">
+        <!-- Vänster panel för logotyplista -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">Registrerade logotyper (@memberLogos.Count)</h2>
+                    <button class="btn btn-success btn-sm" @onclick="OpenAddLogoModal">
+                        <i class="fa-solid fa-plus me-1"></i> Lägg till
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center my-3">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Laddar logotyper...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (!memberLogos.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="fa-solid fa-info-circle me-2"></i>
+                            Inga medlemslogotyper har registrerats än.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group logo-list">
+                            @foreach (var (logo, index) in memberLogos.Select((l, i) => (l, i)))
+                            {
+                                <button type="button" class="list-group-item list-group-item-action d-flex align-items-center @(selectedLogo?.Id == logo.Id ? "active" : "")"
+                                        @onclick="() => SelectLogo(logo)">
+                                    <img src="@logo.Url" alt="@logo.AltText"
+                                         class="me-3" style="width: 60px; height: 40px; object-fit: contain;" />
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold">@(string.IsNullOrEmpty(logo.AltText) ? "Ingen beskrivning" : logo.AltText)</div>
+                                        <div class="text-muted small">
+                                            @if (!string.IsNullOrEmpty(logo.LinkUrl))
+                                            {
+                                                <span>@logo.LinkUrl</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Ingen länk</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="d-flex flex-column gap-1">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                @onclick:stopPropagation="true"
+                                                @onclick="() => MoveLogo(logo.Id, -1)"
+                                                disabled="@(index == 0)"
+                                                title="Flytta upp">
+                                            <i class="fa-solid fa-arrow-up"></i>
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                @onclick:stopPropagation="true"
+                                                @onclick="() => MoveLogo(logo.Id, 1)"
+                                                disabled="@(index == memberLogos.Count - 1)"
+                                                title="Flytta ner">
+                                            <i class="fa-solid fa-arrow-down"></i>
+                                        </button>
+                                    </div>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Höger panel för detaljer och redigering -->
+        <div class="col-md-6">
+            @if (selectedLogo != null)
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h2 class="mb-0 h5">Logotypdetaljer</h2>
+                        <div>
+                            <button class="btn btn-warning btn-sm me-1" @onclick="() => isEditMode = true">
+                                <i class="fa-solid fa-edit me-1"></i> Redigera
+                            </button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => OpenDeleteLogoModal(selectedLogo)">
+                                <i class="fa-solid fa-trash me-1"></i> Ta bort
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (isEditMode)
+                        {
+                            <EditForm Model="editLogoModel" OnValidSubmit="SaveLogoChanges">
+                                <DataAnnotationsValidator />
+
+                                <div class="mb-3 text-center">
+                                    <img src="@selectedLogo.Url" alt="@selectedLogo.AltText"
+                                         class="img-thumbnail" style="max-width: 200px; max-height: 150px;" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Beskrivning</label>
+                                    <InputText class="form-control" @bind-Value="editLogoModel.AltText"
+                                               placeholder="T.ex. Högskolan i Borås logotyp" />
+                                    <ValidationMessage For="@(() => editLogoModel.AltText)" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Webbadress</label>
+                                    <InputText class="form-control" @bind-Value="editLogoModel.LinkUrl"
+                                               placeholder="https://www.exempel.se" />
+                                    <ValidationMessage For="@(() => editLogoModel.LinkUrl)" />
+                                    <div class="form-text">Länk till medlemsorganisationens webbplats (valfritt)</div>
+                                </div>
+
+                                <div class="d-flex justify-content-end">
+                                    <button type="button" class="btn btn-secondary me-2" @onclick="CancelEdit">
+                                        Avbryt
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                        @if (isSaving)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        Spara ändringar
+                                    </button>
+                                </div>
+                            </EditForm>
+                        }
+                        else
+                        {
+                            <div class="text-center mb-4">
+                                <img src="@selectedLogo.Url" alt="@selectedLogo.AltText"
+                                     class="img-thumbnail" style="max-width: 250px; max-height: 200px;" />
+                            </div>
+
+                            <div class="mb-3">
+                                <span class="fw-bold">Beskrivning:</span>
+                                <div>@(string.IsNullOrEmpty(selectedLogo.AltText) ? "Ingen beskrivning" : selectedLogo.AltText)</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <span class="fw-bold">Webbadress:</span>
+                                <div>
+                                    @if (!string.IsNullOrEmpty(selectedLogo.LinkUrl))
+                                    {
+                                        <a href="@selectedLogo.LinkUrl" target="_blank" rel="noopener">
+                                            @selectedLogo.LinkUrl <i class="fa-solid fa-external-link-alt ms-1"></i>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Ingen länk</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <span class="fw-bold">Filväg:</span>
+                                <div class="font-monospace small text-muted">@selectedLogo.Url</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <span class="fw-bold">Sorteringsordning:</span>
+                                <div>@selectedLogo.SortOrd</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="card mb-4">
+                    <div class="card-body text-center text-muted py-5">
+                        <i class="fa-solid fa-university fa-3x mb-3"></i>
+                        <h2 class="h5">Välj en logotyp för att visa detaljer</h2>
+                        <p>Du kan visa och hantera logotypinformation här.</p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal för ny logotyp -->
+@if (showAddLogoModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="addLogoModalTitle">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addLogoModalTitle">Lägg till ny medlemslogotyp</h5>
+                    <button type="button" class="btn-close" @onclick="CloseAddLogoModal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="addLogoModel" OnValidSubmit="UploadLogo">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Bildfil <span class="text-danger">*</span></label>
+                            <InputFile OnChange="HandleFileSelected" class="form-control" accept="image/*" />
+                            <div class="form-text">Välj en bildfil (JPG, PNG, GIF, WebP, SVG). Max 2MB.</div>
+                            @if (!string.IsNullOrEmpty(selectedFileName))
+                            {
+                                <div class="text-success mt-1">
+                                    <i class="fa-solid fa-check me-1"></i>Vald fil: @selectedFileName
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Beskrivning</label>
+                            <InputText @bind-Value="addLogoModel.AltText" class="form-control"
+                                       placeholder="T.ex. Högskolan i Borås logotyp" />
+                            <ValidationMessage For="() => addLogoModel.AltText" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Webbadress (valfritt)</label>
+                            <InputText @bind-Value="addLogoModel.LinkUrl" class="form-control"
+                                       placeholder="https://www.exempel.se" />
+                            <ValidationMessage For="() => addLogoModel.LinkUrl" />
+                            <div class="form-text">Länk till medlemsorganisationens webbplats</div>
+                        </div>
+
+                        <div class="modal-footer border-0 px-0">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseAddLogoModal">Avbryt</button>
+                            <button type="submit" class="btn btn-primary" disabled="@(selectedFile == null || isUploading)">
+                                @if (isUploading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Laddar upp...</span>
+                                }
+                                else
+                                {
+                                    <i class="fa-solid fa-upload me-1"></i>
+                                    <span>Ladda upp</span>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal för ta bort logotyp -->
+@if (showDeleteLogoModal && selectedLogo != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="deleteLogoModalTitle">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteLogoModalTitle">Ta bort medlemslogotyp</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteLogoModal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <img src="@selectedLogo.Url" alt="@selectedLogo.AltText"
+                             class="img-thumbnail" style="max-width: 150px; max-height: 100px;" />
+                    </div>
+                    <p>Är du säker på att du vill ta bort logotypen '<strong>@selectedLogo.AltText</strong>'?</p>
+                    <p class="text-danger">Detta kommer att ta bort logotypen permanent från systemet.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteLogoModal">Avbryt</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteLogo">Ta bort</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<MemberLogoViewModel> memberLogos = new();
+    private MemberLogoViewModel? selectedLogo;
+    private bool isLoading = true;
+    private bool isEditMode = false;
+    private bool isSaving = false;
+
+    // Modal states
+    private bool showAddLogoModal = false;
+    private bool showDeleteLogoModal = false;
+
+    // Form models
+    private EditLogoModel editLogoModel = new();
+    private MemberLogoUploadDto addLogoModel = new();
+    private IBrowserFile? selectedFile;
+    private string selectedFileName = "";
+    private bool isUploading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMemberLogos();
+    }
+
+    private async Task LoadMemberLogos()
+    {
+        try
+        {
+            isLoading = true;
+            memberLogos = await Cms.GetMemberLogosAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av medlemslogotyper");
+            await Toast.Error("Kunde inte ladda medlemslogotyper");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectLogo(MemberLogoViewModel logo)
+    {
+        selectedLogo = logo;
+        isEditMode = false;
+
+        if (logo != null)
+        {
+            editLogoModel = new EditLogoModel
+            {
+                AltText = logo.AltText,
+                LinkUrl = logo.LinkUrl ?? ""
+            };
+        }
+    }
+
+    private void OpenAddLogoModal()
+    {
+        addLogoModel = new MemberLogoUploadDto();
+        selectedFile = null;
+        selectedFileName = "";
+        showAddLogoModal = true;
+    }
+
+    private void CloseAddLogoModal()
+    {
+        showAddLogoModal = false;
+        addLogoModel = new MemberLogoUploadDto();
+        selectedFile = null;
+        selectedFileName = "";
+    }
+
+    private void OpenDeleteLogoModal(MemberLogoViewModel logo)
+    {
+        selectedLogo = logo;
+        showDeleteLogoModal = true;
+    }
+
+    private void CloseDeleteLogoModal()
+    {
+        showDeleteLogoModal = false;
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        selectedFileName = e.File?.Name ?? "";
+    }
+
+    private async Task UploadLogo()
+    {
+        if (selectedFile == null)
+        {
+            await Toast.Error("Välj en fil att ladda upp");
+            return;
+        }
+
+        try
+        {
+            isUploading = true;
+
+            // Validera filstorlek
+            if (selectedFile.Size > 2 * 1024 * 1024)
+            {
+                await Toast.Error("Filen är för stor. Maximal storlek är 2MB.");
+                return;
+            }
+
+            // Validera filtyp
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml" };
+            if (!allowedTypes.Contains(selectedFile.ContentType))
+            {
+                await Toast.Error("Endast JPG, PNG, GIF, WebP och SVG-bilder tillåts.");
+                return;
+            }
+
+            addLogoModel.File = selectedFile;
+
+            var newLogo = await Cms.UploadMemberLogoAsync(addLogoModel);
+
+            await LoadMemberLogos();
+            CloseAddLogoModal();
+            await Toast.Success("Medlemslogotyp uppladdad framgångsrikt!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppladdning av medlemslogotyp");
+            await Toast.Error("Ett fel uppstod vid uppladdning av logotypen");
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        isEditMode = false;
+        if (selectedLogo != null)
+        {
+            editLogoModel = new EditLogoModel
+            {
+                AltText = selectedLogo.AltText,
+                LinkUrl = selectedLogo.LinkUrl ?? ""
+            };
+        }
+    }
+
+    private async Task SaveLogoChanges()
+    {
+        if (selectedLogo == null) return;
+
+        try
+        {
+            isSaving = true;
+
+            // Uppdatera beskrivning om den har ändrats
+            if (editLogoModel.AltText != selectedLogo.AltText)
+            {
+                await Cms.UpdateMemberLogoDescriptionAsync(selectedLogo.Id, editLogoModel.AltText);
+                selectedLogo.AltText = editLogoModel.AltText;
+            }
+
+            // Uppdatera länk om den har ändrats
+            if (editLogoModel.LinkUrl != (selectedLogo.LinkUrl ?? ""))
+            {
+                await Cms.UpdateMemberLogoLinkAsync(selectedLogo.Id, editLogoModel.LinkUrl);
+                selectedLogo.LinkUrl = editLogoModel.LinkUrl;
+            }
+
+            isEditMode = false;
+            await Toast.Success("Logotyp uppdaterad framgångsrikt!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppdatering av logotyp");
+            await Toast.Error("Ett fel uppstod vid uppdatering av logotypen");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task MoveLogo(int logoId, int direction)
+    {
+        try
+        {
+            await Cms.MoveMemberLogoAsync(logoId, direction);
+            await LoadMemberLogos();
+
+            var directionText = direction == -1 ? "upp" : "ner";
+            await Toast.Success($"Logotyp flyttad {directionText}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid flytt av logotyp");
+            await Toast.Error("Kunde inte flytta logotypen");
+        }
+    }
+
+    private async Task DeleteLogo()
+    {
+        if (selectedLogo == null) return;
+
+        try
+        {
+            await Cms.DeleteMemberLogoAsync(selectedLogo.Id);
+            await LoadMemberLogos();
+
+            selectedLogo = null;
+            CloseDeleteLogoModal();
+            await Toast.Success("Logotyp borttagen framgångsrikt!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av logotyp");
+            await Toast.Error("Kunde inte ta bort logotypen");
+        }
+    }
+
+    // Model för redigering
+    public class EditLogoModel
+    {
+        public string AltText { get; set; } = "";
+        public string LinkUrl { get; set; } = "";
+    }
+}

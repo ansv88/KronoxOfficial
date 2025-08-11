@@ -1,0 +1,11 @@
+﻿<section class="py-5 text-center mb-2" style="max-width:1000px; margin: 0 auto;">
+    <h3 class="text-start mb-3 fs-5" style="color: @(IsDarkBackground ? "rgba(255, 255, 255, 0.85)" : "rgba(33, 37, 41, 0.85)");">@Title</h3>
+    <MemberLogosDisplay DisplayMode="@DisplayMode" ShowTitle="@ShowTitle" />
+</section>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Våra medlemmar:";
+    [Parameter] public bool IsDarkBackground { get; set; } = true;
+    [Parameter] public MemberLogosDisplay.LogoDisplayMode DisplayMode { get; set; } = MemberLogosDisplay.LogoDisplayMode.Carousel;
+    [Parameter] public bool ShowTitle { get; set; } = false;
+}

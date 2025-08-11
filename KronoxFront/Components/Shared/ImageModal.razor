@@ -1,0 +1,17 @@
+﻿@if (!string.IsNullOrEmpty(ImageUrl))
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);"
+         role="dialog" aria-modal="true" aria-label="Förhandsgranskning av bild">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 bg-transparent">
+                <button type="button" class="btn-close btn-close-white ms-auto me-n4 mt-n4" @onclick="OnClose"></button>
+                <img src="@ImageUrl" class="img-fluid rounded-3" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+}

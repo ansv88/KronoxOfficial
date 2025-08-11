@@ -16,174 +16,261 @@
 @inject IToastService Toast
 @inject IJSRuntime JS
 @inject ILogger<HomeAdmin> Logger
-@inject HttpClient _http
 
 <HeadContent>
     <meta name="description" content="Redigera startsidan för KronoX. Lägg till, ändra och hantera innehåll, bilder och sektioner." />
 </HeadContent>
 
-<PageTitle>@pageContent.Title</PageTitle>
+<PageTitle>Admin - Startsida</PageTitle>
 
-<h1 class="text-center">Redigera startsidan</h1>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Redigera startsidan</h1>
+                <div>
+                    <a href="/" class="btn btn-outline-secondary me-2">
+                        <i class="fa-solid fa-eye me-1"></i> Förhandsgranska
+                    </a>
+                    <button type="button" class="btn btn-success" @onclick="SaveContent" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        else
+                        {
+                            <i class="fa-solid fa-save me-1"></i>
+                        }
+                        Spara ändringar
+                    </button>
+                </div>
+            </div>
 
-<EditForm Model="pageContent" OnValidSubmit="SavePageAsync">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <div class="mb-3">
-        <label for="pageTitle" class="form-label">Sidans titel</label>
-        <InputText id="pageTitle"
-                   class="form-control"
-                   @bind-Value="pageContent.Title"
-                   aria-label="Sidans titel" />
-        <ValidationMessage For="() => pageContent.Title" />
-    </div>
-
-    <!-- Bannerbild-sektion -->
-    <BannerImageUploader PageKey="home"
-                         OnUploaded="@OnBannerUploaded" />
-
-    <!-- Introsektion -->
-    <div class="card mb-4">
-        <div class="card-header bg-light">
-            <h3 class="h5 mb-0">Intro-sektion</h3>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-2 form-check">
-                        <input type="checkbox" class="form-check-input" id="intro-has-image"
-                               @bind="introSection.HasImage" aria-label="Inkludera bild i introsektionen" />
-                        <label class="form-check-label" for="intro-has-image">Inkludera bild</label>
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Laddar...</span>
                     </div>
-                    @if (introSection.HasImage)
-                    {
-                        <label class="form-label">Introbild</label>
-                        <div class="border p-3 mb-2 bg-light text-center" style="min-height: 150px;">
-                            @if (!string.IsNullOrEmpty(introSection.ImageUrl))
-                            {
-                                <img src="@introSection.ImageUrl" class="img-fluid img-thumbnail mb-2"
-                                     style="max-height: 150px; cursor: pointer" />
-                                <div class="mt-2 d-flex justify-content-center">
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage" aria-label="Ta bort introbild">
-                                        <i class="fa-solid fa-times"></i> Ta bort bild
-                                    </button>
+                </div>
+            }
+            else
+            {
+                @* ---------- Sidans titel ------------------------------------ *@
+                <EditForm Model="pageContent" OnValidSubmit="SavePageContent">
+                    <DataAnnotationsValidator />
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h3 class="h5 mb-0">Sidans titel</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="pageTitle" class="form-label">Titel</label>
+                                <InputText id="pageTitle"
+                                           class="form-control"
+                                           @bind-Value="pageContent.Title"
+                                           placeholder="T.ex. KronoX - Startsida" />
+                                <ValidationMessage For="() => pageContent.Title" />
+                                <div class="form-text">Denna titel visas i webbläsarens flik och som sidhuvud</div>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+
+                @* ---------- Banner Image Upload ------------------------------------ *@
+                <BannerImageUploader PageKey="home"
+                                     OnUploaded="OnBannerUploaded" />
+
+                @* ---------- Intro Section ------------------------------------------- *@
+                <EditForm Model="introSection" OnValidSubmit="SaveIntroSection">
+                    <DataAnnotationsValidator />
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h3 class="h5 mb-0">Intro-sektion</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Breadcrumb-titel (visas ovanför introt)</label>
+                                <InputText class="form-control" 
+                                           @bind-Value="introSection.BreadcrumbTitle" 
+                                           placeholder="T.ex. STARTSIDA eller VÄLKOMMEN" />
+                                <ValidationMessage For="() => introSection.BreadcrumbTitle" />
+                                <div class="form-text">Lämna tomt för att dölja breadcrumb-titeln</div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-2 form-check">
+                                        <InputCheckbox class="form-check-input" 
+                                                       id="intro-has-image" 
+                                                       @bind-Value="introSection.HasImage" />
+                                        <label class="form-check-label" for="intro-has-image">Inkludera bild</label>
+                                    </div>
+
+                                    @if (introSection.HasImage)
+                                    {
+                                        <div class="border p-3 mb-2 bg-light text-center" style="min-height: 200px;">
+                                            @if (!string.IsNullOrEmpty(introSection.ImageUrl))
+                                            {
+                                                <img src="@introSection.ImageUrl" class="img-fluid img-thumbnail mb-2" style="max-height: 200px;" />
+                                                <div class="mt-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage">
+                                                        <i class="fa-solid fa-times"></i> Ta bort bild
+                                                    </button>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <label class="form-label">Bildbeskrivning:</label>
+                                                    <InputText class="form-control form-control-sm" 
+                                                               @bind-Value="introSection.ImageAltText" 
+                                                               placeholder="Beskriv bilden" />
+                                                    <ValidationMessage For="() => introSection.ImageAltText" />
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <InputFile OnChange="HandleIntroImageSelected" class="form-control" accept="image/*" />
+                                                <div class="text-muted small mt-2">Klicka för att välja bild</div>
+                                            }
+                                        </div>
+                                    }
                                 </div>
-                                <div class="mt-2">
-                                    <label for="introImageAltText" class="form-label">Bildbeskrivning (alt-text):</label>
-                                    <input id="introImageAltText"
-                                           type="text"
-                                           class="form-control form-control-sm"
-                                           @bind="introSection.ImageAltText"
-                                           placeholder="Beskriv bilden för tillgänglighet" />
-                                </div>
-                            }
-                            else
-                            {
-                                <div>
-                                    <InputFile OnChange="@HandleIntroImageSelected"
-                                               class="form-control"
-                                               accept="image/*"
-                                               aria-label="Välj introbild" />
-                                    <div class="text-muted small mt-2">
-                                        Klicka för att välja bild (rekommenderad storlek: 800x600px)
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rubrik</label>
+                                        <InputText class="form-control" @bind-Value="introSection.Title" />
+                                        <ValidationMessage For="() => introSection.Title" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Innehåll</label>
+                                        <InputTextArea id="intro-editor" 
+                                                       @bind-Value="introSection.Content" 
+                                                       class="form-control tinymce-editor"
+                                                       rows="8" />
+                                        <ValidationMessage For="() => introSection.Content" />
                                     </div>
                                 </div>
-                            }
+                            </div>
                         </div>
-                    }
-                </div>
-                <div class="col-md-8">
-                    <div class="mb-3">
-                        <label for="introTitle" class="form-label">Rubrik</label>
-                        <input type="text" class="form-control" id="introTitle" @bind="introSection.Title" aria-label="Rubrik för introsektionen" />
                     </div>
-                    <div class="mb-3">
-                        <label for="introContent" class="form-label">Innehåll</label>
-                        <textarea id="introContent"
-                                  @bind="introSection.Content"
-                                  class="form-control tinymce-editor"
-                                  rows="8">
-                        </textarea>
+                </EditForm>
+
+                @* ---------- Navigation Buttons Manager --------------------------- *@
+                <NavigationButtonManager ShowNavigationButtons="introSection.ShowNavigationButtons"
+                                          NavigationButtons="introSection.NavigationButtons"
+                                          ShowNavigationButtonsChanged="OnShowNavigationButtonsChanged"
+                                          NavigationButtonsChanged="OnNavigationButtonsChanged" />
+
+                @* ---------- Feature Sections Manager -------------------------------- *@
+                <FeatureSectionManager @ref="featureSectionManagerRef"
+                                       Sections="featureSections"
+                                       OnSectionsChanged="OnFeatureSectionsChanged"
+                                       OnImageUpload="OnFeatureImageUploaded"
+                                       OnImageDelete="OnFeatureImageDeleted" />
+
+                @* ---------- Member Logos ------------------------------------------- *@
+@*                 <div class="row">
+                    <div class="col-md-12 mt-3">
+                        <MemberLogoManager Logos="memberLogos" OnLogosChanged="@LoadMemberLogos" />
                     </div>
-                </div>
-            </div>
+                </div> *@
+            }
         </div>
     </div>
-
-    <!-- Medlemslogotyper -->
-    <div class="row">
-        <div class="col-md-12 mt-3">
-            <MemberLogoManager Logos="memberLogos" OnLogosChanged="@LoadMemberLogos" />
-        </div>
-    </div>
-
-    <!-- Featuresektioner -->
-    <FeatureSectionManager @ref="featureSectionManagerRef"
-                           Sections="featureSections"
-                           OnSectionsChanged="HandleFeatureSectionsChanged"
-                           OnImageUpload="HandleFeatureImageUpload" />
-
-    <!-- Spara-knappar -->
-    <div class="mb-4">
-        <button type="button" class="btn btn-success me-2" @onclick="SavePageAsync" aria-label="Spara innehåll">
-            <i class="fa-solid fa-save me-1"></i> Spara innehåll
-        </button>
-@*         <button type="button" class="btn btn-info me-2" @onclick="ShowPreview" aria-label="Förhandsgranska startsidan">
-            >
-            <i class="fa-solid fa-eye me-1"></i> Förhandsgranska
-        </button> *@
-        <a href="/" class="btn btn-outline-secondary" target="_blank" aria-label="Visa startsidan i ny flik">
-            <i class="fa-solid fa-external-link-alt me-1"></i> Visa startsidan
-        </a>
-    </div>
-
-    <!-- Förhandsgranskningsmodal, ej implementerad -->
-    @if (showPreview)
-    {
-<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);"
-     role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
-    <div class="modal-dialog modal-fullscreen">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="previewModalTitle">Förhandsgranskning</h5>
-                <button type="button" class="btn-close" @onclick="ClosePreview" aria-label="Stäng"></button>
-            </div>
-                    <div class="modal-body bg-light p-0">
-                        <!-- Innehållet i förhandsgranskningsmodalfönstret -->
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="ClosePreview">Stäng</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-</EditForm>
+</div>
 
 @code {
     private PageContentViewModel pageContent = new();
-    private List<MemberLogoViewModel> memberLogos = new();
+    // private List<MemberLogoViewModel> memberLogos = new();
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
-    private bool showPreview = false;
     private bool isLoading = true;
-    private bool shouldInitEditors = false;
+    private bool isSaving = false;
+    private FeatureSectionManager? featureSectionManagerRef;
 
-    private ElementReference introEditorRef;
-    private FeatureSectionManager featureSectionManagerRef;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            pageContent = await Cms.GetPageContentAsync("home") ?? new PageContentViewModel();
+            // memberLogos = await Cms.GetMemberLogosAsync() ?? new List<MemberLogoViewModel>();
+
+            introSection = await Cms.GetIntroSectionAsync("home");
+            featureSections = await Cms.GetFeatureSectionsAsync("home");
+
+            if (featureSections.Count == 0)
+            {
+                featureSections.Add(new FeatureSectionViewModel
+                {
+                    Id = 0,
+                    PageKey = "home",
+                    Title = "",
+                    Content = "<p>Lägg till innehåll här</p>",
+                    ImageUrl = "",
+                    ImageAltText = "",
+                    HasImage = false,
+                    SortOrder = 0
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av innehåll");
+            await Toast.Error("Ett fel inträffade vid laddning av innehållet.");
+
+            introSection = new IntroSectionViewModel
+            {
+                Title = "Välkommen",
+                Content = "<p>Schemaläggning för högre utbildning</p>"
+            };
+            featureSections = new List<FeatureSectionViewModel>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("destroyAllEditors");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte förstöra befintliga editorer");
+            }
+            
+            await Task.Delay(500);
+
+            if (featureSectionManagerRef != null)
+            {
+                try
+                {
+                    await featureSectionManagerRef.RefreshEditors();
+                    Logger.LogInformation("Feature-editorer initierade");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte initiera feature-editorer");
+                }
+            }
+            
+            await Task.Delay(200);
+            await InitializeIntroEditor();
+        }
+    }
 
     private async Task InitializeIntroEditor()
     {
         try
         {
-            string editorId = "introContent";
+            string editorId = "intro-editor";
             await Task.Delay(100);
-
-            // Försök initiera
             await JS.InvokeVoidAsync("initTinyMCE", editorId);
 
-            // Verifiera att det lyckades
             try
             {
                 bool exists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
@@ -206,197 +293,13 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            pageContent = await Cms.GetPageContentAsync("home") ?? new PageContentViewModel();
-            memberLogos = await Cms.GetMemberLogosAsync() ?? new List<MemberLogoViewModel>();
-
-            // Hämta introsektion direkt från metadatafältet
-            introSection = await Cms.GetIntroSectionAsync("home");
-
-            var homeSections = await Cms.GetFeatureSectionsAsync("home");
-            featureSections = homeSections;
-
-            // Om inga sektioner hittades, skapa en tom standardsektion
-            if (featureSections.Count == 0)
-            {
-                featureSections.Add(new FeatureSectionViewModel
-                    {
-                        Id = 0,
-                        PageKey = "home",
-                        Title = "",
-                        Content = "<p>Lägg till innehåll här</p>",
-                        ImageUrl = "",
-                        ImageAltText = "",
-                        HasImage = false,
-                        SortOrder = 0
-                    });
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid laddning av innehåll - standardvärdena används");
-            await Toast.Error("Ett fel inträffade vid laddning av innehållet.");
-
-            // Tillämpa enkla standardvärden vid fel
-            introSection = new IntroSectionViewModel
-                {
-                    Title = "Välkommen",
-                    Content = "<p>Schemaläggning för högre utbildning</p>"
-                };
-            featureSections = new List<FeatureSectionViewModel>();
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Förstör eventuella existerande editorer först
-            try
-            {
-                await JS.InvokeVoidAsync("destroyAllEditors");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Kunde inte förstöra befintliga editorer");
-            }
-            
-            // Längre fördröjning för att DOM ska vara redo
-            await Task.Delay(500);
-
-            // Initiera feature-editorer först
-            if (featureSectionManagerRef != null)
-            {
-                try
-                {
-                    await featureSectionManagerRef.RefreshEditors();
-                    Logger.LogInformation("Feature-editorer initierade");
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Kunde inte initiera feature-editorer");
-                }
-            }
-            
-            // Sedan initiera introeditorn
-            await Task.Delay(200); // Vänta ytterligare mellan initieringarna
-            await InitializeIntroEditor();
-        }
-    }
-
-    // Extrahera innehåll från metadata
-    private async Task LoadContentFromMetadata()
-    {
-        if (string.IsNullOrEmpty(pageContent.Metadata))
-        {
-            introSection = new IntroSectionViewModel
-                {
-                    Title = "Välkommen",
-                    Content = "<p>Ange innehåll för startsidan här</p>"
-                };
-            featureSections = new List<FeatureSectionViewModel>();
-            return;
-        }
-
-        try
-        {
-            var metadata = JsonDocument.Parse(pageContent.Metadata);
-            var root = metadata.RootElement;
-
-            if (root.TryGetProperty("introSection", out var introElement))
-            {
-                introSection = new IntroSectionViewModel
-                    {
-                        Title = introElement.TryGetProperty("title", out var titleElement)
-                                ? titleElement.GetString() ?? ""
-                                : "",
-                        Content = introElement.TryGetProperty("content", out var contentElement)
-                                ? contentElement.GetString() ?? ""
-                                : ""
-                    };
-            }
-
-            if (root.TryGetProperty("features", out var featuresElement))
-            {
-                featureSections = new List<FeatureSectionViewModel>();
-                int index = 0;
-
-                foreach (var feature in featuresElement.EnumerateArray())
-                {
-                    string imageUrl = "";
-                    if (feature.TryGetProperty("imageUrl", out var imageUrlProp))
-                    {
-                        imageUrl = imageUrlProp.GetString() ?? "";
-
-                        if (!string.IsNullOrEmpty(imageUrl) && !imageUrl.StartsWith("/"))
-                        {
-                            imageUrl = "/" + imageUrl;
-                        }
-                    }
-
-                    featureSections.Add(new FeatureSectionViewModel
-                        {
-                            Id = 0,
-                            PageKey = "home",
-                            Title = feature.TryGetProperty("title", out var titleProp)
-                                        ? titleProp.GetString() ?? ""
-                                        : "",
-                            Content = feature.TryGetProperty("content", out var contentProp)
-                                        ? contentProp.GetString() ?? ""
-                                        : "",
-                            ImageUrl = imageUrl,
-                            ImageAltText = feature.TryGetProperty("imageAltText", out var imageAltTextProp)
-                                        ? imageAltTextProp.GetString() ?? ""
-                                        : "",
-                            HasImage = feature.TryGetProperty("hasImage", out var hasImageProp)
-                                        ? hasImageProp.GetBoolean()
-                                        : !string.IsNullOrEmpty(imageUrl),
-                            SortOrder = index
-                        });
-                    index++;
-                }
-            }
-
-            // Om inga sektioner hittades, skapa en tom standardsektion
-            if (featureSections == null || !featureSections.Any())
-            {
-                featureSections = new List<FeatureSectionViewModel>
-{
-    new FeatureSectionViewModel
-    {
-        Id = 0,
-        PageKey = "home",
-        Title = "",
-        Content = "<p>Lägg till innehåll här</p>",
-        HasImage = false,
-        SortOrder = 0
-    }
-};
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid tolkning av metadata");
-            throw;
-        }
-    }
-
     private async Task OnBannerUploaded(PageImageViewModel? img)
     {
-        // Ladda om hela pageContent för att få uppdaterade bilder från databasen
         try
         {
             pageContent = await Cms.GetPageContentAsync("home") ?? new PageContentViewModel();
             Logger.LogInformation("PageContent omladdad efter bannerbildändring");
-            
-            await Toast.Success("Bannerbild uppladdad och sparad!");
+            await Toast.Success("Bannerbild uppdaterad!");
         }
         catch (Exception ex)
         {
@@ -404,7 +307,6 @@
             await Toast.Error("Bannerbilden laddades upp men sidan kunde inte uppdateras. Uppdatera sidan manuellt.");
         }
 
-        // Uppdatera UI
         StateHasChanged();
     }
 
@@ -429,15 +331,11 @@
 
             try
             {
-                // Starta uppladdning med mindre buffer för att undvika minnesproblem
                 using var stream = e.File.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
                 using var ms = new MemoryStream();
-
-                // Kopiera i mindre segment för att förhindra minnesproblem
-                await stream.CopyToAsync(ms, 81920); // 80KB segments
+                await stream.CopyToAsync(ms, 81920);
                 ms.Position = 0;
 
-                // Ladda upp filen
                 var uploadedImage = await Cms.UploadFeatureImageAsync("home", ms, e.File.Name, "intro:0");
 
                 if (uploadedImage != null)
@@ -469,18 +367,12 @@
         introSection.ImageAltText = "";
     }
 
-    private async Task OnLogoUploaded(MemberLogoViewModel logo)
-    {
-        memberLogos.Add(logo);
-        await Toast.Success("Logotyp uppladdad");
-    }
+    // private async Task LoadMemberLogos()
+    // {
+    //     memberLogos = await Cms.GetMemberLogosAsync();
+    // }
 
-    private async Task LoadMemberLogos()
-    {
-        memberLogos = await Cms.GetMemberLogosAsync();
-    }
-
-    private async Task HandleFeatureImageUpload(FeatureSectionManager.ImageUploadInfo info)
+    private async Task OnFeatureImageUploaded(FeatureSectionManager.ImageUploadInfo info)
     {
         try
         {
@@ -502,15 +394,11 @@
 
             try
             {
-                // Starta uppladdning med mindre buffer för att undvika minnesproblem
                 using var stream = info.File.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
                 using var ms = new MemoryStream();
-
-                // Kopiera i mindre segment för att förhindra minnesproblem
-                await stream.CopyToAsync(ms, 81920); // 80KB segments
+                await stream.CopyToAsync(ms, 81920);
                 ms.Position = 0;
 
-                // Ladda upp filen till den angivna sektionen
                 var uploadedImage = await Cms.UploadFeatureImageAsync("home", ms, info.File.Name, $"feature:{info.SectionIndex}");
 
                 if (uploadedImage != null)
@@ -545,109 +433,78 @@
         }
     }
 
-    private void HandleFeatureSectionsChanged()
+    private void OnFeatureSectionsChanged() { }
+    private void OnFeatureImageDeleted(FeatureSectionManager.ImageDeleteInfo info) { }
+
+    private async Task OnShowNavigationButtonsChanged(bool value)
+    {
+        introSection.ShowNavigationButtons = value;
+    }
+
+    private async Task OnNavigationButtonsChanged()
     {
         StateHasChanged();
     }
 
-    private async Task SavePageAsync()
+    private async Task SavePageContent()
     {
         try
         {
-            // Synkronisera alla TinyMCE-editorer innan sparande
+            await Cms.SavePageContentAsync("home", pageContent);
+            await Toast.Success("Sidans titel har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av sidtitel");
+            await Toast.Error("Fel vid sparande av sidtitel");
+        }
+    }
+
+    private async Task SaveIntroSection()
+    {
+        try
+        {
+            await Cms.SaveIntroSectionAsync("home", introSection);
+            await Toast.Success("Intro-sektion har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av intro-sektion");
+            await Toast.Error("Fel vid sparande av intro-sektion");
+        }
+    }
+
+    private async Task SaveContent()
+    {
+        isSaving = true;
+        try
+        {
             try
             {
                 await JS.InvokeVoidAsync("syncAllEditors");
-                await Task.Delay(100); // Ge tid för synkronisering
+                await Task.Delay(100);
             }
             catch (Exception ex)
             {
                 Logger.LogWarning("Kunde inte synkronisera TinyMCE-editorer: {Message}", ex.Message);
             }
 
-            if (introSection.HasImage && !string.IsNullOrEmpty(introSection.ImageUrl) && !introSection.ImageUrl.StartsWith("/"))
-            {
-                introSection.ImageUrl = "/" + introSection.ImageUrl;
-            }
+            // Spara intro-sektion
+            await Cms.SaveIntroSectionAsync("home", introSection);
 
-            foreach (var section in featureSections.Where(s => s.HasImage))
-            {
-                if (!string.IsNullOrEmpty(section.ImageUrl) && !section.ImageUrl.StartsWith("/"))
-                {
-                    section.ImageUrl = "/" + section.ImageUrl;
-                }
-            }
+            // Spara feature-sektioner
+            await Cms.SaveFeatureSectionsAsync("home", featureSections);
 
-            var metadataObj = new
-            {
-                introSection = new
-                {
-                    title = introSection.Title,
-                    content = introSection.Content,
-                    imageUrl = introSection.ImageUrl,
-                    imageAltText = introSection.ImageAltText,
-                    hasImage = introSection.HasImage
-                },
-                features = featureSections.Select(f => new
-                {
-                    title = f.Title,
-                    content = f.Content,
-                    imageUrl = f.ImageUrl,
-                    imageAltText = f.ImageAltText,
-                    hasImage = f.HasImage
-                }).ToArray()
-            };
-
-            pageContent.Metadata = JsonSerializer.Serialize(metadataObj);
-
-            var sb = new StringBuilder();
-            sb.Append(introSection.Content);
-
-            foreach (var section in featureSections)
-            {
-                sb.Append("<div class='feature-section'>");
-
-                if (!string.IsNullOrEmpty(section.Title))
-                {
-                    sb.Append($"<h3 class='text-center mb-4 fw-bold'>{section.Title}</h3>");
-                }
-
-                sb.Append($"<div class='text-center'>{section.Content}</div>");
-                sb.Append("</div>");
-
-                if (section != featureSections.Last())
-                {
-                    sb.Append("<div class='divider'></div>");
-                }
-            }
-
-            pageContent.HtmlContent = sb.ToString();
-            await Cms.SavePageContentAsync("home", pageContent);
-
-            await Toast.Success("Innehåll sparat!");
-        }
-        catch (HttpRequestException httpEx)
-        {
-            Logger.LogError(httpEx, "HTTP-fel vid sparande");
-            await Toast.Error("Kunde inte spara - kontrollera att du är inloggad och har behörighet, eller kontrollera serverloggarna.");
+            await Toast.Success("Innehållet har sparats framgångsrikt!");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Oväntat fel vid sparande");
-            await Toast.Error("Ett oväntat fel inträffade vid sparande av innehållet.");
+            Logger.LogError(ex, "Fel vid sparning av innehåll för startsidan");
+            await Toast.Error("Ett fel inträffade vid sparning av innehållet.");
         }
-    }
-
-    private async Task ShowPreview()
-    {
-        showPreview = true;
-        StateHasChanged();
-        await Task.Delay(100);
-        await JS.InvokeVoidAsync("initPreviewForHomeAdmin");
-    }
-
-    private void ClosePreview()
-    {
-        showPreview = false;
+        finally
+        {
+            isSaving = false;
+        }
     }
 }

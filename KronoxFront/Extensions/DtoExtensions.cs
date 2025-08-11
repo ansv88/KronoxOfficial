@@ -62,6 +62,18 @@ public static class DtoExtensions
         }
     }
 
+    public static MemberLogoViewModel ToViewModel(this MemberLogoDto dto)
+    {
+        return new MemberLogoViewModel
+        {
+            Id = dto.Id,
+            Url = dto.Url,
+            AltText = dto.AltText,
+            SortOrd = dto.SortOrd,
+            LinkUrl = dto.LinkUrl
+        };
+    }
+
     public static PageImageViewModel? ToImageViewModel(this string json)
     {
         try

@@ -1,0 +1,19 @@
+﻿@using KronoxFront.ViewModels
+
+@if (Buttons.Any())
+{
+    <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 my-4">
+            @foreach (var button in Buttons.OrderBy(b => b.SortOrder))
+            {
+                <a class="btn btn-dark px-4 py-3 btn-arrow" href="@button.Url">
+                    @button.Text <i class="@button.IconClass ms-2"></i>
+                </a>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public List<NavigationButtonViewModel> Buttons { get; set; } = new();
+}

@@ -1,0 +1,20 @@
+﻿@using KronoxFront.ViewModels
+
+<section class="hero-banner position-relative">
+    <img src="@ImageUrl" class="img-fluid w-100" alt="@AltText" />
+    @if (IsAdmin)
+    {
+        <div class="position-absolute top-0 end-0 m-3">
+            <a href="@($"/admin/{PageKey}")" class="btn btn-dark btn-sm opacity-75">
+                <i class="fa-solid fa-edit me-1"></i> Redigera sida
+            </a>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public string ImageUrl { get; set; } = "";
+    [Parameter] public string AltText { get; set; } = "";
+    [Parameter] public bool IsAdmin { get; set; } = false;
+    [Parameter] public string PageKey { get; set; } = "";
+}
