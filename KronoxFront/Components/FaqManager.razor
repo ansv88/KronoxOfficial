@@ -2,20 +2,13 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject IJSRuntime JS
 @inject ILogger<FaqManager> Logger
+@implements IAsyncDisposable
 
 <div class="card mb-4">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h3 class="h5 mb-0">FAQ-sektioner</h3>
-        <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="includeFaq" @bind="IncludeFaq" @bind:after="OnIncludeFaqToggleChanged" />
-            <label class="form-check-label" for="includeFaq">
-                Inkludera FAQ-sektion på denna sida
-            </label>
-        </div>
-    </div>
+           </div>
 
-    @if (IncludeFaq)
-    {
         <div class="card-body">
             @foreach (var (section, sectionIndex) in FaqSections.Select((s, i) => (s, i)))
             {
@@ -47,7 +40,11 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Beskrivning</label>
-                            <textarea class="form-control" rows="2" @bind="section.Description" @bind:after="OnFaqChanged"></textarea>
+                            <textarea id="faq-description-@sectionIndex"
+                                      class="form-control tinymce-editor" 
+                                      rows="2" 
+                                      @bind="section.Description" 
+                                      @bind:after="OnFaqChanged"></textarea>
                         </div>
 
                         @* FAQ Items *@
@@ -114,7 +111,11 @@
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Svar</label>
-                                                        <textarea class="form-control tinymce-editor" rows="4" @bind="item.Answer" @bind:after="OnFaqChanged"></textarea>
+                                                        <textarea id="faq-editor-@sectionIndex-@itemIndex" 
+                                                                  class="form-control tinymce-editor" 
+                                                                  rows="4" 
+                                                                  @bind="item.Answer" 
+                                                                  @bind:after="OnFaqChanged"></textarea>
                                                     </div>
                                                 </div>
                                             }
@@ -131,7 +132,11 @@
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Svar</label>
-                                                        <textarea class="form-control tinymce-editor" rows="4" @bind="item.Answer" @bind:after="OnFaqChanged"></textarea>
+                                                        <textarea id="faq-editor-@sectionIndex-@itemIndex" 
+                                                                  class="form-control tinymce-editor" 
+                                                                  rows="4" 
+                                                                  @bind="item.Answer" 
+                                                                  @bind:after="OnFaqChanged"></textarea>
                                                     </div>
                                                 </div>
                                             }
@@ -140,7 +145,7 @@
                                 </div>
                             }
 
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => AddFaqItem(sectionIndex)">
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => AddFaqItem(FaqSections[sectionIndex], sectionIndex)">
                                 <i class="fa-solid fa-plus me-1"></i> Lägg till fråga
                             </button>
                         </div>
@@ -152,15 +157,14 @@
                 <i class="fa-solid fa-plus me-1"></i> Lägg till FAQ-sektion
             </button>
         </div>
-    }
 </div>
 
 @code {
     [Parameter] public List<FaqSectionViewModel> FaqSections { get; set; } = new();
-    [Parameter] public bool IncludeFaq { get; set; } = false;
     [Parameter] public EventCallback OnFaqSectionsChanged { get; set; }
-    [Parameter] public EventCallback<bool> OnIncludeFaqChanged { get; set; }
     [Parameter] public EventCallback<FaqImageUploadInfo> OnFaqImageUpload { get; set; }
+
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
 
     public class FaqImageUploadInfo
     {
@@ -170,7 +174,7 @@
         public FaqItemViewModel? Item { get; set; }
     }
 
-    private void AddFaqSection()
+    private async Task AddFaqSection()
     {
         var newSection = new FaqSectionViewModel
         {
@@ -182,7 +186,82 @@
         };
 
         FaqSections.Add(newSection);
-        OnFaqChanged();
+        await OnFaqChanged();
+        StateHasChanged();
+        
+        // Initiera editor för ny sektion
+        var sectionIndex = FaqSections.Count - 1;
+        var descriptionEditorId = $"faq-description-{sectionIndex}";
+        await InitializeEditorWithRetry(descriptionEditorId);
+    }
+
+    private async Task AddFaqItem(FaqSectionViewModel section, int sectionIndex)
+    {
+        section.FaqItems.Add(new FaqItemViewModel
+        {
+            FaqSectionId = sectionIndex,
+            Question = "Ny fråga",
+            Answer = "<p>Svara på frågan här...</p>",
+            SortOrder = section.FaqItems.Count,
+            HasImage = false
+        });
+
+        if (OnFaqSectionsChanged.HasDelegate)
+        {
+            await OnFaqSectionsChanged.InvokeAsync();
+        }
+
+        StateHasChanged();
+        await Task.Delay(300); // Längre delay för nya items
+
+        var itemIndex = section.FaqItems.Count - 1;
+        var editorId = $"faq-editor-{sectionIndex}-{itemIndex}";
+        
+        // Retry-pattern för nya editorer
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("initTinyMCE", editorId);
+                Logger.LogInformation("Ny FAQ-editor {EditorId} initierad efter {Attempt} försök", editorId, attempt + 1);
+                break;
+            }
+            catch (Exception ex) when (attempt < 2)
+            {
+                Logger.LogWarning("Försök {Attempt} misslyckades för FAQ-editor {EditorId}: {Message}", 
+                    attempt + 1, editorId, ex.Message);
+                await Task.Delay(200 * (attempt + 1));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Kunde inte initiera FAQ-editor {EditorId} efter 3 försök", editorId);
+            }
+        }
+    }
+
+    private async Task InitializeEditorWithRetry(string editorId, int maxRetries = 3)
+    {
+        for (int retry = 0; retry < maxRetries; retry++)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("initTinyMCE", editorId);
+                Logger.LogInformation("Editor {EditorId} initialiserad efter {RetryCount} försök", editorId, retry + 1);
+                return;
+            }
+            catch (Exception ex) when (retry < maxRetries - 1)
+            {
+                Logger.LogWarning("Försök {RetryCount} misslyckades för editor {EditorId}: {Message}", 
+                    retry + 1, editorId, ex.Message);
+                await Task.Delay(200 * (retry + 1), _cancellationTokenSource.Token);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Kunde inte initiera editor {EditorId} efter {MaxRetries} försök", 
+                    editorId, maxRetries);
+                break;
+            }
+        }
     }
 
     private void RemoveFaqSection(int sectionIndex)
@@ -202,24 +281,6 @@
             var section = FaqSections[index];
             FaqSections.RemoveAt(index);
             FaqSections.Insert(newIndex, section);
-            OnFaqChanged();
-        }
-    }
-
-    private void AddFaqItem(int sectionIndex)
-    {
-        if (sectionIndex >= 0 && sectionIndex < FaqSections.Count)
-        {
-            var newItem = new FaqItemViewModel
-            {
-                Id = 0,
-                Question = "Ny fråga",
-                Answer = "<p>Skriv svaret här...</p>",
-                HasImage = false,
-                SortOrder = FaqSections[sectionIndex].FaqItems.Count
-            };
-
-            FaqSections[sectionIndex].FaqItems.Add(newItem);
             OnFaqChanged();
         }
     }
@@ -287,11 +348,102 @@
         }
     }
 
-    private async Task OnIncludeFaqToggleChanged()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (OnIncludeFaqChanged.HasDelegate)
+        if (firstRender)
         {
-            await OnIncludeFaqChanged.InvokeAsync(IncludeFaq);
+            await InitializeFaqEditors();
         }
+    }
+
+    private async Task InitializeFaqEditors()
+    {
+        try
+        {
+            var initTasks = new List<Task>();
+            
+            for (int sectionIndex = 0; sectionIndex < FaqSections.Count; sectionIndex++)
+            {
+                // Beskrivnings-editor
+                var descriptionEditorId = $"faq-description-{sectionIndex}";
+                initTasks.Add(InitializeEditorWithRetry(descriptionEditorId));
+                
+                // Svar-editorer
+                for (int itemIndex = 0; itemIndex < FaqSections[sectionIndex].FaqItems.Count; itemIndex++)
+                {
+                    var editorId = $"faq-editor-{sectionIndex}-{itemIndex}";
+                    initTasks.Add(InitializeEditorWithRetry(editorId));
+                }
+            }
+            
+            await Task.WhenAll(initTasks);
+            Logger.LogInformation("Alla FAQ-editorer initialiserade");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initialisering av FAQ-editorer");
+        }
+    }
+
+    public async Task RefreshEditors()
+    {
+        try
+        {
+            // Initiera endast saknade
+            for (int s = 0; s < FaqSections.Count; s++)
+            {
+                var descId = $"faq-description-{s}";
+                if (!await JS.InvokeAsync<bool>("tinymceExists", descId) &&
+                    await JS.InvokeAsync<bool>("elementExists", descId))
+                {
+                    await JS.InvokeVoidAsync("initTinyMCE", descId);
+                }
+
+                for (int i = 0; i < FaqSections[s].FaqItems.Count; i++)
+                {
+                    var ansId = $"faq-editor-{s}-{i}";
+                    if (!await JS.InvokeAsync<bool>("tinymceExists", ansId) &&
+                        await JS.InvokeAsync<bool>("elementExists", ansId))
+                    {
+                        await JS.InvokeVoidAsync("initTinyMCE", ansId);
+                    }
+                }
+            }
+            Logger.LogInformation("FaqManager inkrementell refresh klar");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "FaqManager RefreshEditors fel");
+        }
+    }
+
+    private async Task DestroyFaqSectionEditors(int sectionIndex)
+    {
+        var ids = new List<string> { $"faq-description-{sectionIndex}" };
+        for (int i = 0; i < FaqSections[sectionIndex].FaqItems.Count; i++)
+            ids.Add($"faq-editor-{sectionIndex}-{i}");
+        await JS.InvokeVoidAsync("destroyEditors", ids);
+    }
+
+    private async Task DestroyFaqItemEditor(int sectionIndex, int itemIndex)
+    {
+        var id = $"faq-editor-{sectionIndex}-{itemIndex}";
+        await JS.InvokeVoidAsync("destroyEditors", new[] { id });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _cancellationTokenSource.Cancel();
+        
+        try
+        {
+            await JS.InvokeVoidAsync("destroyAllEditors");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Fel vid rensning av TinyMCE-editorer");
+        }
+        
+        _cancellationTokenSource.Dispose();
     }
 }

@@ -27,35 +27,84 @@
 }
 else
 {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        var heroBannerUrl = heroBanner != null ? heroBanner.Url : "images/hero/hero_students.jpeg";
-        var heroBannerAlt = heroBanner != null ? heroBanner.AltText.Substring(5) : "Studenter bannerbild";
-
-    <PageHeroBanner ImageUrl="@heroBannerUrl" AltText="@heroBannerAlt" 
-                    IsAdmin="@isAdmin" PageKey="home" />
-
-    @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+    @* Dynamisk rendering baserat på sektionskonfiguration *@
+    @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
     {
-        <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+        @switch (section.Type)
+        {
+            case SectionType.Banner:
+                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                                IsAdmin="@isAdmin" PageKey="home" />
+                break;
+
+            case SectionType.Intro:
+                @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                {
+                    <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                }
+                <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+                break;
+
+            case SectionType.NavigationButtons:
+                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                {
+                    <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                }
+                break;
+
+            case SectionType.FeatureSections:
+                @if (featureSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin" 
+                                               PageKey="home" OnImageClick="@ShowImage" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.FaqSections:
+                @if (faqSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FaqAccordion FaqSections="@faqSections" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.MemberLogos:
+                <div class="wrapper-div py-3">
+                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+                </div>
+                break;
+
+            case SectionType.DocumentSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <h2 class="text-center mb-4">Dokument</h2>
+                            <p class="text-center text-muted mb-4">
+                                Här hittar du viktiga dokument och information för medlemmar.
+                            </p>
+                            <div class="text-center">
+                                <a href="/dokument" class="btn btn-primary">
+                                    <i class="fa-solid fa-file-alt me-2"></i>
+                                    Visa alla dokument
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                break;
+        }
     }
-
-    <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
-
-    @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
-    {
-        <NavigationButtons Buttons="@introSection.NavigationButtons" />
-    }
-
-    <div class="wrapper-div py-3">
-        <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
-
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin" 
-                               PageKey="home" OnImageClick="@ShowImage" />
-            </div>
-        </section>
-    </div>
 
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
@@ -67,6 +116,9 @@ else
     private string? activeImage;
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
+    private List<FaqSectionViewModel> faqSections = new();
+
+    private List<SectionConfigItem> sectionConfigurations = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -90,6 +142,9 @@ else
 
             introSection = await Cms.GetIntroSectionAsync("home");
             featureSections = await Cms.GetFeatureSectionsAsync("home");
+            faqSections = await Cms.GetFaqSectionsAsync("home");
+
+            sectionConfigurations = await Cms.GetPageSectionConfigAsync("home");
         }
         catch (Exception ex)
         {
@@ -101,11 +156,31 @@ else
                 Content = "<p>Det uppstod ett fel vid hämtning av innehållet.</p>"
             };
             featureSections = new List<FeatureSectionViewModel>();
+            faqSections = new List<FaqSectionViewModel>();
+
+            sectionConfigurations = new List<SectionConfigItem>
+            {
+                new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
+                new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
+                new() { Type = SectionType.FeatureSections, SortOrder = 2, IsEnabled = true }
+            };
         }
         finally
         {
             loading = false;
         }
+    }
+
+    private string GetHeroBannerUrl()
+    {
+        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner != null ? heroBanner.Url : "images/hero/hero_students.jpeg";
+    }
+
+    private string GetHeroBannerAlt()
+    {
+        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner != null ? heroBanner.AltText.Substring(5) : "Studenter bannerbild";
     }
 
     private void ShowImage(string imageUrl)

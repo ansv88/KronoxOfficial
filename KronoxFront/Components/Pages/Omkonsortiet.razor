@@ -14,8 +14,8 @@
     <meta name="description" content="Läs om KronoX-konsortiet - en sammanslutning av svenska högskolor och universitet för utveckling av schemaläggningssystem." />
 </HeadContent>
 
-<PageTitle>KronoX - Om konsortiet</PageTitle>
-<h1 class="visually-hidden">Om konsortiet</h1>
+<PageTitle>KronoX - @pageContent.Title</PageTitle>
+<h1 class="visually-hidden">@pageContent.Title</h1>
 
 @if (loading)
 {
@@ -27,133 +27,112 @@
 }
 else
 {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        var heroBannerUrl = heroBanner != null ? heroBanner.Url : "images/hero/konsortiet_hero.jpg";
-        var heroBannerAlt = heroBanner != null ? heroBanner.AltText.Substring(5) : "KronoX konsortiet";
-
-    <PageHeroBanner ImageUrl="@heroBannerUrl" AltText="@heroBannerAlt" 
-                    IsAdmin="@isAdmin" PageKey="omkonsortiet" />
-
-    @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+    @* Dynamisk rendering baserat på sektionskonfiguration *@
+    @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
     {
-        <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
-    }
-
-    <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
-
-    @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
-    {
-        <NavigationButtons Buttons="@introSection.NavigationButtons" />
-    }
-
-    <div class="wrapper-div py-3">
-        @* ---------- Feature Sections ---------------------------------------- *@
-        @if (featureSections.Count > 0)
+        @switch (section.Type)
         {
-            <section class="container mt-4 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                <div style="max-width:800px; margin: 0 auto;">
-                    @foreach (var (featureItem, index) in featureSections.Select((s, i) => (s, i)))
-                    {
-                        <div class="feature-section row align-items-center mb-5">
-                            @if (featureItem.HasImage)
-                            {
-                                <div class="col-md-4 mb-3 mb-md-0">
-                                    @if (!string.IsNullOrEmpty(featureItem.ImageUrl))
-                                    {
-                                        <img src="@featureItem.ImageUrl"
-                                        class="img-thumbnail feature-thumb w-100"
-                                        style="cursor:pointer"
-                                        alt="@(!string.IsNullOrEmpty(featureItem.ImageAltText) ? featureItem.ImageAltText : $"Bild för {featureItem.Title}")"
-                                        @onclick="() => ShowImage(featureItem.ImageUrl)" />
-                                    }
-                                    else
-                                    {
-                                        <div class="bg-light p-4 text-center rounded">
-                                            <i class="fa-solid fa-image text-muted fa-3x"></i>
-                                        </div>
-                                    }
-                                </div>
-                                <div class="col-md-8">
-                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
-                                    {
-                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
-                                    }
-                                    @* Visa dynamiskt innehåll med integrerad kontaktinformation *@
-                                    <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="col-12 text-center">
-                                    @if (!string.IsNullOrWhiteSpace(featureItem.Title))
-                                    {
-                                        <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
-                                    }
-                                    @* Visa dynamiskt innehåll med integrerad kontaktinformation *@
-                                    <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
-                                </div>
-                            }
-                        </div>
+            case SectionType.Banner:
+                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                                IsAdmin="@isAdmin" PageKey="omkonsortiet" />
+                break;
 
-                        @if (index < featureSections.Count - 1)
-                        {
-                            <div class="divider"></div>
-                        }
-                    }
-                </div>
-            </section>
-        }
-        else
-        {
-            <section class="container mt-4 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                <div style="max-width:800px; margin: 0 auto;">
-                    <div class="text-center text-muted">
-                        <p>Innehållet laddas...</p>
-                        @if (isAdmin)
-                        {
-                            <p><a href="/admin/omkonsortiet" class="btn btn-primary">Lägg till innehåll</a></p>
-                        }
+            case SectionType.Intro:
+                @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                {
+                    <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                }
+                <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+                break;
+
+            case SectionType.NavigationButtons:
+                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                {
+                    <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                }
+                break;
+
+            case SectionType.FeatureSections:
+                @if (featureSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                @foreach (var (featureItem, index) in featureSections.Select((s, i) => (s, i)))
+                                {
+                                    <div class="feature-section row align-items-center mb-5">
+                                        @if (featureItem.HasImage)
+                                        {
+                                            <div class="col-md-4 mb-3 mb-md-0">
+                                                @if (!string.IsNullOrEmpty(featureItem.ImageUrl))
+                                                {
+                                                    <img src="@featureItem.ImageUrl"
+                                                    class="img-thumbnail feature-thumb w-100"
+                                                    style="cursor:pointer"
+                                                    alt="@(!string.IsNullOrEmpty(featureItem.ImageAltText) ? featureItem.ImageAltText : $"Bild för {featureItem.Title}")"
+                                                    @onclick="() => ShowImage(featureItem.ImageUrl)" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="bg-light p-4 text-center rounded">
+                                                        <i class="fa-solid fa-image text-muted fa-3x"></i>
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="col-md-8">
+                                                @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                                {
+                                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                                }
+                                                <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="col-12 text-center">
+                                                @if (!string.IsNullOrWhiteSpace(featureItem.Title))
+                                                {
+                                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
+                                                }
+                                                <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    @if (index < featureSections.Count - 1)
+                                    {
+                                        <div class="divider"></div>
+                                    }
+                                }
+                            </div>
+                        </section>
                     </div>
-                </div>
-            </section>
-        }
+                }
+                break;
 
-        @* ---------- Bildkarusell medlemmar ------------------------------------------- *@
-        <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
-    </div>
+            case SectionType.FaqSections:
+                @if (faqSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FaqAccordion FaqSections="@faqSections" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.MemberLogos:
+                <div class="wrapper-div py-3">
+                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+                </div>
+                break;
+        }
+    }
 
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
-
-<style>
-    .contact-entry {
-        margin-bottom: 0.75rem;
-    }
-
-    .contact-name {
-        margin-bottom: 0.25rem;
-    }
-
-    .contact-detail {
-        margin-left: 1rem;
-        margin-bottom: 0.15rem;
-    }
-
-    .contact-detail.member-only {
-        font-style: italic;
-    }
-
-    .integrated-contacts {
-        margin-top: 1rem;
-    }
-
-    .contact-enhanced {
-        padding: 0.5rem 0;
-        border-left: 3px solid #e9ecef;
-        padding-left: 1rem;
-        margin-bottom: 1rem;
-    }
-</style>
 
 @code {
     private PageContentViewModel pageContent = new();
@@ -163,7 +142,11 @@ else
     private string? activeImage;
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
+    private List<FaqSectionViewModel> faqSections = new();
     private List<MemberLogoViewModel> memberLogos = new();
+
+    // Sektionskonfiguration
+    private List<SectionConfigItem> sectionConfigurations = new();
 
     // Institution URL mapping för medlemslärosäten
     private readonly Dictionary<string, string> institutionUrls = new(StringComparer.OrdinalIgnoreCase)
@@ -213,18 +196,48 @@ else
             
             // Hämta med privat innehåll bara för inloggade
             featureSections = await Cms.GetFeatureSectionsAsync("omkonsortiet", includePrivate: isLoggedIn);
+            faqSections = await Cms.GetFaqSectionsAsync("omkonsortiet");
+
+            // Ladda sektionskonfiguration för att veta vilka sektioner som ska visas
+            sectionConfigurations = await Cms.GetPageSectionConfigAsync("omkonsortiet");
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid inläsning av Om konsortiet-sidan: {Message}", ex.Message);
             
-            introSection = new IntroSectionViewModel();
+            introSection = new IntroSectionViewModel
+            {
+                Title = "Något gick fel",
+                Content = "<p>Det uppstod ett fel vid hämtning av innehållet.</p>"
+            };
             featureSections = new List<FeatureSectionViewModel>();
+            faqSections = new List<FaqSectionViewModel>();
+
+            // Skapa standardkonfiguration som fallback
+            sectionConfigurations = new List<SectionConfigItem>
+            {
+                new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
+                new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
+                new() { Type = SectionType.FeatureSections, SortOrder = 2, IsEnabled = true },
+                new() { Type = SectionType.MemberLogos, SortOrder = 3, IsEnabled = true }
+            };
         }
         finally
         {
             loading = false;
         }
+    }
+
+    private string GetHeroBannerUrl()
+    {
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner != null ? heroBanner.Url : "images/hero/konsortiet_hero.jpg";
+    }
+
+    private string GetHeroBannerAlt()
+    {
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner != null ? heroBanner.AltText.Substring(5) : "KronoX konsortiet";
     }
 
     private string GetEnhancedContent(FeatureSectionViewModel featureItem)
@@ -252,10 +265,9 @@ else
                 {
                     if (string.IsNullOrEmpty(contact.Name)) continue;
 
-                    var contactInfo = $"<div class='contact-enhanced mb-2'>";
+                    var contactInfo = $"<div class='contact-enhanced py-2 ps-3 mb-3'>";
 
-                    // Visa alltid namn och organisation för medlemmar
-                    contactInfo += $"<div class='fw-semibold'>{contact.Name}";
+                    contactInfo += $"<div class='fw-semibold mb-1'>{contact.Name}";
                     if (!string.IsNullOrEmpty(contact.Organization))
                     {
                         contactInfo += $" <span class='text-muted'>({contact.Organization})</span>";
@@ -265,7 +277,7 @@ else
                     // Visa e-post för medlemmar
                     if (!string.IsNullOrEmpty(contact.Email))
                     {
-                        contactInfo += $"<div class='text-muted small ms-3'>" +
+                        contactInfo += $"<div class='text-muted small ms-3 mb-1'>" +
                                       $"<i class='fa-solid fa-envelope me-1'></i>" +
                                       $"<a href='mailto:{contact.Email}' class='text-decoration-none'>{contact.Email}</a></div>";
                     }
@@ -273,7 +285,7 @@ else
                     // Visa telefon för medlemmar
                     if (!string.IsNullOrEmpty(contact.Phone))
                     {
-                        contactInfo += $"<div class='text-muted small ms-3'>" +
+                        contactInfo += $"<div class='text-muted small ms-3 mb-1'>" +
                                       $"<i class='fa-solid fa-phone me-1'></i>{contact.Phone}</div>";
                     }
 

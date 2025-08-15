@@ -278,6 +278,16 @@ a.btn,
     font-weight: bold;
 }
 
+/* För kontaktinformation */
+.contact-enhanced {
+    border-left: 3px solid #e9ecef;
+}
+
+    .contact-enhanced:hover {
+        border-left-color: #6c757d;
+        background-color: #f8f9fa;
+    }
+
 /* Stabilisera footern för att minska layout shifts */
 .footer-custom {
     min-height: 235px; /* Desktop-version */

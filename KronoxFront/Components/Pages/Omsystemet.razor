@@ -14,8 +14,8 @@
     <meta name="description" content="Utforska KronoX-systemets funktioner, teknik och fördelar för schemaläggning och resursbokning inom högre utbildning." />
 </HeadContent>
 
-<PageTitle>KronoX - Om systemet</PageTitle>
-<h1 class="visually-hidden">Om systemet</h1>
+<PageTitle>KronoX - @pageContent.Title</PageTitle>
+<h1 class="visually-hidden">@pageContent.Title</h1>
 
 @if (loading)
 {
@@ -27,40 +27,65 @@
 }
 else
 {
-    var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-    var heroBannerUrl = heroBanner != null ? heroBanner.Url : "images/hero/system_hero.jpg";
-    var heroBannerAlt = heroBanner != null ? heroBanner.AltText.Substring(5) : "KronoX systemet";
-
-    <PageHeroBanner ImageUrl="@heroBannerUrl" AltText="@heroBannerAlt" 
-                    IsAdmin="@isAdmin" PageKey="omsystemet" />
-
-    @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+    @* Dynamisk rendering baserat på sektionskonfiguration *@
+    @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
     {
-        <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
-    }
-
-    <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
-
-    @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
-    {
-        <NavigationButtons Buttons="@introSection.NavigationButtons" />
-    }
-
-    <div class="wrapper-div py-3">
-        @if (featureSections.Count > 0)
+        @switch (section.Type)
         {
-            <section class="container mt-4 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                <div style="max-width:800px; margin: 0 auto;">
-                    <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin" 
-                                   PageKey="omsystemet" OnImageClick="@ShowImage" />
+            case SectionType.Banner:
+                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                                IsAdmin="@isAdmin" PageKey="omsystemet" />
+                break;
+
+            case SectionType.Intro:
+                @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                {
+                    <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                }
+                <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+                break;
+
+            case SectionType.NavigationButtons:
+                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                {
+                    <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                }
+                break;
+
+            case SectionType.FeatureSections:
+                @if (featureSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin" 
+                                               PageKey="omsystemet" OnImageClick="@ShowImage" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.FaqSections:
+                @if (faqSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FaqAccordion FaqSections="@faqSections" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.MemberLogos:
+                <div class="wrapper-div py-3">
+                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
                 </div>
-            </section>
+                break;
         }
-
-        <FaqAccordion FaqSections="faqSections" />
-
-        <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
-    </div>
+    }
 
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
@@ -73,6 +98,18 @@ else
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
+
+    // Sektionskonfiguration
+    private List<SectionConfigItem> sectionConfigurations = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initCarousel");
+            await JS.InvokeVoidAsync("initFeatureImageClicks");
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,6 +131,9 @@ else
             introSection = await Cms.GetIntroSectionAsync("omsystemet");
             featureSections = await Cms.GetFeatureSectionsAsync("omsystemet");
             faqSections = await Cms.GetFaqSectionsAsync("omsystemet");
+
+            // Ladda sektionskonfiguration för att veta vilka sektioner som ska visas
+            sectionConfigurations = await Cms.GetPageSectionConfigAsync("omsystemet");
         }
         catch (Exception ex)
         {
@@ -106,11 +146,32 @@ else
             };
             featureSections = new List<FeatureSectionViewModel>();
             faqSections = new List<FaqSectionViewModel>();
+
+            // Skapa standardkonfiguration som fallback
+            sectionConfigurations = new List<SectionConfigItem>
+            {
+                new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
+                new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
+                new() { Type = SectionType.FeatureSections, SortOrder = 2, IsEnabled = true },
+                new() { Type = SectionType.MemberLogos, SortOrder = 3, IsEnabled = true }
+            };
         }
         finally
         {
             loading = false;
         }
+    }
+
+    private string GetHeroBannerUrl()
+    {
+        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner != null ? heroBanner.Url : "images/hero/system_hero.jpg";
+    }
+
+    private string GetHeroBannerAlt()
+    {
+        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner != null ? heroBanner.AltText.Substring(5) : "KronoX systemet";
     }
 
     private void ShowImage(string imageUrl)

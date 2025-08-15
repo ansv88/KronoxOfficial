@@ -9,6 +9,11 @@ window.syncAllEditors = function () {
     return false;
 };
 
+window.elementExists = function (elementId) {
+    const element = document.getElementById(elementId);
+    return element !== null;
+};
+
 // Hantera varning för osparade ändringar
 window.setUnsavedChangesWarning = function (hasUnsavedChanges) {
     if (hasUnsavedChanges) {
@@ -45,13 +50,13 @@ window.copyToClipboard = async function (text) {
     }
 };
 
-// Lägg till en explicit confirm-metod för att säkerställa att den är tillgänglig
+// Explicit confirm-metod för att säkerställa att den är tillgänglig
 window.showConfirmDialog = function (message) {
     console.log("Visar bekräftelsedialog:", message);
     return confirm(message);
 };
 
-// Lägg till alert-metod som är säkrare att anropa från Blazor
+// Alert-metod som är säkrare att anropa från Blazor
 window.showAlert = function (message) {
     console.log("Visar alert:", message);
     alert(message);

@@ -4,11 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using KronoxApi.Data;
 using KronoxApi.Models;
 using KronoxApi.DTOs;
+using KronoxApi.Attributes;
+using KronoxApi.Filters;
 
 namespace KronoxApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[RequireApiKey]
 public class FaqController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -63,7 +66,7 @@ public class FaqController : ControllerBase
 
     // POST: api/faq/section
     [HttpPost("section")]
-    [Authorize(Roles = "Admin")]
+    [RequireRole("Admin")]
     public async Task<ActionResult<FaqSectionDto>> CreateFaqSection(CreateFaqSectionDto dto)
     {
         try
@@ -100,7 +103,7 @@ public class FaqController : ControllerBase
 
     // POST: api/faq/item
     [HttpPost("item")]
-    [Authorize(Roles = "Admin")]
+    [RequireRole("Admin")]
     public async Task<ActionResult<FaqItemDto>> CreateFaqItem(CreateFaqItemDto dto)
     {
         try
@@ -142,7 +145,7 @@ public class FaqController : ControllerBase
 
     // PUT: api/faq/section/{id}
     [HttpPut("section/{id}")]
-    [Authorize(Roles = "Admin")]
+    [RequireRole("Admin")]
     public async Task<ActionResult<FaqSectionDto>> UpdateFaqSection(int id, FaqSectionDto dto)
     {
         try
@@ -178,7 +181,7 @@ public class FaqController : ControllerBase
 
     // PUT: api/faq/item/{id}
     [HttpPut("item/{id}")]
-    [Authorize(Roles = "Admin")]
+    [RequireRole("Admin")]
     public async Task<ActionResult<FaqItemDto>> UpdateFaqItem(int id, FaqItemDto dto)
     {
         try
@@ -219,7 +222,7 @@ public class FaqController : ControllerBase
 
     // DELETE: api/faq/section/{id}
     [HttpDelete("section/{id}")]
-    [Authorize(Roles = "Admin")]
+    [RequireRole("Admin")]
     public async Task<ActionResult> DeleteFaqSection(int id)
     {
         try
@@ -246,7 +249,7 @@ public class FaqController : ControllerBase
 
     // DELETE: api/faq/item/{id}
     [HttpDelete("item/{id}")]
-    [Authorize(Roles = "Admin")]
+    [RequireRole("Admin")]
     public async Task<ActionResult> DeleteFaqItem(int id)
     {
         try
@@ -269,7 +272,7 @@ public class FaqController : ControllerBase
 
     // DELETE: api/faq/page/{pageKey}
     [HttpDelete("page/{pageKey}")]
-    [Authorize(Roles = "Admin")]
+    [RequireRole("Admin")]
     public async Task<ActionResult> DeleteFaqSectionsByPage(string pageKey)
     {
         try
@@ -293,6 +296,58 @@ public class FaqController : ControllerBase
         {
             _logger.LogError(ex, "Fel vid borttagning av FAQ-sektioner för {PageKey}", pageKey);
             return StatusCode(500, "Ett fel uppstod vid borttagning av FAQ-sektioner");
+        }
+    }
+
+    // PUT: api/faq/page/{pageKey}
+    [HttpPut("page/{pageKey}")]
+    [RequireRole("Admin")]
+    public async Task<ActionResult> UpdatePageFaqSections(string pageKey, List<FaqSectionDto> sectionsDto)
+    {
+        try
+        {
+            // Ta bort alla befintliga FAQ-sektioner för sidan
+            var existingSections = await _context.FaqSections
+                .Where(fs => fs.PageKey == pageKey)
+                .Include(fs => fs.FaqItems)
+                .ToListAsync();
+
+            foreach (var section in existingSections)
+            {
+                _context.FaqItems.RemoveRange(section.FaqItems);
+            }
+            _context.FaqSections.RemoveRange(existingSections);
+
+            // Lägg till nya sektioner
+            foreach (var sectionDto in sectionsDto)
+            {
+                var section = new FaqSection
+                {
+                    PageKey = pageKey,
+                    Title = sectionDto.Title,
+                    Description = sectionDto.Description,
+                    SortOrder = sectionDto.SortOrder,
+                    FaqItems = sectionDto.FaqItems.Select(itemDto => new FaqItem
+                    {
+                        Question = itemDto.Question,
+                        Answer = itemDto.Answer,
+                        ImageUrl = itemDto.ImageUrl,
+                        ImageAltText = itemDto.ImageAltText,
+                        HasImage = itemDto.HasImage,
+                        SortOrder = itemDto.SortOrder
+                    }).ToList()
+                };
+
+                _context.FaqSections.Add(section);
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av FAQ-sektioner för {PageKey}", pageKey);
+            return StatusCode(500, "Ett fel uppstod vid uppdatering av FAQ-sektioner");
         }
     }
 }

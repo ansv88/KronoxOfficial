@@ -1080,6 +1080,8 @@ public class CmsService
     {
         try
         {
+            _logger.LogInformation("Sparar {Count} FAQ-sektioner för {PageKey}", faqSections.Count, pageKey);
+
             // Konvertera till DTOs
             var faqSectionDtos = faqSections.Select(fs => new FaqSectionDto
             {
@@ -1101,75 +1103,18 @@ public class CmsService
                 }).ToList()
             }).ToList();
 
-            // Uppdatera varje sektion individuellt
-            foreach (var section in faqSectionDtos)
+            // Använd PUT för att uppdatera alla sektioner på en gång
+            var response = await _http.PutAsJsonAsync($"api/faq/page/{pageKey}", faqSectionDtos);
+            
+            if (!response.IsSuccessStatusCode)
             {
-                if (section.Id == 0)
-                {
-                    // Skapa ny sektion
-                    var createDto = new CreateFaqSectionDto
-                    {
-                        PageKey = section.PageKey,
-                        Title = section.Title,
-                        Description = section.Description,
-                        SortOrder = section.SortOrder
-                    };
-
-                    var response = await _http.PostAsJsonAsync("api/faq/section", createDto);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var createdSection = await response.Content.ReadFromJsonAsync<FaqSectionDto>();
-                        if (createdSection != null)
-                        {
-                            // Skapa items för den nya sektionen
-                            foreach (var item in section.FaqItems)
-                            {
-                                var createItemDto = new CreateFaqItemDto
-                                {
-                                    FaqSectionId = createdSection.Id,
-                                    Question = item.Question,
-                                    Answer = item.Answer,
-                                    ImageUrl = item.ImageUrl,
-                                    ImageAltText = item.ImageAltText,
-                                    HasImage = item.HasImage,
-                                    SortOrder = item.SortOrder
-                                };
-                                await _http.PostAsJsonAsync("api/faq/item", createItemDto);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Uppdatera befintlig sektion
-                    await _http.PutAsJsonAsync($"api/faq/section/{section.Id}", section);
-                    
-                    // Uppdatera items
-                    foreach (var item in section.FaqItems)
-                    {
-                        if (item.Id == 0)
-                        {
-                            // Skapa ny item
-                            var createItemDto = new CreateFaqItemDto
-                            {
-                                FaqSectionId = section.Id,
-                                Question = item.Question,
-                                Answer = item.Answer,
-                                ImageUrl = item.ImageUrl,
-                                ImageAltText = item.ImageAltText,
-                                HasImage = item.HasImage,
-                                SortOrder = item.SortOrder
-                            };
-                            await _http.PostAsJsonAsync("api/faq/item", createItemDto);
-                        }
-                        else
-                        {
-                            // Uppdatera befintlig item
-                            await _http.PutAsJsonAsync($"api/faq/item/{item.Id}", item);
-                        }
-                    }
-                }
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Kunde inte spara FAQ-sektioner: {StatusCode} - {Content}", 
+                    response.StatusCode, errorContent);
+                throw new HttpRequestException($"Failed to save FAQ sections: {response.StatusCode}");
             }
+
+            _logger.LogInformation("FAQ-sektioner sparade för {PageKey}", pageKey);
         }
         catch (Exception ex)
         {
@@ -1219,5 +1164,136 @@ public class CmsService
             _logger.LogError(ex, "Fel vid uppladdning av bild");
             throw;
         }
+    }
+
+    public async Task<List<SectionConfigItem>> GetPageSectionConfigAsync(string pageKey)
+    {
+        try
+        {
+            _logger.LogInformation("Hämtar sektionskonfiguration för {PageKey}", pageKey);
+            
+            var pageContent = await GetPageContentAsync(pageKey);
+            if (pageContent != null && !string.IsNullOrEmpty(pageContent.Metadata))
+            {
+                var metadata = JsonDocument.Parse(pageContent.Metadata);
+                if (metadata.RootElement.TryGetProperty("sectionConfig", out var configElement))
+                {
+                    var sections = JsonSerializer.Deserialize<List<SectionConfigItem>>(
+                        configElement.GetRawText(), _jsonOptions);
+                    
+                    if (sections?.Any() == true)
+                        return sections;
+                }
+            }
+            
+            // Fallback till standardkonfiguration
+            return GetDefaultSectionConfig(pageKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av sektionskonfiguration för {PageKey}", pageKey);
+            return GetDefaultSectionConfig(pageKey);
+        }
+    }
+
+    public async Task<bool> SavePageSectionConfigAsync(string pageKey, List<SectionConfigItem> sectionConfig)
+    {
+        try
+        {
+            _logger.LogInformation("Sparar sektionskonfiguration för {PageKey} med {Count} sektioner", 
+                pageKey, sectionConfig.Count);
+
+            var pageContent = await GetPageContentAsync(pageKey) ?? new PageContentViewModel
+            {
+                PageKey = pageKey,
+                Title = GetDefaultPageTitle(pageKey),
+                HtmlContent = "",
+                LastModified = DateTime.Now
+            };
+
+            // Uppdatera eller skapa metadata
+            var existingMetadata = new Dictionary<string, object>();
+            if (!string.IsNullOrEmpty(pageContent.Metadata))
+            {
+                try
+                {
+                    var existing = JsonDocument.Parse(pageContent.Metadata);
+                    foreach (var prop in existing.RootElement.EnumerateObject())
+                    {
+                        existingMetadata[prop.Name] = JsonSerializer.Deserialize<object>(prop.Value.GetRawText());
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Kunde inte tolka befintlig metadata för {PageKey}", pageKey);
+                }
+            }
+
+            // Lägg till sektionskonfiguration
+            existingMetadata["sectionConfig"] = sectionConfig;
+            existingMetadata["lastConfigUpdate"] = DateTime.UtcNow;
+
+            pageContent.Metadata = JsonSerializer.Serialize(existingMetadata, _jsonOptions);
+            pageContent.LastModified = DateTime.Now;
+
+            // Spara via befintlig metod
+            await SavePageContentAsync(pageKey, pageContent);
+            
+            _logger.LogInformation("Sektionskonfiguration sparad för {PageKey}", pageKey);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid sparning av sektionskonfiguration för {PageKey}", pageKey);
+            return false;
+        }
+    }
+
+    private List<SectionConfigItem> GetDefaultSectionConfig(string pageKey)
+    {
+        var defaultSections = new List<SectionConfigItem>();
+        
+        // Lägg till sektioner baserat på sidtyp
+        switch (pageKey.ToLower())
+        {
+            case "home":
+                defaultSections.AddRange(new[]
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = true, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = true, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 4 },
+                    new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 5 },
+                    new SectionConfigItem { Type = SectionType.DocumentSection, IsEnabled = false, SortOrder = 6 }
+                });
+                break;
+                
+            case "dokument":
+                defaultSections.AddRange(new[]
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = true, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = true, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.DocumentSection, IsEnabled = true, SortOrder = 4 }
+                });
+                break;
+                
+            default:
+                // Standardsektioner för alla andra sidor
+                defaultSections.AddRange(new[]
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = false, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = true, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 4 },
+                    new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 5 }
+                });
+                break;
+        }
+        
+        return defaultSections;
     }
 }
