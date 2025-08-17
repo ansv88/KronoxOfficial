@@ -352,18 +352,71 @@
         }
     }
 
-    // Uppdaterar alla TinyMCE-editorer i sektionerna
+    public async Task InitializeEditorsOnly()
+    {
+        try
+        {
+            foreach (var (index, section) in Sections.Select((s, i) => (i, s)))
+            {
+                var editorId = $"feature-editor-{index}";
+                await JS.InvokeVoidAsync("initTinyMCE", editorId);
+
+                if (section.HasPrivateContent)
+                {
+                    var privateEditorId = $"private-content-editor-{index}";
+                    await JS.InvokeVoidAsync("initTinyMCE", privateEditorId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initialisering av feature-editorer");
+        }
+    }
+
     public async Task RefreshEditors()
     {
         try
         {
-            await JS.InvokeVoidAsync("destroyAllEditors");
-            await InitializeTinyMCE();
+            // Inkrementell refresh - initiera endast saknade editorer
+            foreach (var (index, section) in Sections.Select((s, i) => (i, s)))
+            {
+                // Kontrollera huvudeditor
+                var editorId = $"feature-editor-{index}";
+                if (!await JS.InvokeAsync<bool>("tinymceExists", editorId) &&
+                    await JS.InvokeAsync<bool>("elementExists", editorId))
+                {
+                    await JS.InvokeVoidAsync("initTinyMCE", editorId);
+                    Logger.LogInformation("Initialiserade saknad feature-editor: {EditorId}", editorId);
+                }
+
+                // Kontrollera privat editor
+                if (section.HasPrivateContent)
+                {
+                    var privateEditorId = $"private-content-editor-{index}";
+                    if (!await JS.InvokeAsync<bool>("tinymceExists", privateEditorId) &&
+                        await JS.InvokeAsync<bool>("elementExists", privateEditorId))
+                    {
+                        await JS.InvokeVoidAsync("initTinyMCE", privateEditorId);
+                        Logger.LogInformation("Initialiserade saknad private-editor: {EditorId}", privateEditorId);
+                    }
+                }
+            }
+
+            Logger.LogInformation("FeatureSectionManager inkrementell refresh slutförd");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid uppdatering av TinyMCE-editorer");
-            await ToastService.Error("Ett fel uppstod vid uppdatering av editorer");
+            Logger.LogError(ex, "Fel vid inkrementell refresh av feature-editorer");
+            // Fallback till full refresh om något går fel
+            try
+            {
+                await InitializeEditorsOnly();
+            }
+            catch (Exception fallbackEx)
+            {
+                Logger.LogError(fallbackEx, "Även fallback misslyckades");
+            }
         }
     }
 

@@ -209,10 +209,6 @@
                                             <i class="fa-solid fa-cog me-1"></i>
                                             Hantera medlemslogotyper
                                         </a>
-                                        <a href="/omkonsortiet" class="btn btn-outline-secondary">
-                                            <i class="fa-solid fa-eye me-1"></i>
-                                            Förhandsgranska på sidan
-                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -345,56 +341,61 @@
     {
         try
         {
+            // Global rensning endast en gång
             await JS.InvokeVoidAsync("destroyAllEditors");
+            await Task.Delay(300);
+
+            StateHasChanged();
             await Task.Delay(200);
-            
-            // Initiera intro-editor om intro-sektionen är aktiverad
+
+            // Initiera varje komponents editorer separat
+            var initializationTasks = new List<Task>();
+
+            // Intro-editor
             if (sectionConfigItems.Any(s => s.Type == SectionType.Intro && s.IsEnabled))
             {
-                try 
-                {
-                    await JS.InvokeVoidAsync("initTinyMCE", "intro-editor");
-                    Logger.LogInformation("Intro-editor initialiserad");
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Kunde inte initiera intro-editor");
-                }
+                initializationTasks.Add(InitializeIntroEditor());
             }
 
-            // Initiera feature-editorer om feature-sektioner är aktiverade
-            if (featureSectionManagerRef != null && 
+            // Feature-editorer
+            if (featureSectionManagerRef != null &&
                 sectionConfigItems.Any(s => s.Type == SectionType.FeatureSections && s.IsEnabled))
             {
-                try
-                {
-                    await featureSectionManagerRef.RefreshEditors();
-                    Logger.LogInformation("Feature-editorer initialiserade");
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Kunde inte initiera feature-editorer");
-                }
+                initializationTasks.Add(featureSectionManagerRef.InitializeEditorsOnly());
             }
 
-            // Initiera FAQ-editorer om FAQ-sektioner är aktiverade
-            if (faqManagerRef != null && 
+            // FAQ-editorer
+            if (faqManagerRef != null &&
                 sectionConfigItems.Any(s => s.Type == SectionType.FaqSections && s.IsEnabled))
             {
-                try
-                {
-                    await faqManagerRef.RefreshEditors();
-                    Logger.LogInformation("FAQ-editorer initialiserade");
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Kunde inte initiera FAQ-editorer");
-                }
+                initializationTasks.Add(faqManagerRef.InitializeEditorsOnly());
+            }
+
+            // Vänta på att alla editorer initialiseras parallellt
+            await Task.WhenAll(initializationTasks);
+
+            Logger.LogInformation("✅ Alla editorer initialiserade framgångsrikt");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initiering av editorer");
+        }
+    }
+
+    private async Task InitializeIntroEditor()
+    {
+        try
+        {
+            var elementExists = await JS.InvokeAsync<bool>("elementExists", "intro-editor");
+            if (elementExists)
+            {
+                await JS.InvokeVoidAsync("initTinyMCE", "intro-editor");
+                Logger.LogInformation("✅ Intro-editor initialiserad");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Generellt fel vid initiering av editorer");
+            Logger.LogError(ex, "Fel vid intro-editor initialisering");
         }
     }
 
@@ -402,7 +403,9 @@
     {
         await EnsureDefaultContent();
         StateHasChanged();
-        await Task.Delay(200);
+        
+        // Längre fördröjning för DOM-uppdatering
+        await Task.Delay(500);
         await InitializeEditors();
     }
 

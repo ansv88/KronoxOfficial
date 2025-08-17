@@ -90,24 +90,21 @@ window.initScrollTopButton = function () {
 
 // Initialisera karusell för medlemslogotyper på startsidan
 window.initCarousel = function () {
-    const desktopCarousel = document.getElementById('desktopCarousel');
-    if (desktopCarousel) {
-        const carousel1 = new bootstrap.Carousel(desktopCarousel, {
-            interval: 3000,
-            wrap: true,
-            pause: 'hover'
-        });
-    }
-
-    // Initialisera mobilkarusell
-    const mobileCarousel = document.getElementById('mobileCarousel');
-    if (mobileCarousel) {
-        const carousel2 = new bootstrap.Carousel(mobileCarousel, {
-            interval: 3000,
-            wrap: true,
-            pause: 'hover'
-        });
-    }
+    // Hitta alla karuseller med prefix för desktop och mobil
+    const allCarousels = document.querySelectorAll('[id^="desktopCarousel-"], [id^="mobileCarousel-"]');
+    
+    allCarousels.forEach(carouselElement => {
+        try {
+            const carousel = new bootstrap.Carousel(carouselElement, {
+                interval: 4000,
+                wrap: true,
+                pause: 'hover'
+            });
+            console.log('Karusell initierad:', carouselElement.id);
+        } catch (error) {
+            console.error('Fel vid initiering av karusell:', carouselElement.id, error);
+        }
+    });
 };
 
 // Toast-meddelanden

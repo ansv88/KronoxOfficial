@@ -2,6 +2,7 @@
 @using KronoxFront.ViewModels
 @inject CmsService Cms
 @inject ILogger<MemberLogosDisplay> Logger
+@inject IJSRuntime JS
 
 @if (ShowTitle)
 {
@@ -15,8 +16,8 @@
         {
             <!-- Desktop Carousel (4 per slide) -->
             <div class="d-none d-md-block">
-                <div id="@($"desktopCarousel-{ComponentId}")" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
-                    <div class="carousel-inner p-5 bg-white shadow rounded-3">
+                <div id="@($"desktopCarousel-{ComponentId}")" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
+                    <div class="carousel-inner bg-white shadow rounded-3 p-4">
                         @{
                             var desktopGroups = memberLogos
                                 .Select((logo, index) => new { logo, index })
@@ -29,23 +30,20 @@
                         @foreach (var group in desktopGroups)
                         {
                             <div class="carousel-item @(isFirstDesktop ? "active" : "")">
-                                <div class="row mx-0 justify-content-center">
+                                <div class="row g-3" style="min-height: 100px;">
                                     @foreach (var logo in group)
                                     {
-                                        <div class="col-3 px-3">
-                                            <div class="d-flex justify-content-center align-items-center" style="height: 100px">
+                                        <div class="col-3">
+                                            <div class="d-flex justify-content-center align-items-center h-100">
                                                 @if (!string.IsNullOrEmpty(logo.LinkUrl))
                                                 {
-                                                    <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
-                                                        <img src="@logo.Url" class="img-fluid" loading="lazy"
-                                                             style="max-height: 100%; object-fit: contain;"
-                                                             alt="@logo.AltText" />
+                                                    <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText" class="logo-link">
+                                                        <img src="@logo.Url" class="img-fluid member-logo" loading="lazy" alt="@logo.AltText" />
                                                     </a>
                                                 }
                                                 else
                                                 {
-                                                    <img src="@logo.Url" class="img-fluid"
-                                                         style="max-height: 100%; object-fit: contain;" alt="@logo.AltText" />
+                                                    <img src="@logo.Url" class="img-fluid member-logo" alt="@logo.AltText" />
                                                 }
                                             </div>
                                         </div>
@@ -71,26 +69,24 @@
 
             <!-- Mobilkarusell (1 per slide) -->
             <div class="d-block d-md-none">
-                <div id="@($"mobileCarousel-{ComponentId}")" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
-                    <div class="carousel-inner p-2 bg-white shadow rounded-3">
+                <div id="@($"mobileCarousel-{ComponentId}")" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
+                    <div class="carousel-inner bg-white shadow rounded-3 p-4">
                         @{
                             bool isFirstMobile = true;
                         }
                         @foreach (var logo in memberLogos)
                         {
                             <div class="carousel-item @(isFirstMobile ? "active" : "")">
-                                <div class="d-flex justify-content-center align-items-center px-4" style="height: 120px">
+                                <div class="d-flex justify-content-center align-items-center" style="min-height: 100px;">
                                     @if (!string.IsNullOrEmpty(logo.LinkUrl))
                                     {
-                                        <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
-                                            <img src="@logo.Url" class="img-fluid logo-link"
-                                                 style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                        <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText" class="logo-link">
+                                            <img src="@logo.Url" class="img-fluid member-logo-mobile" alt="@logo.AltText" />
                                         </a>
                                     }
                                     else
                                     {
-                                        <img src="@logo.Url" class="img-fluid"
-                                             style="max-height: 100px; object-fit: contain;" alt="@logo.AltText" />
+                                        <img src="@logo.Url" class="img-fluid member-logo-mobile" alt="@logo.AltText" />
                                     }
                                 </div>
                             </div>
@@ -165,6 +161,54 @@
         {
             Logger.LogError(ex, "Fel vid hämtning av medlemslogotyper");
             memberLogos = new List<MemberLogoViewModel>();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && DisplayMode == LogoDisplayMode.Carousel)
+        {
+            try
+            {
+                // Ge tid för DOM att renderas
+                await Task.Delay(200);
+
+                // Initiera karuseller manuellt för att säkerställa automatisk start
+                await JS.InvokeVoidAsync("eval", $@"
+                setTimeout(() => {{
+                    const desktopCarousel = document.getElementById('desktopCarousel-{ComponentId}');
+                    const mobileCarousel = document.getElementById('mobileCarousel-{ComponentId}');
+
+                    if (desktopCarousel) {{
+                        const carousel1 = new bootstrap.Carousel(desktopCarousel, {{
+                            interval: 4000,
+                            wrap: true,
+                            pause: 'hover',
+                            ride: 'carousel'
+                        }});
+                        carousel1.cycle();
+                        console.log('Desktop-karusell startad för {ComponentId}');
+                    }}
+
+                    if (mobileCarousel) {{
+                        const carousel2 = new bootstrap.Carousel(mobileCarousel, {{
+                            interval: 4000,
+                            wrap: true,
+                            pause: 'hover',
+                            ride: 'carousel'
+                        }});
+                        carousel2.cycle();
+                        console.log('Mobil-karusell startad för {ComponentId}');
+                    }}
+                }}, 100);
+            ");
+
+                Logger.LogInformation("Karusell initialiserad för komponent {ComponentId}", ComponentId);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid initialisering av karusell för komponent {ComponentId}", ComponentId);
+            }
         }
     }
 

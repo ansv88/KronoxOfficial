@@ -264,6 +264,33 @@
         }
     }
 
+    public async Task InitializeEditorsOnly()
+    {
+        try
+        {
+            var initTasks = new List<Task>();
+            
+            foreach (var (sectionIndex, section) in FaqSections.Select((s, i) => (i, s)))
+            {
+                var descriptionEditorId = $"faq-description-{sectionIndex}";
+                initTasks.Add(InitializeEditorWithRetry(descriptionEditorId));
+                
+                foreach (var (itemIndex, item) in section.FaqItems.Select((i, idx) => (idx, i)))
+                {
+                    var editorId = $"faq-editor-{sectionIndex}-{itemIndex}";
+                    initTasks.Add(InitializeEditorWithRetry(editorId));
+                }
+            }
+            
+            await Task.WhenAll(initTasks);
+            Logger.LogInformation("✅ FAQ InitializeEditorsOnly slutförd - alla editorer initialiserade");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initialisering av FAQ-editorer");
+        }
+    }
+
     private void RemoveFaqSection(int sectionIndex)
     {
         if (sectionIndex >= 0 && sectionIndex < FaqSections.Count)
