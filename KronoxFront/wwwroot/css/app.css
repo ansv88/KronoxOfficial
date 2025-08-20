@@ -288,6 +288,15 @@ a.btn,
     background-color: #f8f9fa;
 }
 
+/* För kontakta oss-sidan */
+.contact-form-field {
+    background-color: var(--bs-gray-100) !important;
+}
+
+.contact-form-field:focus {
+    background-color: var(--bs-white) !important;
+}
+
 /* Stabilisera footern för att minska layout shifts */
 .footer-custom {
     min-height: 235px; /* Desktop-version */

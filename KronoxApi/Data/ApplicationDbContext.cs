@@ -21,6 +21,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<MemberLogo> MemberLogos { get; set; } = null!;
     public DbSet<FaqSection> FaqSections { get; set; } = null!;
     public DbSet<FaqItem> FaqItems { get; set; } = null!;
+    public DbSet<PostalAddress> PostalAddresses { get; set; } = null!;
+    public DbSet<ContactPerson> ContactPersons { get; set; } = null!;
+    public DbSet<EmailList> EmailLists { get; set; } = null!;
 
     // Konfigurerar entiteter och relationer i modellen.
     protected override void OnModelCreating(ModelBuilder builder)
@@ -117,7 +120,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Document>()
                .HasIndex(d => d.UploadedAt);
 
-        // Existing CMS configurations...
         builder.Entity<ContentBlock>()
             .HasIndex(cb => cb.PageKey)
             .IsUnique();
@@ -135,7 +137,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<MemberLogo>()
             .HasIndex(l => l.SortOrd);
 
-        // FAQ-konfiguration (befintlig)
+        // FAQ-konfiguration
         builder.Entity<FaqSection>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -156,6 +158,39 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Answer).IsRequired();
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
             entity.Property(e => e.ImageAltText).HasMaxLength(200);
+        });
+
+        // Postadress konfiguration
+        builder.Entity<PostalAddress>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OrganizationName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.AddressLine1).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.AddressLine2).HasMaxLength(100);
+            entity.Property(e => e.PostalCode).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.City).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Country).HasMaxLength(50);
+        });
+
+        // Kontaktperson konfiguration
+        builder.Entity<ContactPerson>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.HasIndex(e => e.SortOrder);
+        });
+
+        // E-postlista konfiguration
+        builder.Entity<EmailList>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.EmailAddress).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.SortOrder);
         });
     }
 }

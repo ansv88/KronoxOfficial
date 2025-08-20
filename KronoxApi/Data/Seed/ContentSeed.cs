@@ -59,6 +59,12 @@ public static class ContentSeed
 
             // Seeda FAQ-sektioner för Om systemet
             await SeedFaqSectionsAsync(serviceProvider, logger);
+
+            // Seeda kontaktsida
+            await SeedKontaktaossAsync(serviceProvider, logger);
+
+            // Seeda kontaktinformation
+            await SeedContactInformationAsync(serviceProvider, logger);
         }
         catch (Exception ex)
         {
@@ -1831,4 +1837,268 @@ public static class ContentSeed
         }
     }
 
+    // Seedar kontaktsidan med standardinnehåll om den inte redan finns.
+    private static async Task SeedKontaktaossAsync(IServiceProvider serviceProvider, ILogger logger)
+    {
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var existingContent = await dbContext.ContentBlocks.FirstOrDefaultAsync(c => c.PageKey == "kontaktaoss");
+            
+            if (existingContent == null)
+            {
+                logger.LogInformation("Seedar standardinnehåll för Kontakta oss-sidan...");
+
+                var introSection = new
+                {
+                    breadcrumbTitle = "KONTAKTA OSS",
+                    title = "Kontakt",
+                    content = @"<p>Kontakta oss för mer information. Supportfrågor för KronoX-systemet hanteras av vårt lärosätes KronoX-administratör.</p>
+                               <p>Formuläret ska ej användas för lärosätesspecifika frågor, som t ex glömt lösenord eller problem vid anmälan till tentamen (i dessa fall bör ni ta kontakt med aktuellt lärosäte).</p>",
+                    hasImage = false,
+                    imageUrl = "",
+                    imageAltText = "",
+                    showNavigationButtons = false,
+                    navigationButtons = new object[0]
+                };
+
+                var sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "NavigationButtons", IsEnabled = false, SortOrder = 2 },
+                    new { Type = "ContactForm", IsEnabled = true, SortOrder = 3 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                };
+
+                var metadata = JsonSerializer.Serialize(new { 
+                    introSection, 
+                    sectionConfig,
+                    lastConfigUpdate = DateTime.UtcNow 
+                });
+
+                var kontaktaossContent = new ContentBlock
+                {
+                    PageKey = "kontaktaoss",
+                    Title = "Kontakta oss",
+                    HtmlContent = "<p>Kontakta oss för mer information om KronoX-systemet.</p>",
+                    Metadata = metadata,
+                    LastModified = DateTime.UtcNow
+                };
+
+                dbContext.ContentBlocks.Add(kontaktaossContent);
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation("Kontakta oss-sidans innehåll har seedats framgångsrikt.");
+            }
+            else
+            {
+                logger.LogInformation("Kontakta oss-sidans innehåll finns redan. Kontrollerar metadata...");
+                
+                // Kontrollera om metadata saknas eller är ofullständig
+                bool needsUpdate = false;
+                
+                if (string.IsNullOrEmpty(existingContent.Metadata))
+                {
+                    logger.LogInformation("Metadata saknas helt, lägger till...");
+                    needsUpdate = true;
+                }
+                else
+                {
+                    try
+                    {
+                        var metadata = JsonDocument.Parse(existingContent.Metadata);
+                        if (!metadata.RootElement.TryGetProperty("sectionConfig", out _))
+                        {
+                            logger.LogInformation("SectionConfig saknas i metadata, lägger till...");
+                            needsUpdate = true;
+                        }
+                        if (!metadata.RootElement.TryGetProperty("introSection", out _))
+                        {
+                            logger.LogInformation("IntroSection saknas i metadata, lägger till...");
+                            needsUpdate = true;
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        logger.LogWarning("Korrupt metadata hittat, reparerar...");
+                        needsUpdate = true;
+                    }
+                }
+                
+                if (needsUpdate)
+                {
+                    var introSection = new
+                    {
+                        breadcrumbTitle = "KONTAKTA OSS",
+                        title = "Kontakt",
+                        content = @"<p>Kontakta oss för mer information. Supportfrågor för KronoX-systemet hanteras av vårt lärosätes KronoX-administratör.</p>
+                                   <p>Formuläret ska ej användas för lärosätesspecifika frågor, som t ex glömt lösenord eller problem vid anmälan till tentamen (i dessa fall bör ni ta kontakt med aktuellt lärosäte).</p>",
+                        hasImage = false,
+                        imageUrl = "",
+                        imageAltText = "",
+                        showNavigationButtons = false,
+                        navigationButtons = new object[0]
+                    };
+
+                    var sectionConfig = new[]
+                    {
+                        new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                        new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                        new { Type = "NavigationButtons", IsEnabled = false, SortOrder = 2 },
+                        new { Type = "ContactForm", IsEnabled = true, SortOrder = 3 },
+                        new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                    };
+
+                    existingContent.Metadata = JsonSerializer.Serialize(new { 
+                        introSection, 
+                        sectionConfig,
+                        lastConfigUpdate = DateTime.UtcNow 
+                    });
+                    existingContent.LastModified = DateTime.UtcNow;
+                    
+                    await dbContext.SaveChangesAsync();
+                    logger.LogInformation("Kontakta oss metadata har uppdaterats.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Fel vid seeding av Kontakta oss-sidan");
+        }
+    }
+
+    // Seedar kontaktinformation (postadress och kontaktpersoner) för kontaktsidan
+    private static async Task SeedContactInformationAsync(IServiceProvider serviceProvider, ILogger logger)
+    {
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Seeda postadress om den inte finns
+            if (!await dbContext.PostalAddresses.AnyAsync())
+            {
+                logger.LogInformation("Seedar postadress...");
+
+                var postalAddress = new PostalAddress
+                {
+                    OrganizationName = "KronoX",
+                    AddressLine1 = "Högskolan i Borås",
+                    AddressLine2 = "",
+                    PostalCode = "501 90",
+                    City = "Borås",
+                    Country = "Sverige",
+                    LastModified = DateTime.UtcNow
+                };
+
+                dbContext.PostalAddresses.Add(postalAddress);
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation("Postadress har seedats framgångsrikt.");
+            }
+            else
+            {
+                logger.LogInformation("Postadress finns redan. Hoppar över seeding.");
+            }
+
+            // Seeda kontaktpersoner om de inte finns
+            if (!await dbContext.ContactPersons.AnyAsync())
+            {
+                logger.LogInformation("Seedar kontaktpersoner...");
+
+                var contactPersons = new List<ContactPerson>
+                {
+                    new ContactPerson
+                    {
+                        Name = "Per-Anders Månsson",
+                        Title = "Konsortiechef",
+                        Email = "per-anders.mansson@hb.se",
+                        Phone = "033 – 435 43 64",
+                        SortOrder = 10,
+                        IsActive = true,
+                        LastModified = DateTime.UtcNow
+                    },
+                    new ContactPerson
+                    {
+                        Name = "Göran Golcher",
+                        Title = "Arkitekt, systemutvecklare",
+                        Email = "goran.golcher@hb.se",
+                        Phone = "033 – 435 43 64",
+                        SortOrder = 20,
+                        IsActive = true,
+                        LastModified = DateTime.UtcNow
+                    },
+                    new ContactPerson
+                    {
+                        Name = "Petter Lidbeck",
+                        Title = "Systemutvecklare",
+                        Email = "petter.lidbeck@hb.se",
+                        Phone = "033 – 435 46 80",
+                        SortOrder = 30,
+                        IsActive = true,
+                        LastModified = DateTime.UtcNow
+                    },
+                    new ContactPerson
+                    {
+                        Name = "Marie Palmnert",
+                        Title = "Administratör",
+                        Email = "administrator@kronox.se",
+                        Phone = "040 – 665 83 63",
+                        SortOrder = 40,
+                        IsActive = true,
+                        LastModified = DateTime.UtcNow
+                    }
+                };
+
+                dbContext.ContactPersons.AddRange(contactPersons);
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation($"Seedade {contactPersons.Count} kontaktpersoner framgångsrikt.");
+            }
+            else
+            {
+                logger.LogInformation("Kontaktpersoner finns redan. Hoppar över seeding.");
+            }
+
+            // Seeda e-postlistor om de inte finns
+            if (!await dbContext.EmailLists.AnyAsync())
+            {
+                logger.LogInformation("Seedar e-postlistor...");
+
+                var emailLists = new List<EmailList>
+            {
+                new EmailList
+                {
+                    Name = "Styrelsen",
+                    Description = "Kontakta KronoX-konsortiet styrelse direkt",
+                    EmailAddress = "styrelsen@kronox.se",
+                    SortOrder = 10,
+                    IsActive = true,
+                    LastModified = DateTime.UtcNow
+                },
+                new EmailList
+                {
+                    Name = "Alla kontaktpersoner på medlemsskolorna",
+                    Description = "Samlingslista för alla KronoX-kontaktpersoner vid medlemslärosätena",
+                    EmailAddress = "kontakt@kronox.se",
+                    SortOrder = 20,
+                    IsActive = true,
+                    LastModified = DateTime.UtcNow
+                }
+            };
+
+                dbContext.EmailLists.AddRange(emailLists);
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation($"Seedade {emailLists.Count} e-postlistor framgångsrikt.");
+            }
+            else
+            {
+                logger.LogInformation("E-postlistor finns redan. Hoppar över seeding.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Fel vid seeding av kontaktinformation");
+        }
+    }
 }

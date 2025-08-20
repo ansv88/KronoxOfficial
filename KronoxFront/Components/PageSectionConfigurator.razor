@@ -111,6 +111,10 @@
             ("home", SectionType.Intro) => true,
             ("home", SectionType.FeatureSections) => true,
             ("home", SectionType.MemberLogos) => true,
+            ("kontaktaoss", SectionType.Banner) => true,
+            ("kontaktaoss", SectionType.Intro) => true,
+            ("kontaktaoss", SectionType.ContactForm) => true,
+            ("kontaktaoss", SectionType.MemberLogos) => true,
             ("dokument", SectionType.DocumentSection) => true,
             (_, SectionType.Banner) => true,
             (_, SectionType.Intro) => true,
@@ -167,6 +171,7 @@
             SectionType.FaqSections => "FAQ-sektioner",
             SectionType.DocumentSection => "Dokumentsektion",
             SectionType.MemberLogos => "Medlemslogotyper",
+            SectionType.ContactForm => "Kontaktformulär",
             _ => type.ToString()
         };
     }
@@ -182,6 +187,7 @@
             SectionType.FaqSections => "Frågor och svar (accordion)",
             SectionType.DocumentSection => "Länk till dokumentsida",
             SectionType.MemberLogos => "Medlemsorganisationers logotyper",
+            SectionType.ContactForm => "Kontaktformulär och kontaktuppgifter",
             _ => "Anpassad sektion"
         };
     }

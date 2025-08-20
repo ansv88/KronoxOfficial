@@ -58,7 +58,7 @@
             }
             else
             {
-                @* ---------- Section Configuration Manager (Längst upp!) ----------- *@
+                @* ---------- Section Configuration Manager ----------- *@
                 <PageSectionConfigurator PageKey="omkonsortiet"
                                          AvailableSections="sectionConfigItems"
                                          OnConfigurationChanged="OnSectionConfigurationChanged"
@@ -374,7 +374,7 @@
             // Vänta på att alla editorer initialiseras parallellt
             await Task.WhenAll(initializationTasks);
 
-            Logger.LogInformation("✅ Alla editorer initialiserade framgångsrikt");
+            Logger.LogInformation("Alla editorer initialiserade framgångsrikt");
         }
         catch (Exception ex)
         {
@@ -390,12 +390,36 @@
             if (elementExists)
             {
                 await JS.InvokeVoidAsync("initTinyMCE", "intro-editor");
-                Logger.LogInformation("✅ Intro-editor initialiserad");
+                Logger.LogInformation("Intro-editor initialiserad");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid intro-editor initialisering");
+        }
+    }
+
+    // Synkronisera intro-editor med Blazor ViewModel
+    private async Task SyncIntroEditor()
+    {
+        try
+        {
+            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", "intro-editor");
+            if (editorExists)
+            {
+                var content = await JS.InvokeAsync<string>("eval", 
+                    "tinymce.get('intro-editor') ? tinymce.get('intro-editor').getContent() : ''");
+                
+                if (!string.IsNullOrEmpty(content))
+                {
+                    introSection.Content = content;
+                    Logger.LogInformation("Intro-editor synkroniserad: {ContentLength} tecken", content.Length);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte synkronisera intro-editor");
         }
     }
 
@@ -447,6 +471,9 @@
             {
                 Logger.LogWarning("Kunde inte synkronisera TinyMCE-editorer: {Message}", ex.Message);
             }
+
+            // Explicit synkronisering av intro-editor INNAN allmän syncAllEditors
+            await SyncIntroEditor();
 
             // Spara endast aktiverade sektioner
             var activeSections = sectionConfigItems.Where(s => s.IsEnabled).ToList();
@@ -584,6 +611,9 @@
     {
         try
         {
+            // Synkronisera först
+            await SyncIntroEditor();
+            
             await Cms.SaveIntroSectionAsync("omkonsortiet", introSection);
             await Toast.Success("Intro-sektion har sparats!");
         }

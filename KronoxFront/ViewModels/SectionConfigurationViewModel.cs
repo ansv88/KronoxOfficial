@@ -24,5 +24,8 @@ public enum SectionType
     DocumentSection = 6,
     
     [Display(Name = "Medlemslogotyper")]
-    MemberLogos = 7
+    MemberLogos = 7,
+    
+    [Display(Name = "Kontaktformulär")]
+    ContactForm = 8
 }

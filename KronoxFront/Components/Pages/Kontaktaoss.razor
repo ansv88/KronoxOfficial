@@ -1,8 +1,388 @@
 ﻿@page "/kontaktaoss"
 @page "/kontakt"
+@using KronoxFront.ViewModels
+@using KronoxFront.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http.Json
+@inject CmsService Cms
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService Toast
+@inject ILogger<Kontaktaoss> Logger
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <HeadContent>
     <meta name="description" content="Kontakta KronoX för frågor om systemet, medlemskap eller support. Här hittar du kontaktuppgifter och formulär." />
 </HeadContent>
 
-<ContentPage PageKey="kontaktaoss" />
+<PageTitle>KronoX - Kontakta oss</PageTitle>
+
+@if (loading)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else
+{
+    @* Dynamisk rendering baserat på sektionskonfiguration *@
+    @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
+    {
+        @switch (section.Type)
+        {
+            case SectionType.Banner:
+                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()" 
+                                IsAdmin="@isAdmin" PageKey="kontaktaoss" />
+                break;
+
+            case SectionType.Intro:
+                @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                {
+                    <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                }
+                <IntroSection Model="@introSection" />
+                break;
+
+            case SectionType.NavigationButtons:
+                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                {
+                    <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                }
+                break;
+
+            case SectionType.FeatureSections:
+                <FeatureSections PageKey="kontaktaoss" />
+                break;
+
+            case SectionType.FaqSections:
+                <FaqAccordion PageKey="kontaktaoss" />
+                break;
+
+            case SectionType.ContactForm:
+                <!-- Kontaktformulär och kontaktuppgifter -->
+                <div class="wrapper-div py-5">
+                    <section class="container my-5">
+                        <div class="row bg-white rounded-3 shadow" style="max-width: 1000px; margin: 0 auto;">
+                            <!-- Vänsterspalt: Kontaktformulär -->
+                            <div class="col-md-6 p-4">
+                                <h3 class="h4 mb-4">Fyll i formuläret för att kontakta oss</h3>
+                                
+                                <EditForm Model="@contactForm" OnValidSubmit="@SendContactMessage">
+                                    <DataAnnotationsValidator />
+                                    
+                                    <div class="mb-3">
+                                        <label for="contactName" class="form-label fw-medium">Namn*</label>
+                                        <InputText id="contactName" 
+                                                   class="form-control form-control contact-form-field border-secondary" 
+                                                   @bind-Value="contactForm.Name" 
+                                                   placeholder="Ange ditt fullständiga namn" />
+                                        <ValidationMessage For="@(() => contactForm.Name)" class="text-danger small mt-1" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="contactEmail" class="form-label fw-medium">E-post*</label>
+                                        <InputText id="contactEmail" 
+                                                   type="email" 
+                                                   class="form-control form-control contact-form-field border-secondary" 
+                                                   @bind-Value="contactForm.Email" 
+                                                   placeholder="din.epost@exempel.se" />
+                                        <ValidationMessage For="@(() => contactForm.Email)" class="text-danger small mt-1" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="contactSubject" class="form-label fw-medium">Ämne*</label>
+                                        <InputText id="contactSubject" 
+                                                   class="form-control form-control contact-form-field border-secondary" 
+                                                   @bind-Value="contactForm.Subject" 
+                                                   placeholder="Vad handlar ditt meddelande om?" />
+                                        <ValidationMessage For="@(() => contactForm.Subject)" class="text-danger small mt-1" />
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="contactMessage" class="form-label fw-medium">Meddelande*</label>
+                                        <InputTextArea id="contactMessage" 
+                                                       class="form-control contact-form-field border-secondary" 
+                                                       rows="6" 
+                                                       @bind-Value="contactForm.Message" 
+                                                       placeholder="Skriv ditt meddelande här..." />
+                                        <ValidationMessage For="@(() => contactForm.Message)" class="text-danger small mt-1" />
+                                    </div>
+
+                                    <div class="d-flex justify-content-center mt-4">
+                                        <button type="submit" 
+                                                class="btn btn-dark btn-md px-4 py-2 shadow-sm" 
+                                                disabled="@isSubmitting">
+                                            @if (isSubmitting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                                <text>Skickar...</text>
+                                            }
+                                            else
+                                            {
+                                                <i class="fa-solid fa-paper-plane me-2"></i>
+                                                <text>Skicka meddelande</text>
+                                            }
+                                        </button>
+                                    </div>
+                                </EditForm>
+                            </div>
+
+                            <!-- Högerspalt: Kontaktuppgifter -->
+                            <div class="col-md-6 p-4 bg-white rounded-end">
+                                <h3 class="h5 mb-4 fw-bold">Postadress</h3>
+                                
+                                <div class="mb-4 p-3 bg-light rounded border-start border-3 border-primary">
+                                    <strong>@contactInfo.PostalAddress.OrganizationName</strong><br />
+                                    @contactInfo.PostalAddress.AddressLine1<br />
+                                    @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.AddressLine2))
+                                    {
+                                        @contactInfo.PostalAddress.AddressLine2<br />
+                                    }
+                                    @contactInfo.PostalAddress.PostalCode @contactInfo.PostalAddress.City
+                                    @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.Country))
+                                    {
+                                        <br />@contactInfo.PostalAddress.Country
+                                    }
+                                </div>
+
+                                <h3 class="h5 mb-3 fw-bold">Systemförvaltargruppen</h3>
+                                
+                                @foreach (var person in contactInfo.ContactPersons.Where(p => p.IsActive).OrderBy(p => p.SortOrder))
+                                {
+                                    <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
+                                        <div class="mb-2">
+                                            <strong class="text-dark">@person.Name</strong>
+                                            <span class="ms-2">@person.Title</span><br />
+                                            <small class="text-muted">
+                                                <i class="fa-solid fa-envelope me-1"></i>@person.Email
+                                            </small><br />
+                                            @if (!string.IsNullOrEmpty(person.Phone))
+                                            {
+                                                <small class="text-muted">
+                                                    <i class="fa-solid fa-phone me-1"></i>@person.Phone
+                                                </small>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
+                                @* ===== MEDLEMSINFORMATION (endast för inloggade medlemmar) ===== *@
+                                @if (isMember && contactInfo.EmailLists.Any())
+                                {
+                                    <hr class="my-4" />
+                                    
+                                    <h3 class="h5 mb-3 fw-bold">
+                                        <i class="fa-solid fa-users me-2"></i>
+                                        E-postlistor
+                                    </h3>
+                                    
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <small><strong>Medlemsinformation:</strong> Denna information är endast synlig för inloggade medlemmar.</small>
+                                    </div>
+
+                                    @foreach (var emailList in contactInfo.EmailLists.Where(el => el.IsActive).OrderBy(el => el.SortOrder))
+                                    {
+                                        <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
+                                            <div class="mb-2">
+                                                <strong class="text-dark">@emailList.Name:</strong><br />
+                                                @if (!string.IsNullOrEmpty(emailList.Description))
+                                                {
+                                                    <small class="text-muted d-block mb-1">@emailList.Description</small>
+                                                }
+                                                <small class="text-muted">
+                                                    <i class="fa-solid fa-envelope me-1"></i>
+                                                    <a href="mailto:@emailList.EmailAddress" class="text-decoration-none">@emailList.EmailAddress</a>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                break;
+
+            case SectionType.MemberLogos:
+                <div class="wrapper-div py-3">
+                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+                </div>
+                break;
+        }
+    }
+}
+
+@code {
+    private PageContentViewModel pageContent = new();
+    private IntroSectionViewModel introSection = new();
+    private ContactPageInfoViewModel contactInfo = new();
+    private List<SectionConfigItem> sectionConfigurations = new();
+    private ContactFormViewModel contactForm = new();
+    private bool loading = true;
+    private bool isSubmitting = false;
+    private bool isAdmin = false;
+    private bool isMember = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loading = true;
+            Logger.LogInformation("Startar inläsning av kontaktsida...");
+
+            // Kontrollera användarens roller
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            isAdmin = authState.User.IsInRole("Admin");
+            
+            isMember = authState.User.Identity.IsAuthenticated && 
+                      (authState.User.IsInRole("Admin") || 
+                       authState.User.IsInRole("Styrelse") || 
+                       authState.User.IsInRole("Medlem"));
+
+            pageContent = await Cms.GetPageContentAsync("kontaktaoss") ?? new PageContentViewModel
+            {
+                PageKey = "kontaktaoss",
+                Title = "Kontakta oss",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+            Logger.LogInformation("PageContent hämtad: Title='{Title}', Metadata längd={MetadataLength}", 
+                pageContent.Title, pageContent.Metadata?.Length ?? 0);
+
+            Logger.LogInformation("Hämtar intro-sektion...");
+            introSection = await Cms.GetIntroSectionAsync("kontaktaoss");
+            Logger.LogInformation("IntroSection hämtad: Title='{Title}', Content längd={ContentLength}", 
+                introSection.Title ?? "NULL", introSection.Content?.Length ?? 0);
+
+            Logger.LogInformation("Hämtar sektionskonfiguration...");
+            sectionConfigurations = await Cms.GetPageSectionConfigAsync("kontaktaoss");
+            Logger.LogInformation("SectionConfig hämtad: {Count} sektioner", sectionConfigurations.Count);
+
+            // Ladda kontaktinformation
+            Logger.LogInformation("Hämtar kontaktinformation...");
+            contactInfo = await Cms.GetContactInfoAsync();
+            Logger.LogInformation("ContactInfo hämtad: {PersonCount} personer", contactInfo.ContactPersons.Count);
+
+            // Logga vilka sektioner som är aktiverade
+            var enabledSections = sectionConfigurations.Where(s => s.IsEnabled).Select(s => s.Type.ToString()).ToList();
+            Logger.LogInformation("Aktiverade sektioner: [{Sections}]", string.Join(", ", enabledSections));
+
+            // Om ingen konfiguration finns, skapa standardkonfiguration
+            if (!sectionConfigurations.Any())
+            {
+                Logger.LogWarning("Ingen sektionskonfiguration hittades, skapar fallback");
+                sectionConfigurations = new List<SectionConfigItem>
+                {
+                    new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
+                    new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
+                    new() { Type = SectionType.NavigationButtons, SortOrder = 2, IsEnabled = false },
+                    new() { Type = SectionType.FeatureSections, SortOrder = 3, IsEnabled = false },
+                    new() { Type = SectionType.FaqSections, SortOrder = 4, IsEnabled = false },
+                    new() { Type = SectionType.ContactForm, SortOrder = 5, IsEnabled = true },
+                    new() { Type = SectionType.MemberLogos, SortOrder = 6, IsEnabled = true }
+                };
+                
+                var fallbackSections = sectionConfigurations.Where(s => s.IsEnabled).Select(s => s.Type.ToString()).ToList();
+                Logger.LogInformation("Fallback sektioner skapade: [{Sections}]", string.Join(", ", fallbackSections));
+            }
+
+            // Om ingen intro finns, skapa standardintro
+            if (string.IsNullOrEmpty(introSection.Title))
+            {
+                Logger.LogWarning("Ingen intro-titel hittades, skapar fallback");
+                introSection = new IntroSectionViewModel
+                {
+                    BreadcrumbTitle = "KONTAKTA OSS",
+                    Title = "Kontakt",
+                    Content = "<p>Kontakta oss för mer information. Supportfrågor för KronoX-systemet hanteras av vårt lärosätes KronoX-administratör.</p><p>Formuläret ska ej användas för lärosätesspecifika frågor, som t ex glömt lösenord eller problem vid anmälan till tentamen (i dessa fall bör ni ta kontakt med aktuellt lärosäte).</p>",
+                    HasImage = false,
+                    ImageUrl = "",
+                    ImageAltText = "",
+                    ShowNavigationButtons = false,
+                    NavigationButtons = new List<NavigationButtonViewModel>()
+                };
+                Logger.LogInformation("Fallback intro skapade: Title='{Title}'", introSection.Title);
+            }
+
+            Logger.LogInformation("Kontaktsida klar att rendera med {TotalCount} totala sektioner, {EnabledCount} aktiverade", 
+                sectionConfigurations.Count, sectionConfigurations.Count(s => s.IsEnabled));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av kontaktsida");
+            
+            // Fallback-innehåll
+            introSection = new IntroSectionViewModel
+            {
+                BreadcrumbTitle = "KONTAKTA OSS",
+                Title = "Kontakt",
+                Content = "<p>Kontakta oss för mer information om KronoX-systemet.</p>"
+            };
+            
+            contactInfo = new ContactPageInfoViewModel(); // Fallback för kontaktinfo
+            
+            sectionConfigurations = new List<SectionConfigItem>
+            {
+                new() { Type = SectionType.Intro, SortOrder = 0, IsEnabled = true },
+                new() { Type = SectionType.ContactForm, SortOrder = 1, IsEnabled = true }
+            };
+            
+            Logger.LogInformation("Exception fallback aktiverad med {Count} sektioner", sectionConfigurations.Count);
+        }
+        finally
+        {
+            loading = false;
+            Logger.LogInformation("Kontaktsida inläsning slutförd");
+        }
+    }
+
+    private string GetHeroBannerUrl()
+    {
+        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner?.Url ?? "images/hero/hero_students.jpeg";
+    }
+
+    private string GetHeroBannerAlt()
+    {
+        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner?.AltText.Substring(5) ?? "Kontakta oss bannerbild";
+    }
+
+    private async Task SendContactMessage()
+    {
+        isSubmitting = true;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.PostAsJsonAsync("api/contact/send", contactForm);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success("Ditt meddelande har skickats! Vi återkommer så snart som möjligt.");
+                
+                // Rensa formuläret
+                contactForm = new ContactFormViewModel();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Logger.LogWarning("Kontaktformulär misslyckades: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                await Toast.Error("Ett fel uppstod vid skickning av meddelandet. Försök igen senare.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid skickning av kontaktmeddelande");
+            await Toast.Error("Ett oväntat fel uppstod. Försök igen senare.");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

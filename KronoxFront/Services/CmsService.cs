@@ -661,6 +661,8 @@ public class CmsService
             "home" => "Startsida",
             "omkonsortiet" => "Om konsortiet",
             "visioner" => "Visioner & Verksamhetsidé",
+            "kontaktaoss" => "Kontakta oss",
+            "omsystemet" => "Om systemet",
             _ => "Sida"
         };
     }
@@ -1178,15 +1180,71 @@ public class CmsService
                 var metadata = JsonDocument.Parse(pageContent.Metadata);
                 if (metadata.RootElement.TryGetProperty("sectionConfig", out var configElement))
                 {
-                    var sections = JsonSerializer.Deserialize<List<SectionConfigItem>>(
-                        configElement.GetRawText(), _jsonOptions);
+                    var sections = new List<SectionConfigItem>();
                     
-                    if (sections?.Any() == true)
+                    foreach (var item in configElement.EnumerateArray())
+                    {
+                        // Hantera både string och number för Type
+                        SectionType sectionType;
+                        if (item.TryGetProperty("Type", out var typeEl))
+                        {
+                            if (typeEl.ValueKind == JsonValueKind.String)
+                            {
+                                // Om det är en string, försök parsa till enum
+                                var typeString = typeEl.GetString();
+                                if (!Enum.TryParse<SectionType>(typeString, out sectionType))
+                                {
+                                    _logger.LogWarning("Okänd sektionstyp som string: {TypeString}", typeString);
+                                    continue;
+                                }
+                            }
+                            else if (typeEl.ValueKind == JsonValueKind.Number)
+                            {
+                                // Om det är ett nummer, konvertera direkt till enum
+                                var typeNumber = typeEl.GetInt32();
+                                if (!Enum.IsDefined(typeof(SectionType), typeNumber))
+                                {
+                                    _logger.LogWarning("Okänd sektionstyp som nummer: {TypeNumber}", typeNumber);
+                                    continue;
+                                }
+                                sectionType = (SectionType)typeNumber;
+                            }
+                            else
+                            {
+                                _logger.LogWarning("SectionType har oväntat format: {ValueKind}", typeEl.ValueKind);
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("SectionType saknas i konfiguration");
+                            continue;
+                        }
+
+                        var isEnabled = item.TryGetProperty("IsEnabled", out var enabledEl) ? enabledEl.GetBoolean() : false;
+                        var sortOrder = item.TryGetProperty("SortOrder", out var sortEl) ? sortEl.GetInt32() : 0;
+
+                        sections.Add(new SectionConfigItem
+                        {
+                            Type = sectionType,
+                            IsEnabled = isEnabled,
+                            SortOrder = sortOrder
+                        });
+
+                        _logger.LogInformation("Laddad sektion: {Type} (enabled: {IsEnabled}, order: {SortOrder})", 
+                            sectionType, isEnabled, sortOrder);
+                    }
+                    
+                    if (sections.Any())
+                    {
+                        _logger.LogInformation("Sektionskonfiguration laddad: {Count} sektioner", sections.Count);
                         return sections;
+                    }
                 }
             }
             
             // Fallback till standardkonfiguration
+            _logger.LogInformation("Ingen sektionskonfiguration hittades, använder fallback för {PageKey}", pageKey);
             return GetDefaultSectionConfig(pageKey);
         }
         catch (Exception ex)
@@ -1279,6 +1337,19 @@ public class CmsService
                     new SectionConfigItem { Type = SectionType.DocumentSection, IsEnabled = true, SortOrder = 4 }
                 });
                 break;
+
+            case "kontaktaoss":
+                defaultSections.AddRange(new[]
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = false, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = false, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 4 },
+                    new SectionConfigItem { Type = SectionType.ContactForm, IsEnabled = true, SortOrder = 5 },
+                    new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 6 }
+                });
+                break;
                 
             default:
                 // Standardsektioner för alla andra sidor
@@ -1295,5 +1366,342 @@ public class CmsService
         }
         
         return defaultSections;
+    }
+
+    // ---------------------------------------------------
+    // KONTAKTINFORMATION KONTAKTA OSS-SIDAN
+    // ---------------------------------------------------
+    public async Task<ContactPageInfoViewModel> GetContactInfoAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Hämtar kontaktinformation från API...");
+            
+            var response = await _http.GetAsync("api/contact/info");
+            if (response.IsSuccessStatusCode)
+            {
+                var contactInfoDto = await response.Content.ReadFromJsonAsync<ContactPageInfoDto>();
+                if (contactInfoDto != null)
+                {
+                    _logger.LogInformation("Kontaktinformation hämtad: {PersonCount} personer, {EmailListCount} e-postlistor", 
+                        contactInfoDto.ContactPersons.Count, contactInfoDto.EmailLists?.Count ?? 0);
+                        
+                    return new ContactPageInfoViewModel
+                    {
+                        PostalAddress = new ContactPostalAddressViewModel
+                        {
+                            OrganizationName = contactInfoDto.PostalAddress.OrganizationName,
+                            AddressLine1 = contactInfoDto.PostalAddress.AddressLine1,
+                            AddressLine2 = contactInfoDto.PostalAddress.AddressLine2,
+                            PostalCode = contactInfoDto.PostalAddress.PostalCode,
+                            City = contactInfoDto.PostalAddress.City,
+                            Country = contactInfoDto.PostalAddress.Country
+                        },
+                        ContactPersons = contactInfoDto.ContactPersons.Select(cp => new ContactPagePersonViewModel
+                        {
+                            Id = cp.Id,
+                            Name = cp.Name,
+                            Title = cp.Title,
+                            Email = cp.Email,
+                            Phone = cp.Phone,
+                            SortOrder = cp.SortOrder,
+                            IsActive = cp.IsActive
+                        }).ToList(),
+                    
+                        EmailLists = contactInfoDto.EmailLists?.Select(el => new EmailListViewModel
+                        {
+                            Id = el.Id,
+                            Name = el.Name,
+                            Description = el.Description,
+                            EmailAddress = el.EmailAddress,
+                            SortOrder = el.SortOrder,
+                            IsActive = el.IsActive
+                        }).ToList() ?? new List<EmailListViewModel>()
+                    };
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Kunde inte hämta kontaktinformation: {StatusCode}", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av kontaktinformation");
+        }
+
+        // Fallback om API-anrop misslyckas
+        _logger.LogInformation("Använder fallback-kontaktinformation");
+        return new ContactPageInfoViewModel();
+    }
+
+    public async Task<bool> SavePostalAddressAsync(ContactPostalAddressViewModel postalAddress)
+    {
+        try
+        {
+            var dto = new ContactPostalAddressDto
+            {
+                OrganizationName = postalAddress.OrganizationName,
+                AddressLine1 = postalAddress.AddressLine1,
+                AddressLine2 = postalAddress.AddressLine2,
+                PostalCode = postalAddress.PostalCode,
+                City = postalAddress.City,
+                Country = postalAddress.Country
+            };
+
+            var response = await _http.PutAsJsonAsync("api/contact/postal-address", dto);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid sparning av postadress");
+            return false;
+        }
+    }
+
+    public async Task<List<ContactPagePersonViewModel>> GetContactPersonsAsync()
+    {
+        try
+        {
+            var response = await _http.GetAsync("api/contact/persons");
+            if (response.IsSuccessStatusCode)
+            {
+                var contactPersonsDto = await response.Content.ReadFromJsonAsync<List<ContactPagePersonDto>>();
+                if (contactPersonsDto != null)
+                {
+                    return contactPersonsDto.Select(cp => new ContactPagePersonViewModel
+                    {
+                        Id = cp.Id,
+                        Name = cp.Name,
+                        Title = cp.Title,
+                        Email = cp.Email,
+                        Phone = cp.Phone,
+                        SortOrder = cp.SortOrder,
+                        IsActive = cp.IsActive
+                    }).ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av kontaktpersoner");
+        }
+
+        return new List<ContactPagePersonViewModel>();
+    }
+
+    public async Task<ContactPagePersonViewModel?> CreateContactPersonAsync(ContactPagePersonViewModel contactPerson)
+    {
+        try
+        {
+            var dto = new UpsertContactPagePersonDto
+            {
+                Name = contactPerson.Name,
+                Title = contactPerson.Title,
+                Email = contactPerson.Email,
+                Phone = contactPerson.Phone,
+                SortOrder = contactPerson.SortOrder,
+                IsActive = contactPerson.IsActive
+            };
+
+            var response = await _http.PostAsJsonAsync("api/contact/persons", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                var resultDto = await response.Content.ReadFromJsonAsync<ContactPagePersonDto>();
+                if (resultDto != null)
+                {
+                    return new ContactPagePersonViewModel
+                    {
+                        Id = resultDto.Id,
+                        Name = resultDto.Name,
+                        Title = resultDto.Title,
+                        Email = resultDto.Email,
+                        Phone = resultDto.Phone,
+                        SortOrder = resultDto.SortOrder,
+                        IsActive = resultDto.IsActive
+                    };
+                }
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid skapande av kontaktperson");
+            return null;
+        }
+    }
+
+    public async Task<bool> UpdateContactPersonAsync(ContactPagePersonViewModel contactPerson)
+    {
+        try
+        {
+            var dto = new UpsertContactPagePersonDto
+            {
+                Name = contactPerson.Name,
+                Title = contactPerson.Title,
+                Email = contactPerson.Email,
+                Phone = contactPerson.Phone,
+                SortOrder = contactPerson.SortOrder,
+                IsActive = contactPerson.IsActive
+            };
+
+            var response = await _http.PutAsJsonAsync($"api/contact/persons/{contactPerson.Id}", dto);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av kontaktperson");
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteContactPersonAsync(int contactPersonId)
+    {
+        try
+        {
+            var response = await _http.DeleteAsync($"api/contact/persons/{contactPersonId}");
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid borttagning av kontaktperson");
+            return false;
+        }
+    }
+
+    public async Task<bool> ToggleContactPersonActiveAsync(int contactPersonId)
+    {
+        try
+        {
+            var response = await _http.PutAsync($"api/contact/persons/{contactPersonId}/toggle-active", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid ändring av aktivstatus för kontaktperson");
+            return false;
+        }
+    }
+
+    // ============ E-POSTLISTOR ============
+
+    public async Task<List<EmailListViewModel>> GetEmailListsAsync()
+    {
+        try
+        {
+            var response = await _http.GetAsync("api/contact/emaillists");
+            if (response.IsSuccessStatusCode)
+            {
+                var emailListsDto = await response.Content.ReadFromJsonAsync<List<EmailListDto>>();
+                if (emailListsDto != null)
+                {
+                    return emailListsDto.Select(el => new EmailListViewModel
+                    {
+                        Id = el.Id,
+                        Name = el.Name,
+                        Description = el.Description,
+                        EmailAddress = el.EmailAddress,
+                        SortOrder = el.SortOrder,
+                        IsActive = el.IsActive
+                    }).ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av e-postlistor");
+        }
+
+        return new List<EmailListViewModel>();
+    }
+
+    public async Task<EmailListViewModel?> CreateEmailListAsync(EmailListViewModel emailList)
+    {
+        try
+        {
+            var dto = new UpsertEmailListDto
+            {
+                Name = emailList.Name,
+                Description = emailList.Description,
+                EmailAddress = emailList.EmailAddress,
+                SortOrder = emailList.SortOrder,
+                IsActive = emailList.IsActive
+            };
+
+            var response = await _http.PostAsJsonAsync("api/contact/emaillists", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                var resultDto = await response.Content.ReadFromJsonAsync<EmailListDto>();
+                if (resultDto != null)
+                {
+                    return new EmailListViewModel
+                    {
+                        Id = resultDto.Id,
+                        Name = resultDto.Name,
+                        Description = resultDto.Description,
+                        EmailAddress = resultDto.EmailAddress,
+                        SortOrder = resultDto.SortOrder,
+                        IsActive = resultDto.IsActive
+                    };
+                }
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid skapande av e-postlista");
+            return null;
+        }
+    }
+
+    public async Task<bool> UpdateEmailListAsync(EmailListViewModel emailList)
+    {
+        try
+        {
+            var dto = new UpsertEmailListDto
+            {
+                Name = emailList.Name,
+                Description = emailList.Description,
+                EmailAddress = emailList.EmailAddress,
+                SortOrder = emailList.SortOrder,
+                IsActive = emailList.IsActive
+            };
+
+            var response = await _http.PutAsJsonAsync($"api/contact/emaillists/{emailList.Id}", dto);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av e-postlista");
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteEmailListAsync(int emailListId)
+    {
+        try
+        {
+            var response = await _http.DeleteAsync($"api/contact/emaillists/{emailListId}");
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid borttagning av e-postlista");
+            return false;
+        }
+    }
+
+    public async Task<bool> ToggleEmailListActiveAsync(int emailListId)
+    {
+        try
+        {
+            var response = await _http.PutAsync($"api/contact/emaillists/{emailListId}/toggle-active", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid ändring av aktivstatus för e-postlista");
+            return false;
+        }
     }
 }
