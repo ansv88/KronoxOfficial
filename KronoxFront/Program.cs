@@ -92,7 +92,11 @@ public class Program
             client.BaseAddress = new Uri(apiBaseUrl);
         }).AddHttpMessageHandler<ApiAuthHandler>();
 
-        // Registrera HealthService om du behöver det
+        builder.Services.AddHttpClient<NewsService>(client =>
+        {
+            client.BaseAddress = new Uri(apiBaseUrl);
+        }).AddHttpMessageHandler<ApiAuthHandler>();
+
         builder.Services.AddHttpClient<HealthService>(client =>
         {
             client.BaseAddress = new Uri(apiBaseUrl);

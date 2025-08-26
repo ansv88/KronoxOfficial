@@ -27,5 +27,8 @@ public enum SectionType
     MemberLogos = 7,
     
     [Display(Name = "Kontaktformulär")]
-    ContactForm = 8
+    ContactForm = 8,
+
+    [Display(Name = "Nyhetssektion")]
+    NewsSection = 9
 }

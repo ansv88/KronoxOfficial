@@ -1,0 +1,1082 @@
+﻿@page "/admin/news"
+@using KronoxFront.ViewModels
+@using KronoxFront.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject NewsService NewsService
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject ILogger<NewsAdmin> Logger
+@inject DocumentService DocumentService
+
+<HeadContent>
+    <meta name="description" content="Hantera nyheter i KronoX. Skapa, redigera och arkivera nyheter för medlemmar." />
+</HeadContent>
+
+<PageTitle>Admin - Hantera nyheter</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    <i class="fa-solid fa-newspaper me-2"></i>
+                    Hantera nyheter
+                </h1>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" @onclick="() => OpenCreateModal()">
+                        <i class="fa-solid fa-plus me-1"></i>
+                        Skapa ny nyhet
+                    </button>
+                    <a href="/admin/medlemsnytt" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-cog me-1"></i>
+                        Hantera sidlayout
+                    </a>
+                </div>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Laddar nyheter...</span>
+                    </div>
+                </div>
+            }
+            else if (hasError)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">Fel vid laddning</h4>
+                    <p>Det uppstod ett problem när nyheterna skulle hämtas. Försök ladda om sidan.</p>
+                    <button class="btn btn-outline-danger" @onclick="LoadNews">
+                        <i class="fa-solid fa-refresh me-1"></i> Försök igen
+                    </button>
+                </div>
+            }
+            else
+            {
+                @* Filtersektion *@
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fa-solid fa-filter me-2"></i>
+                            Filtrera nyheter
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="showArchived"
+                                           @bind="showArchived" @bind:after="LoadNews">
+                                    <label class="form-check-label" for="showArchived">
+                                        Visa arkiverade nyheter
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="showScheduled"
+                                           @bind="showScheduled" @bind:after="FilterNews">
+                                    <label class="form-check-label" for="showScheduled">
+                                        Visa schemalagda nyheter
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fa-solid fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" placeholder="Sök efter titel..."
+                                           @bind="searchTerm" @bind:after="FilterNews" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Nyhetslista *@
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fa-solid fa-list me-2"></i>
+                            Nyheter (@filteredNews.Count av @allNews.Count)
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (!filteredNews.Any())
+                        {
+                            <div class="text-center py-5">
+                                <i class="fa-solid fa-newspaper fa-3x text-muted mb-3"></i>
+                                <h4 class="text-muted">Inga nyheter hittades</h4>
+                                <p class="text-muted">Inga nyheter matchar dina filterkriterier.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Titel</th>
+                                            <th>Roller</th>
+                                            <th>Publiceringsdatum</th>
+                                            <th>Status</th>
+                                            <th>Åtgärder</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var news in filteredNews.OrderByDescending(n => n.CreatedDate))
+                                        {
+                                            <tr class="@(news.IsArchived ? "table-secondary" : "")">
+                                                <td>
+                                                    <div class="fw-bold">@news.Title</div>
+                                                    @if (news.IsScheduled)
+                                                    {
+                                                        <small class="text-info">
+                                                            <i class="fa-solid fa-clock me-1"></i>
+                                                            Publiceras: @FormatSwedishDateTime(news.ScheduledPublishDate)
+                                                        </small>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @foreach (var role in news.RolesList)
+                                                    {
+                                                        <span class="badge bg-secondary me-1">@GetRoleDisplayName(role)</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <small>@FormatSwedishDateTime(news.PublishedDate)</small>
+                                                </td>
+                                                <td>
+                                                    @if (news.IsArchived)
+                                                    {
+                                                        <span class="badge bg-secondary">
+                                                            <i class="fa-solid fa-archive me-1"></i>Arkiverad
+                                                        </span>
+                                                    }
+                                                    else if (news.IsScheduled)
+                                                    {
+                                                        <span class="badge bg-info">
+                                                            <i class="fa-solid fa-clock me-1"></i>Schemalagd
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-success">
+                                                            <i class="fa-solid fa-check me-1"></i>Publicerad
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button type="button" class="btn btn-outline-primary"
+                                                                @onclick="() => OpenEditModal(news)"
+                                                                title="Redigera nyhet">
+                                                            <i class="fa-solid fa-edit"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-secondary"
+                                                                @onclick="() => ToggleArchive(news)"
+                                                                title="@(news.IsArchived ? "Avarkivera" : "Arkivera")">
+                                                            <i class="fa-solid @(news.IsArchived ? "fa-box-open" : "fa-archive")"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger"
+                                                                @onclick="() => OpenDeleteModal(news)"
+                                                                title="Ta bort nyhet">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@* Modal för skapa/redigera nyhet *@
+@if (showEditModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalTitle">
+                        @(editingNews?.Id == 0 ? "Skapa ny nyhet" : "Redigera nyhet")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditModal" aria-label="Stäng"></button>
+                </div>
+
+                <EditForm Model="editModel" OnSubmit="HandleFormSubmit">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label class="form-label">Titel *</label>
+                                    <InputText class="form-control" @bind-Value="editModel.Title" placeholder="Ange nyhetstitel..." />
+                                    <ValidationMessage For="() => editModel.Title" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Innehåll *</label>
+                                    <InputTextArea id="news-content-editor"
+                                                   class="form-control tinymce-editor"
+                                                   @bind-Value="editModel.Content"
+                                                   rows="12" />
+                                    <ValidationMessage For="() => editModel.Content" />
+
+                                    @if (!string.IsNullOrEmpty(editModel.Content))
+                                    {
+                                        <div class="form-text text-success">
+                                            <small>Innehåll detekterat: @(editModel.Content.Length) tecken</small>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Publiceringsdatum</label>
+                                    <InputDate Type="InputDateType.DateTimeLocal"
+                                               class="form-control"
+                                               @bind-Value="editModel.ScheduledPublishDate" />
+                                    <div class="form-text">Lämna tomt för omedelbar publicering</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox class="form-check-input" @bind-Value="editModel.IsArchived" />
+                                        <label class="form-check-label">Arkiverad</label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Synlig för roller</label>
+                                    <div class="form-text mb-2">Välj vilka roller som ska kunna se denna nyhet:</div>
+                                    @foreach (var role in editModel.AvailableRoles)
+                                    {
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="role-@role.Value"
+                                                   checked="@role.IsSelected"
+                                                   @onchange="@(args => OnRoleSelectionChanged(role, args))" />
+                                            <label class="form-check-label" for="role-@role.Value">
+                                                @role.Label
+                                            </label>
+                                        </div>
+                                    }
+                                    <div class="form-text mt-2">
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-info-circle me-1"></i>
+                                            "Alla" väljer automatiskt Admin, Styrelse och Medlem.
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Bifogade dokument</label>
+
+                                    @* Säkerhetsinfo-sektion *@
+                                    <div class="alert alert-info mb-3">
+                                        <h6 class="alert-heading">
+                                            <i class="fa-solid fa-shield-alt me-1"></i>
+                                            Dokumentsäkerhet & Synlighet
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p class="mb-2"><strong>Nyhetens målgrupp:</strong></p>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @if (editModel.SelectedRoles.Any())
+                                                    {
+                                                        @foreach (var role in editModel.SelectedRoles)
+                                                        {
+                                                            <span class="badge bg-primary">@GetRoleDisplayName(role)</span>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-warning">Inga roller valda</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">
+                                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                                    <strong>Kom ihåg:</strong> Dokument följer sina egna åtkomstregler. 
+                                                    Ett dokument visas bara för användare som har tillgång till både nyheten OCH dokumentets kategori.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    @* Befintliga dokument med säkerhetsinformation *@
+                                    @if (selectedNewsDocuments.Any())
+                                    {
+                                        <div class="border rounded p-3 mb-3 bg-light">
+                                            <h6 class="text-muted mb-2">Bifogade dokument:</h6>
+                                            @foreach (var doc in selectedNewsDocuments.OrderBy(d => d.SortOrder))
+                                            {
+                                                <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <i class="@GetFileIcon(doc.FileName) me-2"></i>
+                                                            <span class="fw-medium">@doc.DisplayName</span>
+                                                            <small class="text-muted ms-2">(@doc.FormattedFileSize)</small>
+                                                        </div>
+                                                        
+                                                        @* Säkerhetsstatus för dokumentet *@
+                                                        @if (GetDocumentAccessInfo(doc.Id) is var accessInfo && accessInfo != null)
+                                                        {
+                                                            <div class="mt-1">
+                                                                <small class="text-muted">
+                                                                    <i class="fa-solid fa-building me-1"></i>
+                                                                    Kategori: @accessInfo.CategoryName
+                                                                </small>
+                                                                <br>
+                                                                <small class="@(accessInfo.HasConflict ? "text-danger" : "text-success")">
+                                                                    <i class="fa-solid @(accessInfo.HasConflict ? "fa-exclamation-triangle" : "fa-check-circle") me-1"></i>
+                                                                    @accessInfo.StatusMessage
+                                                                </small>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                            @onclick="() => DetachDocument(doc.Id)"
+                                                            disabled="@(editingNews?.Id == 0)">
+                                                        <i class="fa-solid fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+
+                                    @* Dokumentväljare med säkerhetsinformation *@
+                                    @if (availableDocuments.Any() && editingNews?.Id > 0)
+                                    {
+                                        <div class="mb-3">
+                                            <label class="form-label small">Välj dokument att bifoga:</label>
+                                            <select class="form-select" value="@selectedDocumentId" @onchange="OnDocumentSelectionChanged">
+                                                <option value="0">-- Välj dokument --</option>
+                                                @foreach (var category in GetGroupedDocuments())
+                                                {
+                                                    <optgroup label="@category.CategoryName (@category.AccessLevel)">
+                                                        @foreach (var doc in category.Documents)
+                                                        {
+                                                            <option value="@doc.Id" class="@(category.HasConflict ? "text-warning" : "")">
+                                                                @doc.FileName 
+                                                                @if (category.HasConflict)
+                                                                {
+                                                                    <text>[Begränsad synlighet]</text>
+                                                                }
+                                                            </option>
+                                                        }
+                                                    </optgroup>
+                                                }
+                                            </select>
+                                        </div>
+                                        
+                                        @* Detaljerad info om valt dokument *@
+                                        @if (selectedDocumentId > 0 && GetSelectedDocumentInfo() is var docInfo && docInfo != null)
+                                        {
+                                            <div class="alert @(docInfo.HasConflict ? "alert-warning" : "alert-success") p-3 mb-3">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fa-solid @(docInfo.HasConflict ? "fa-exclamation-triangle" : "fa-check-circle") me-2 mt-1"></i>
+                                                    <div class="flex-grow-1">
+                                                        <strong>@docInfo.FileName</strong>
+                                                        <div class="mt-1">
+                                                            <small>
+                                                                <strong>Kategori:</strong> @docInfo.CategoryName<br>
+                                                                <strong>Tillgång:</strong> @docInfo.AccessDescription<br>
+                                                                @if (docInfo.HasConflict)
+                                                                {
+                                                                    <span class="text-danger">
+                                                                        <strong>Varning:</strong> @docInfo.ConflictMessage
+                                                                    </span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    @if (docInfo.AccessDescription.Contains("Alla användare"))
+                                                                    {
+                                                                        <span class="text-success">
+                                                                            <strong>OK:</strong> Alla som ser nyheten kan också se detta dokument
+                                                                        </span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="text-success">
+                                                                            <strong>OK:</strong> Alla valda roller för nyheten kan se detta dokument
+                                                                        </span>
+                                                                    }
+                                                                }
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                        
+                                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                @onclick="AttachSelectedDocument" 
+                                                disabled="@(selectedDocumentId == 0)">
+                                            <i class="fa-solid fa-plus me-1"></i> Bifoga valt dokument
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">
+                            Avbryt
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            @(editingNews?.Id == 0 ? "Skapa" : "Uppdatera")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@* Modal för bekräfta borttagning *@
+@if (showDeleteModal && deletingNews != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalTitle">Bekräfta borttagning</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Är du säker på att du vill ta bort nyheten "<strong>@deletingNews.Title</strong>"?</p>
+                    <p class="text-danger">
+                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                        Denna åtgärd kan inte ångras.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">
+                        Avbryt
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Ta bort
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<NewsItemViewModel> allNews = new();
+    private List<NewsItemViewModel> filteredNews = new();
+    private bool isLoading = true;
+    private bool hasError = false;
+    private bool showArchived = false;
+    private bool showScheduled = true;
+    private string searchTerm = "";
+
+    // Edit modal
+    private bool showEditModal = false;
+    private bool isSaving = false;
+    private NewsItemViewModel? editingNews;
+    private CreateNewsViewModel editModel = new();
+
+    // Delete modal
+    private bool showDeleteModal = false;
+    private bool isDeleting = false;
+    private NewsItemViewModel? deletingNews;
+
+    private List<DocumentViewModel> availableDocuments = new();
+    private List<NewsDocumentViewModel> selectedNewsDocuments = new();
+    private int selectedDocumentId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNews();
+        await LoadAvailableDocuments();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || showEditModal)
+        {
+            await Task.Delay(100);
+            await InitializeEditor();
+        }
+    }
+
+    private async Task InitializeEditor()
+    {
+        try
+        {
+            var elementExists = await JS.InvokeAsync<bool>("elementExists", "news-content-editor");
+            if (elementExists)
+            {
+                await JS.InvokeVoidAsync("initTinyMCE", "news-content-editor");
+                Logger.LogInformation("TinyMCE editor initialiserad för nyhetsinnehåll");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initiering av TinyMCE editor");
+        }
+    }
+
+    private async Task LoadNews()
+    {
+        isLoading = true;
+        hasError = false;
+
+        try
+        {
+            allNews = await NewsService.GetAllNewsAsync();
+            FilterNews();
+            Logger.LogInformation("Laddat {Count} nyheter", allNews.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av nyheter");
+            hasError = true;
+            await Toast.Error("Kunde inte ladda nyheter. Försök igen senare.");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void FilterNews()
+    {
+        filteredNews = allNews.Where(n =>
+            (showArchived || !n.IsArchived) &&
+            (showScheduled || !n.IsScheduled) &&
+            (string.IsNullOrEmpty(searchTerm) || n.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        ).ToList();
+    }
+
+    private async Task LoadAvailableDocuments()
+    {
+        try
+        {
+            availableDocuments = await DocumentService.GetAccessibleDocumentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte ladda dokument");
+        }
+    }
+
+    private async Task LoadNewsDocuments(int newsId)
+    {
+        try
+        {
+            selectedNewsDocuments = await NewsService.GetNewsDocumentsAsync(newsId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte ladda nyhetsdokument");
+            selectedNewsDocuments = new List<NewsDocumentViewModel>();
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingNews = new NewsItemViewModel { Id = 0 };
+        editModel = new CreateNewsViewModel
+        {
+            AvailableRoles = new List<RoleOption>
+            {
+                new RoleOption { Value = "Alla", Label = "Alla (alla användare)", IsSelected = true },
+                new RoleOption { Value = "Admin", Label = "Administratörer", IsSelected = false },
+                new RoleOption { Value = "Styrelse", Label = "Styrelsen", IsSelected = false },
+                new RoleOption { Value = "Medlem", Label = "Medlemmar", IsSelected = false }
+            }
+        };
+        showEditModal = true;
+    }
+
+    private async Task OpenEditModal(NewsItemViewModel news)
+    {
+        editingNews = news;
+        editModel = new CreateNewsViewModel
+        {
+            Title = news.Title,
+            Content = news.Content,
+            ScheduledPublishDate = news.ScheduledPublishDate,
+            IsArchived = news.IsArchived,
+            SelectedRoles = news.RolesList,
+            AvailableRoles = new List<RoleOption>
+            {
+                new RoleOption { Value = "Alla", Label = "Alla (alla användare)", IsSelected = false },
+                new RoleOption { Value = "Admin", Label = "Administratörer", IsSelected = false },
+                new RoleOption { Value = "Styrelse", Label = "Styrelsen", IsSelected = false },
+                new RoleOption { Value = "Medlem", Label = "Medlemmar", IsSelected = false }
+            }
+        };
+
+        // Uppdatera rollvalsalternativ baserat på befintliga roller
+        foreach (var availableRole in editModel.AvailableRoles)
+        {
+            availableRole.IsSelected = editModel.SelectedRoles.Contains(availableRole.Value);
+        }
+
+        // Ladda dokument för nyheten
+        if (news.Id > 0) // Bara för befintliga nyheter
+        {
+            await LoadNewsDocuments(news.Id);
+        }
+        else
+        {
+            selectedNewsDocuments = new List<NewsDocumentViewModel>();
+        }
+
+        showEditModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        editingNews = null;
+        editModel = new CreateNewsViewModel();
+    }
+
+    private async Task HandleFormSubmit(EditContext context)
+    {
+        await SyncTinyMCEContent();
+        
+        if (context.Validate())
+        {
+            await SaveNews();
+        }
+    }
+
+    private async Task SyncTinyMCEContent()
+    {
+        try
+        {
+            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", "news-content-editor");
+            if (editorExists)
+            {
+                var content = await JS.InvokeAsync<string>("eval",
+                    "tinymce.get('news-content-editor') ? tinymce.get('news-content-editor').getContent() : ''");
+                
+                if (!string.IsNullOrEmpty(content))
+                {
+                    editModel.Content = content;
+                    Logger.LogInformation("TinyMCE innehåll synkroniserat: {Length} tecken", content.Length);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte synkronisera TinyMCE innehåll");
+        }
+    }
+
+    private async Task SaveNews()
+    {
+        isSaving = true;
+        try
+        {
+            // Uppdatera valda roller med intelligent hantering
+            editModel.SelectedRoles = GetSelectedRoles();
+
+            NewsItemViewModel? result;
+            if (editingNews?.Id == 0)
+            {
+                result = await NewsService.CreateNewsAsync(editModel);
+                if (result != null)
+                {
+                    await Toast.Success("Nyheten har skapats!");
+                }
+            }
+            else
+            {
+                result = await NewsService.UpdateNewsAsync(editingNews!.Id, editModel);
+                if (result != null)
+                {
+                    await Toast.Success("Nyheten har uppdaterats!");
+                }
+            }
+
+            if (result != null)
+            {
+                await LoadNews();
+                CloseEditModal();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte spara nyheten. Försök igen.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av nyhet");
+            await Toast.Error("Ett fel inträffade vid sparning. Försök igen.");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private List<string> GetSelectedRoles()
+    {
+        var selectedRoles = new List<string>();
+        var allaRole = editModel.AvailableRoles.FirstOrDefault(r => r.Value == "Alla");
+        
+        if (allaRole?.IsSelected == true)
+        {
+            // Om "Alla" är vald, lägg till alla specifika roller
+            selectedRoles.AddRange(new[] { "Admin", "Styrelse", "Medlem" });
+        }
+        else
+        {
+            // Annars lägg till bara de specifikt valda rollerna
+            selectedRoles.AddRange(editModel.AvailableRoles
+                .Where(r => r.IsSelected && r.Value != "Alla")
+                .Select(r => r.Value));
+        }
+
+        // Om inga roller är valda, välj "Medlem" som standard
+        if (!selectedRoles.Any())
+        {
+            selectedRoles.Add("Medlem");
+        }
+
+        return selectedRoles;
+    }
+
+    private async Task ToggleArchive(NewsItemViewModel news)
+    {
+        try
+        {
+            var success = await NewsService.ToggleArchiveAsync(news.Id);
+            if (success)
+            {
+                var action = news.IsArchived ? "avarkiverad" : "arkiverad";
+                news.IsArchived = !news.IsArchived;
+                await Toast.Success($"Nyheten har {action}.");
+                FilterNews();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte ändra arkiveringsstatus.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid arkivering av nyhet {Id}", news.Id);
+            await Toast.Error("Ett fel inträffade. Försök igen.");
+        }
+    }
+
+    private void OpenDeleteModal(NewsItemViewModel news)
+    {
+        deletingNews = news;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletingNews = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deletingNews == null) return;
+
+        isDeleting = true;
+        try
+        {
+            var success = await NewsService.DeleteNewsAsync(deletingNews.Id);
+            if (success)
+            {
+                await Toast.Success("Nyheten har tagits bort.");
+                await LoadNews();
+                CloseDeleteModal();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte ta bort nyheten. Försök igen.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av nyhet {Id}", deletingNews.Id);
+            await Toast.Error("Ett fel inträffade vid borttagning. Försök igen.");
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private void OnRoleSelectionChanged(RoleOption role, ChangeEventArgs args)
+    {
+        var isSelected = (bool)(args.Value ?? false);
+        role.IsSelected = isSelected;
+
+        // Intelligent hantering: Om "Alla" väljs, välj automatiskt alla andra
+        if (role.Value == "Alla" && isSelected)
+        {
+            foreach (var otherRole in editModel.AvailableRoles.Where(r => r.Value != "Alla"))
+            {
+                otherRole.IsSelected = true;
+            }
+        }
+        // Om "Alla" avmarkeras, avmarkera alla andra
+        else if (role.Value == "Alla" && !isSelected)
+        {
+            foreach (var otherRole in editModel.AvailableRoles.Where(r => r.Value != "Alla"))
+            {
+                otherRole.IsSelected = false;
+            }
+        }
+        // Om någon specifik roll avmarkeras, avmarkera "Alla"
+        else if (role.Value != "Alla" && !isSelected)
+        {
+            var allaRole = editModel.AvailableRoles.FirstOrDefault(r => r.Value == "Alla");
+            if (allaRole != null)
+            {
+                allaRole.IsSelected = false;
+            }
+        }
+        // Om alla specifika roller är markerade, markera "Alla"
+        else if (role.Value != "Alla" && isSelected)
+        {
+            var specificRoles = editModel.AvailableRoles.Where(r => r.Value != "Alla").ToList();
+            if (specificRoles.All(r => r.IsSelected))
+            {
+                var allaRole = editModel.AvailableRoles.FirstOrDefault(r => r.Value == "Alla");
+                if (allaRole != null)
+                {
+                    allaRole.IsSelected = true;
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private string GetRoleDisplayName(string role)
+    {
+        return role switch
+        {
+            "Admin" => "Administratörer", 
+            "Styrelse" => "Styrelsen",
+            "Medlem" => "Medlemmar",
+            _ => role
+        };
+    }
+
+    // Formaterar datum enligt svensk standard
+    private string FormatSwedishDateTime(DateTime? dateTime)
+    {
+        if (!dateTime.HasValue) return "";
+        
+        // Konvertera till svensk tid (UTC+1/UTC+2 beroende på sommartid)
+        var swedishTime = TimeZoneInfo.ConvertTimeFromUtc(dateTime.Value, 
+            TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"));
+        
+        return swedishTime.ToString("yyyy-MM-dd HH:mm");
+    }
+
+    private async Task AttachSelectedDocument()
+    {
+        if (selectedDocumentId == 0 || editingNews?.Id == 0) return;
+        
+        var selectedDoc = availableDocuments.FirstOrDefault(d => d.Id == selectedDocumentId);
+        if (selectedDoc != null)
+        {
+            await AttachDocument(selectedDoc.Id, selectedDoc.FileName);
+            selectedDocumentId = 0;
+        }
+    }
+
+    private async Task AttachDocument(int documentId, string displayName)
+    {
+        if (editingNews?.Id == 0) return;
+
+        try
+        {
+            var success = await NewsService.AttachDocumentToNewsAsync(editingNews.Id, documentId, displayName);
+            if (success)
+            {
+                await LoadNewsDocuments(editingNews.Id);
+                await Toast.Success("Dokumentet har kopplats till nyheten!");
+            }
+            else
+            {
+                await Toast.Error("Kunde inte koppla dokumentet till nyheten.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid koppling av dokument");
+            await Toast.Error("Ett fel inträffade.");
+        }
+    }
+
+    private async Task DetachDocument(int documentId)
+    {
+        if (editingNews?.Id == 0) return;
+
+        try
+        {
+            var success = await NewsService.DetachDocumentFromNewsAsync(editingNews.Id, documentId);
+            if (success)
+            {
+                await LoadNewsDocuments(editingNews.Id);
+                await Toast.Success("Dokumentet har tagits bort från nyheten!");
+            }
+            else
+            {
+                await Toast.Error("Kunde inte ta bort dokumentet från nyheten.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av dokumentkoppling");
+            await Toast.Error("Ett fel inträffade.");
+        }
+    }
+
+    // Hjälpklasser för dokumentsäkerhet
+    public class DocumentAccessInfo
+    {
+        public string CategoryName { get; set; } = "";
+        public string StatusMessage { get; set; } = "";
+        public bool HasConflict { get; set; }
+        public string FileName { get; set; } = "";
+        public string AccessDescription { get; set; } = "";
+        public string ConflictMessage { get; set; } = "";
+    }
+    
+    public class GroupedDocument
+    {
+        public string CategoryName { get; set; } = "";
+        public string AccessLevel { get; set; } = "";
+        public bool HasConflict { get; set; }
+        public List<DocumentViewModel> Documents { get; set; } = new();
+    }
+    
+    private DocumentAccessInfo? GetDocumentAccessInfo(int documentId)
+    {
+        var doc = availableDocuments.FirstOrDefault(d => d.Id == documentId);
+        if (doc == null) return null;
+        
+        var categoryName = doc.MainCategoryDto.Name;
+        var categoryRoles = doc.MainCategoryDto.AllowedRoles ?? new List<string>();
+        var newsRoles = editModel.SelectedRoles ?? new List<string>();
+        
+        // Kontrollera om det finns konflikter
+        bool hasConflict = false;
+        string conflictMessage = "";
+        
+        if (categoryRoles.Any()) // Dokumentet har begränsningar
+        {
+            // Kontrollera om det finns nyhetens roller som INTE kan se dokumentet
+            var rolesWithoutAccess = newsRoles.Where(role => 
+                !categoryRoles.Contains(role, StringComparer.OrdinalIgnoreCase)).ToList();
+            
+            if (rolesWithoutAccess.Any())
+            {
+                hasConflict = true;
+                conflictMessage = $"Rollerna {string.Join(", ", rolesWithoutAccess)} kan inte se detta dokument!";
+            }
+        }
+        // Om dokumentet inte har begränsningar (categoryRoles är tom) så kan alla se det
+        
+        string statusMessage = categoryRoles.Any() 
+            ? $"Begränsad till: {string.Join(", ", categoryRoles)}{(hasConflict ? " - KONFLIKT!" : "")}"
+            : "Alla användare kan se detta dokument";
+        
+        return new DocumentAccessInfo
+        {
+            CategoryName = categoryName,
+            StatusMessage = statusMessage,
+            HasConflict = hasConflict,
+            FileName = doc.FileName,
+            AccessDescription = doc.GetAccessibilityDescription(),
+            ConflictMessage = hasConflict ? conflictMessage : ""
+        };
+    }
+    
+    private DocumentAccessInfo? GetSelectedDocumentInfo()
+    {
+        return selectedDocumentId > 0 ? GetDocumentAccessInfo(selectedDocumentId) : null;
+    }
+    
+    private List<GroupedDocument> GetGroupedDocuments()
+    {
+        return availableDocuments
+            .Where(d => !selectedNewsDocuments.Any(nd => nd.Id == d.Id))
+            .GroupBy(d => d.MainCategoryDto?.Name ?? "Okategoriserad")
+            .Select(g => 
+            {
+                var firstDoc = g.First();
+                var categoryRoles = firstDoc.MainCategoryDto?.AllowedRoles ?? new List<string>();
+                var newsRoles = editModel.SelectedRoles ?? new List<string>();
+                
+                // Konfliktlogik för grupper
+                bool hasConflict = false;
+                if (categoryRoles.Any() && newsRoles.Any())
+                {
+                    // Finns det nyhetens roller som inte kan se denna kategori?
+                    hasConflict = newsRoles.Any(role => 
+                        !categoryRoles.Contains(role, StringComparer.OrdinalIgnoreCase));
+                }
+                                
+                return new GroupedDocument
+                {
+                    CategoryName = g.Key,
+                    AccessLevel = categoryRoles.Any() ? $"Begränsad: {string.Join(", ", categoryRoles)}" : "Alla användare",
+                    HasConflict = hasConflict,
+                    Documents = g.ToList()
+                };
+            })
+            .OrderBy(g => g.CategoryName)
+            .ToList();
+    }
+    
+    private async Task OnDocumentSelectionChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int documentId))
+        {
+            selectedDocumentId = documentId;
+        }
+        StateHasChanged();
+    }
+
+    // Hjälpmetod för att få rätt ikon baserat på filtyp
+    private string GetFileIcon(string fileName)
+    {
+        // Skapa en temporär DocumentViewModel för att få ikonen
+        var tempDoc = new DocumentViewModel { FileName = fileName };
+        return tempDoc.FileIconClass;
+    }
+}

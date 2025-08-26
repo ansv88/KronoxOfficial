@@ -84,9 +84,32 @@
     
     protected override void OnInitialized()
     {
-        if (!AvailableSections.Any())
+        // Säkerställ att alltid alla tillgängliga sektioner finns
+        EnsureAllSectionsAvailable();
+    }
+    
+    private void EnsureAllSectionsAvailable()
+    {
+        var allSectionTypes = Enum.GetValues<SectionType>().ToList();
+        
+        // Ta bort ContactForm från alla sidor utom kontaktsidan
+        if (PageKey.ToLower() != "kontaktaoss")
         {
-            InitializeDefaultSections();
+            allSectionTypes = allSectionTypes.Where(t => t != SectionType.ContactForm).ToList();
+        }
+        
+        foreach (var sectionType in allSectionTypes)
+        {
+            if (!AvailableSections.Any(s => s.Type == sectionType))
+            {
+                // Lägg till saknade sektioner som inaktiverade
+                AvailableSections.Add(new SectionConfigItem
+                {
+                    Type = sectionType,
+                    IsEnabled = GetDefaultEnabledState(sectionType, PageKey),
+                    SortOrder = AvailableSections.Count
+                });
+            }
         }
     }
     
@@ -116,6 +139,10 @@
             ("kontaktaoss", SectionType.ContactForm) => true,
             ("kontaktaoss", SectionType.MemberLogos) => true,
             ("dokument", SectionType.DocumentSection) => true,
+            ("medlemsnytt", SectionType.Banner) => true,
+            ("medlemsnytt", SectionType.Intro) => true,
+            ("medlemsnytt", SectionType.NewsSection) => true,
+            ("medlemsnytt", SectionType.MemberLogos) => true,
             (_, SectionType.Banner) => true,
             (_, SectionType.Intro) => true,
             _ => false
@@ -172,6 +199,7 @@
             SectionType.DocumentSection => "Dokumentsektion",
             SectionType.MemberLogos => "Medlemslogotyper",
             SectionType.ContactForm => "Kontaktformulär",
+            SectionType.NewsSection => "Nyhetssektion",
             _ => type.ToString()
         };
     }
@@ -188,6 +216,7 @@
             SectionType.DocumentSection => "Länk till dokumentsida",
             SectionType.MemberLogos => "Medlemsorganisationers logotyper",
             SectionType.ContactForm => "Kontaktformulär och kontaktuppgifter",
+            SectionType.NewsSection => "Nyhetssektion som visar publicerade nyheter",
             _ => "Anpassad sektion"
         };
     }

@@ -65,6 +65,9 @@ public static class ContentSeed
 
             // Seeda kontaktinformation
             await SeedContactInformationAsync(serviceProvider, logger);
+
+            // Seeda intro-sektion för medlemsnytt
+            await SeedMedlemsnyttIntroSectionAsync(serviceProvider, logger);
         }
         catch (Exception ex)
         {
@@ -195,6 +198,30 @@ public static class ContentSeed
             imageUrl = "",
             imageAltText = "",
             breadcrumbTitle = "Om systemet"
+        };
+    }
+
+    // Returnerar intro-sektion för Medlemsnytt-sidan.
+    private static dynamic GetMedlemsnyttIntroSection()
+    {
+        return new
+        {
+            title = "För medlemmar",
+            content = @"<p>Här hittar du de senaste uppdateringarna och nyheterna om KronoX och konsortiet.</p>
+                   <p>Vill du läsa mer om Konsortiets medlemmar och hur de arbetar med KronoX hittar du det under <strong>Hur vi arbetar med KronoX</strong>.</p>
+                   <p>Letar du efter kontaktuppgifter till medlemmarna finns det under <strong>Om konsortiet</strong>.</p>
+                   <p>Söker du information om handhavande/användarinstruktioner för schemasystemet, hittar du det i <strong>Manualen</strong>.</p>",
+            hasImage = false,
+            imageUrl = "",
+            imageAltText = "",
+            breadcrumbTitle = "MEDLEMSNYTT",
+            showNavigationButtons = true,
+            navigationButtons = new[]
+            {
+            new { text = "Manualen", url = "/manual", iconClass = "fa-solid fa-book", sortOrder = 0 },
+            new { text = "Användarträffar", url = "/anvandartraffar", iconClass = "fa-solid fa-users", sortOrder = 1 },
+            new { text = "Hur vi arbetar med KronoX", url = "/omkonsortiet", iconClass = "fa-solid fa-cogs", sortOrder = 2 }
+        }
         };
     }
 
@@ -1588,6 +1615,182 @@ public static class ContentSeed
         catch (Exception ex)
         {
             logger.LogError(ex, "Fel vid seeding av intro-sektion för Om systemet");
+        }
+    }
+
+    // Seedar eller uppdaterar intro-sektionen för Medlemsnytt-sidan.
+    private static async Task SeedMedlemsnyttIntroSectionAsync(IServiceProvider serviceProvider, ILogger logger)
+    {
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var medlemsnyttContent = await dbContext.ContentBlocks.FirstOrDefaultAsync(c => c.PageKey == "medlemsnytt");
+            if (medlemsnyttContent == null)
+            {
+                logger.LogInformation("Skapar ContentBlock för medlemsnytt-sidan...");
+
+                var introSection = GetMedlemsnyttIntroSection();
+
+                var metadata = JsonSerializer.Serialize(new
+                {
+                    introSection,
+                    sectionConfig = new[]
+                    {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "NavigationButtons", IsEnabled = true, SortOrder = 2 },
+                    new { Type = "NewsSection", IsEnabled = true, SortOrder = 3 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                },
+                    lastConfigUpdate = DateTime.UtcNow
+                });
+
+                medlemsnyttContent = new ContentBlock
+                {
+                    PageKey = "medlemsnytt",
+                    Title = "Medlemsnytt",
+                    HtmlContent = "<p>Senaste nyheterna för KronoX-konsortiet medlemmar.</p>",
+                    Metadata = metadata,
+                    LastModified = DateTime.UtcNow
+                };
+
+                dbContext.ContentBlocks.Add(medlemsnyttContent);
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation("Medlemsnytt ContentBlock har skapats och seedats framgångsrikt.");
+                return;
+            }
+
+            // Kontrollera om intro-sektion redan har anpassats av användare
+            if (!string.IsNullOrEmpty(medlemsnyttContent.Metadata))
+            {
+                try
+                {
+                    var metadata = JsonDocument.Parse(medlemsnyttContent.Metadata);
+                    if (metadata.RootElement.TryGetProperty("introSection", out var existingIntro))
+                    {
+                        // Kontrollera om intro-sektionen har anpassningar
+                        bool hasCustomization = existingIntro.TryGetProperty("breadcrumbTitle", out _) ||
+                                               existingIntro.TryGetProperty("showNavigationButtons", out _) ||
+                                               existingIntro.TryGetProperty("navigationButtons", out _);
+
+                        if (hasCustomization)
+                        {
+                            logger.LogInformation("Intro-sektion för medlemsnytt-sidan har redan anpassningar, hoppar över seeding.");
+                            return;
+                        }
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Om JSON är korrupt, fortsätt med seeding
+                }
+            }
+
+            var introSectionData = GetMedlemsnyttIntroSection();
+
+            if (string.IsNullOrEmpty(medlemsnyttContent.Metadata))
+            {
+                medlemsnyttContent.Metadata = JsonSerializer.Serialize(new
+                {
+                    introSection = introSectionData,
+                    sectionConfig = new[]
+                    {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "NavigationButtons", IsEnabled = true, SortOrder = 2 },
+                    new { Type = "NewsSection", IsEnabled = true, SortOrder = 3 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                },
+                    lastConfigUpdate = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                try
+                {
+                    var metadata = JsonDocument.Parse(medlemsnyttContent.Metadata);
+                    var root = metadata.RootElement;
+
+                    using var ms = new MemoryStream();
+                    using var writer = new Utf8JsonWriter(ms);
+                    writer.WriteStartObject();
+
+                    bool hasIntroSection = false;
+                    foreach (var property in root.EnumerateObject())
+                    {
+                        if (property.Name == "introSection")
+                        {
+                            hasIntroSection = true;
+                            // Behåll befintlig introSection om den finns
+                            property.WriteTo(writer);
+                        }
+                        else
+                        {
+                            property.WriteTo(writer);
+                        }
+                    }
+
+                    // Lägg till introSection bara om det inte fanns någon
+                    if (!hasIntroSection)
+                    {
+                        writer.WritePropertyName("introSection");
+                        writer.WriteStartObject();
+                        writer.WriteString("title", introSectionData.title);
+                        writer.WriteString("content", introSectionData.content);
+                        writer.WriteBoolean("hasImage", introSectionData.hasImage);
+                        writer.WriteString("imageUrl", introSectionData.imageUrl);
+                        writer.WriteString("imageAltText", introSectionData.imageAltText);
+                        writer.WriteString("breadcrumbTitle", introSectionData.breadcrumbTitle);
+                        writer.WriteBoolean("showNavigationButtons", introSectionData.showNavigationButtons);
+
+                        writer.WritePropertyName("navigationButtons");
+                        writer.WriteStartArray();
+                        foreach (var button in introSectionData.navigationButtons)
+                        {
+                            writer.WriteStartObject();
+                            writer.WriteString("text", button.text);
+                            writer.WriteString("url", button.url);
+                            writer.WriteString("iconClass", button.iconClass);
+                            writer.WriteNumber("sortOrder", button.sortOrder);
+                            writer.WriteEndObject();
+                        }
+                        writer.WriteEndArray();
+
+                        writer.WriteEndObject();
+                    }
+
+                    writer.WriteEndObject();
+                    writer.Flush();
+
+                    medlemsnyttContent.Metadata = Encoding.UTF8.GetString(ms.ToArray());
+                }
+                catch (JsonException)
+                {
+                    // Om JSON är korrupt, skapa ny metadata
+                    medlemsnyttContent.Metadata = JsonSerializer.Serialize(new
+                    {
+                        introSection = introSectionData,
+                        sectionConfig = new[]
+                        {
+                        new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                        new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                        new { Type = "NavigationButtons", IsEnabled = true, SortOrder = 2 },
+                        new { Type = "NewsSection", IsEnabled = true, SortOrder = 3 },
+                        new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                    },
+                        lastConfigUpdate = DateTime.UtcNow
+                    });
+                }
+            }
+
+            await dbContext.SaveChangesAsync();
+            logger.LogInformation("Seedade intro-sektion för medlemsnytt-sidan");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Fel vid seeding av intro-sektion för medlemsnytt");
         }
     }
 

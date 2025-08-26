@@ -1,6 +1,7 @@
 ﻿@page "/admin/dashboard"
 @page "/admin"
 @using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject NavigationManager Nav
@@ -50,6 +51,10 @@
                         <div class="p-3 border rounded">
                             <h3 class="h5">Nyheter</h3>
                             <div class="h2 mb-0">@newsCount</div>
+                            @if (archivedNewsCount > 0)
+                            {
+                                <small class="text-muted">(@archivedNewsCount arkiverade)</small>
+                            }
                         </div>
                     </div>
                 </div>
@@ -131,7 +136,7 @@
                     <a href="/admin/page/medlemsnytt" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                         <div>
                             <span class="fw-bold">Medlemsnytt</span>
-                            <small class="d-block text-muted">Kräver inloggning</small>
+                            <small class="d-block text-muted">Kräver inloggning - innehåller nyhetssektion</small>
                         </div>
                         <i class="fa-solid fa-arrow-right"></i>
                     </a>
@@ -205,23 +210,38 @@
         </div>
     </div>
 
-    <!-- Medlemslogotyphantering -->
+    <!-- Nyhetshantering -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
             <div class="card-header bg-light">
-                <h2 class="h5 mb-0"><i class="fa-solid fa-university me-2"></i>Medlemslogotyper</h2>
+                <h2 class="h5 mb-0"><i class="fa-solid fa-newspaper me-2"></i>Nyhetshantering</h2>
             </div>
             <div class="card-body">
-                <p class="card-text">Hantera logotyper för konsortiets medlemmar som visas på webbplatsen.</p>
+                <p class="card-text">Skapa och hantera nyheter och meddelanden som visas för medlemmar.</p>
                 <ul class="list-group mb-3">
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Registrerade logotyper</span>
-                        <span class="badge bg-info rounded-pill">@memberLogosCount</span>
+                        <span>
+                            Publicerade nyheter
+                            <small class="d-block text-muted">Synliga för medlemmar</small>
+                        </span>
+                        <span class="badge bg-success rounded-pill">@(newsCount - archivedNewsCount)</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            Arkiverade nyheter
+                            <small class="d-block text-muted">Dolda från medlemmar</small>
+                        </span>
+                        <span class="badge bg-secondary rounded-pill">@archivedNewsCount</span>
                     </li>
                 </ul>
-                <a href="/admin/memberlogos" class="btn btn-primary">
-                    <i class="fa-solid fa-images me-2"></i>Hantera logotyper
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="/admin/news" class="btn btn-primary">
+                        <i class="fa-solid fa-pen-to-square me-2"></i>Hantera nyheter
+                    </a>
+                    <a href="/admin/page/medlemsnytt" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-cog me-1"></i>Sidlayout
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -257,22 +277,22 @@
         </div>
     </div>
 
-    <!-- Nyhetshantering -->
+    <!-- Medlemslogotyphantering -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
             <div class="card-header bg-light">
-                <h2 class="h5 mb-0"><i class="fa-solid fa-newspaper me-2"></i>Nyhetshantering</h2>
+                <h2 class="h5 mb-0"><i class="fa-solid fa-university me-2"></i>Medlemslogotyper</h2>
             </div>
             <div class="card-body">
-                <p class="card-text">Skapa och hantera nyheter och meddelanden på webbplatsen.</p>
+                <p class="card-text">Hantera logotyper för konsortiets medlemmar som visas på webbplatsen.</p>
                 <ul class="list-group mb-3">
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Publicerade nyheter</span>
-                        <span class="badge bg-success rounded-pill">@newsCount</span>
+                        <span>Registrerade logotyper</span>
+                        <span class="badge bg-info rounded-pill">@memberLogosCount</span>
                     </li>
                 </ul>
-                <a href="/admin/news" class="btn btn-primary">
-                    <i class="fa-solid fa-pen-to-square me-2"></i>Hantera nyheter
+                <a href="/admin/memberlogos" class="btn btn-primary">
+                    <i class="fa-solid fa-images me-2"></i>Hantera logotyper
                 </a>
             </div>
         </div>
@@ -287,9 +307,8 @@
     private int mainCategoryCount = 0;
     private int subCategoryCount = 0;
     private int newsCount = 0;
+    private int archivedNewsCount = 0;
     private int memberLogosCount = 0;
-
-    private bool showNewPageModal = false;
 
     // Laddar statistik vid initiering
     protected override async Task OnInitializedAsync()
@@ -332,7 +351,6 @@
             newUserCount = 0;
         }
 
-
         // Hämta dokumentdata
         try
         {
@@ -373,16 +391,29 @@
         // Hämta nyhetsdata
         try
         {
-            var newsResponse = await http.GetFromJsonAsync<List<object>>("api/news");
-            if (newsResponse != null)
+            var allNewsResponse = await http.GetFromJsonAsync<JsonElement[]>("api/news/all");
+            if (allNewsResponse != null)
             {
-                newsCount = newsResponse.Count;
+                newsCount = allNewsResponse.Length;
+                // Räkna arkiverade nyheter
+                archivedNewsCount = allNewsResponse.Count(n => 
+                {
+                    try 
+                    {
+                        return n.GetProperty("isArchived").GetBoolean();
+                    }
+                    catch 
+                    {
+                        return false;
+                    }
+                });
             }
         }
         catch (HttpRequestException ex)
         {
             Logger.LogError(ex, "Kunde inte hämta nyhetsdata från API.");
             newsCount = 0;
+            archivedNewsCount = 0;
         }
 
         // Hämta medlemslogotyper
@@ -399,16 +430,5 @@
             Logger.LogError(ex, "Kunde inte hämta medlemslogotyper från API.");
             memberLogosCount = 0;
         }
-    }
-
-    // Öppna/stäng modal för ny sida (UI-funktionalitet)
-    private void OpenNewPageModal()
-    {
-        showNewPageModal = true;
-    }
-
-    private void CloseNewPageModal()
-    {
-        showNewPageModal = false;
     }
 }

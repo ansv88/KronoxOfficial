@@ -12,5 +12,13 @@ public class CreateNewsRequest
     [Required(ErrorMessage = "Innehållet är obligatoriskt.")]
     public string Content { get; set; } = string.Empty; // HTML-innehåll från TinyMCE
 
+    // Datum från vilket nyheten ska vara synlig (valfritt, standard är nu)
+    public DateTime? ScheduledPublishDate { get; set; }
+    
     public bool IsArchived { get; set; } = false;
+    
+    // Roller som får se nyheten (kommaseparerad sträng)
+    [StringLength(500)]
+    public string VisibleToRoles { get; set; } = "Medlem";
+    
 }

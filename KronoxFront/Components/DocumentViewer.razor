@@ -48,7 +48,7 @@
                             {
                                 <div class="d-flex justify-content-center align-items-center h-100 border rounded bg-light">
                                     <div class="p-4 text-center">
-                                        <i class="fas fa-file fa-3x mb-3"></i>
+                                        <i class="@GetLargeFileIcon(DocumentTitle) fa-3x mb-3"></i>
                                         <h5>@DocumentTitle</h5>
                                         <p>Denna filtyp kan inte förhandsgranskas direkt i webbläsaren.</p>
                                         <p>Använd nedladdningsknappen för att öppna filen i ett lämpligt program.</p>
@@ -151,5 +151,18 @@
     private async Task DownloadDocument()
     {
         await OnDownload.InvokeAsync(DocumentId);
+    }
+
+    private string GetLargeFileIcon(string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".pdf" => "fa-solid fa-file-pdf text-danger",
+            ".doc" or ".docx" => "fa-solid fa-file-word text-primary",
+            ".xls" or ".xlsx" => "fa-solid fa-file-excel text-success",
+            ".ppt" or ".pptx" => "fa-solid fa-file-powerpoint text-warning",
+            _ => "fa-solid fa-file text-muted"
+        };
     }
 }

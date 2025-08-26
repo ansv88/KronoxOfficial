@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using KronoxApi.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using KronoxApi.Models;
+using System.Reflection.Emit;
 
 namespace KronoxApi.Data;
 
@@ -24,6 +25,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PostalAddress> PostalAddresses { get; set; } = null!;
     public DbSet<ContactPerson> ContactPersons { get; set; } = null!;
     public DbSet<EmailList> EmailLists { get; set; } = null!;
+
+    public DbSet<NewsDocument> NewsDocuments { get; set; } = null!;
 
     // Konfigurerar entiteter och relationer i modellen.
     protected override void OnModelCreating(ModelBuilder builder)
@@ -191,6 +194,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Description).IsRequired().HasMaxLength(200);
             entity.Property(e => e.EmailAddress).IsRequired().HasMaxLength(100);
             entity.HasIndex(e => e.SortOrder);
+        });
+
+        // Konfigurera NewsDocument relationer
+        builder.Entity<NewsDocument>(entity =>
+        {
+            entity.HasKey(nd => nd.Id);
+
+            entity.HasOne(nd => nd.News)
+                .WithMany(n => n.NewsDocuments)
+                .HasForeignKey(nd => nd.NewsId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(nd => nd.Document)
+                .WithMany()
+                .HasForeignKey(nd => nd.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(nd => new { nd.NewsId, nd.DocumentId })
+                .IsUnique();
         });
     }
 }

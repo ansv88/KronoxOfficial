@@ -1,35 +1,35 @@
-@page "/admin/dokument"
+Ôªø@page "/admin/medlemsnytt"
 @using KronoxFront.ViewModels
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
 @inject CmsService Cms
 @inject IToastService Toast
 @inject IJSRuntime JS
-@inject ILogger<DokumentAdmin> Logger
-@layout AdminLayout
+@inject ILogger<MedlemsnyttAdmin> Logger
 
 <HeadContent>
-    <meta name="description" content="Redigera sidan 'Dokument' fˆr KronoX. Hantera innehÂll, bilder och sektioner." />
+    <meta name="description" content="Redigera sidan 'Medlemsnytt' f√∂r KronoX. Hantera inneh√•ll, bilder och sektioner." />
 </HeadContent>
 
-<PageTitle>Admin - Dokument</PageTitle>
+<PageTitle>Admin - Medlemsnytt</PageTitle>
 
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3">Redigera sidan "Dokument"</h1>
+                <h1 class="h3">Redigera sidan "Medlemsnytt"</h1>
                 <div class="d-flex flex-column align-items-end">
                     <div class="d-flex gap-2 mb-2">
-                        <a href="/dokument" class="btn btn-outline-secondary" title="Visar sparade ‰ndringar">
+                        <a href="/medlemsnytt" class="btn btn-outline-secondary" title="Visar sparade √§ndringar">
                             <i class="fa-solid fa-eye me-1"></i>
                             Visa sparad sida
                         </a>
-                        <a href="/admin/documents/manage" class="btn btn-outline-primary">
-                            <i class="fa-solid fa-file me-1"></i>
-                            Hantera dokument
+                        <a href="/admin/news" class="btn btn-outline-primary">
+                            <i class="fa-solid fa-newspaper me-1"></i>
+                            Hantera nyheter
                         </a>
                         <button type="button" class="btn btn-success" @onclick="SaveContent" disabled="@isSaving">
                             @if (isSaving)
@@ -40,12 +40,12 @@
                             {
                                 <i class="fa-solid fa-save me-1"></i>
                             }
-                            Spara allt innehÂll
+                            Spara allt inneh√•ll
                         </button>
                     </div>
                     <small class="text-muted">
                         <i class="fa-solid fa-info-circle me-1"></i>
-                        Fˆr att se dina ‰ndringar, spara fˆrst och klicka sedan pÂ "Visa sparad sida"
+                        F√∂r att se dina √§ndringar, spara f√∂rst och klicka sedan p√• "Visa sparad sida"
                     </small>
                 </div>
             </div>
@@ -61,39 +61,18 @@
             else
             {
                 @* ---------- Section Configuration Manager ----------- *@
-                <PageSectionConfigurator PageKey="dokument"
+                <PageSectionConfigurator PageKey="medlemsnytt"
                                          AvailableSections="sectionConfigItems"
                                          OnConfigurationChanged="OnSectionConfigurationChanged"
                                          OnSave="SaveSectionConfiguration" />
 
-                @* ---------- Sidans titel ------------------------------------ *@
-                <EditForm Model="pageContent" OnValidSubmit="SavePageContent">
-                    <DataAnnotationsValidator />
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h3 class="h5 mb-0">Sidans titel</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="pageTitle" class="form-label">Titel</label>
-                                <InputText id="pageTitle"
-                                           class="form-control"
-                                           @bind-Value="pageContent.Title"
-                                           placeholder="T.ex. Dokument" />
-                                <ValidationMessage For="() => pageContent.Title" />
-                                <div class="form-text">Denna titel visas i webbl‰sarens flik och som sidhuvud</div>
-                            </div>
-                        </div>
-                    </div>
-                </EditForm>
-
-                @* ---------- DYNAMISKA SEKTIONER BASERAT P≈ KONFIGURATION --------- *@
+                @* ---------- DYNAMISKA SEKTIONER BASERAT P√Ö KONFIGURATION --------- *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
                 {
                     @switch (sectionConfig.Type)
                     {
                         case SectionType.Banner:
-                            <BannerImageUploader PageKey="dokument" OnUploaded="OnBannerUploaded" />
+                            <BannerImageUploader PageKey="medlemsnytt" OnUploaded="OnBannerUploaded" />
                             break;
 
                         case SectionType.Intro:
@@ -105,12 +84,12 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="mb-3">
-                                            <label class="form-label">Breadcrumb-titel (visas ovanfˆr introt)</label>
+                                            <label class="form-label">Breadcrumb-titel (visas ovanf√∂r introt)</label>
                                             <InputText class="form-control" 
                                                        @bind-Value="introSection.BreadcrumbTitle" 
-                                                       placeholder="T.ex. DOKUMENT" />
+                                                       placeholder="T.ex. MEDLEMSNYTT" />
                                             <ValidationMessage For="() => introSection.BreadcrumbTitle" />
-                                            <div class="form-text">L‰mna tomt fˆr att dˆlja breadcrumb-titeln</div>
+                                            <div class="form-text">L√§mna tomt f√∂r att d√∂lja breadcrumb-titeln</div>
                                         </div>
 
                                         <div class="row">
@@ -144,7 +123,7 @@
                                                         else
                                                         {
                                                             <InputFile OnChange="HandleIntroImageSelected" class="form-control" accept="image/*" />
-                                                            <div class="text-muted small mt-2">Klicka fˆr att v‰lja bild</div>
+                                                            <div class="text-muted small mt-2">Klicka f√∂r att v√§lja bild</div>
                                                         }
                                                     </div>
                                                 }
@@ -156,7 +135,7 @@
                                                     <ValidationMessage For="() => introSection.Title" />
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label">InnehÂll</label>
+                                                    <label class="form-label">Inneh√•ll</label>
                                                     <InputTextArea id="intro-editor" 
                                                                    @bind-Value="introSection.Content" 
                                                                    class="form-control tinymce-editor"
@@ -177,6 +156,36 @@
                                                       NavigationButtonsChanged="OnNavigationButtonsChanged" />
                             break;
 
+                        case SectionType.NewsSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Nyhetssektion</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-success mb-3">
+                                        <i class="fa-solid fa-newspaper me-2"></i>
+                                        <strong>Status:</strong> Nyhetssektionen visas automatiskt p√• denna sida och h√§mtar nyheter fr√•n systemet.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Alla publicerade nyheter som anv√§ndaren har beh√∂righet att se visas automatiskt p√• sidan.
+                                        Nyheter filtreras baserat p√•:
+                                    </p>
+                                    <ul class="text-muted mb-3">
+                                        <li>Publiceringsdatum (endast nyheter som ska vara synliga visas)</li>
+                                        <li>Roller (anv√§ndaren ser endast nyheter f√∂r sina roller)</li>
+                                        <li>Arkiveringsstatus (arkiverade nyheter visas bara om anv√§ndaren v√§ljer det)</li>
+                                    </ul>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/news" class="btn btn-primary">
+                                            <i class="fa-solid fa-newspaper me-1"></i>
+                                            Hantera nyheter
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        @* Feature-sektioner *@
                         case SectionType.FeatureSections:
                             <FeatureSectionManager @ref="featureSectionManagerRef"
                                                    Sections="featureSections"
@@ -185,73 +194,12 @@
                                                    OnImageDelete="OnFeatureImageDeleted" />
                             break;
 
+                        @* FAQ-sektioner *@
                         case SectionType.FaqSections:
                             <FaqManager @ref="faqManagerRef"
                                         FaqSections="faqSections"
                                         OnFaqSectionsChanged="OnFaqSectionsChanged"
                                         OnFaqImageUpload="OnFaqImageUploaded" />
-                            break;
-
-                        case SectionType.DocumentSection:
-                            <div class="card mb-4">
-                                <div class="card-header bg-info text-white">
-                                    <h3 class="h5 mb-0">
-                                        <i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering
-                                    </h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info d-flex align-items-center" role="alert">
-                                        <i class="fa-solid fa-info-circle fa-2x me-3"></i>
-                                        <div>
-                                            <h5 class="alert-heading">Hantera dokument och kategorier</h5>
-                                            <p class="mb-2">Dokumenten pÂ denna sida hanteras automatiskt baserat pÂ kategorier och rollbehˆrigheter.</p>
-                                            <p class="mb-0">
-                                                Fˆr att ladda upp nya dokument, hantera kategorier eller ‰ndra rollbehˆrigheter, 
-                                                anv‰nd den dedikerade dokumenthanteringsmodulen.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="text-center">
-                                        <a href="/admin/documents/manage" class="btn btn-primary btn-lg">
-                                            <i class="fa-solid fa-upload me-2"></i>
-                                            GÂ till Dokumenthantering
-                                        </a>
-                                    </div>
-
-                                    <hr />
-
-                                    <div class="row text-center">
-                                        <div class="col-md-4">
-                                            <div class="card border-0">
-                                                <div class="card-body">
-                                                    <i class="fa-solid fa-upload fa-2x text-primary mb-2"></i>
-                                                    <h6>Ladda upp dokument</h6>
-                                                    <small class="text-muted">Ladda upp PDF:er, Word-dokument och andra filer</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="card border-0">
-                                                <div class="card-body">
-                                                    <i class="fa-solid fa-tags fa-2x text-success mb-2"></i>
-                                                    <h6>Hantera kategorier</h6>
-                                                    <small class="text-muted">Skapa och redigera huvud- och underkategorier</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="card border-0">
-                                                <div class="card-body">
-                                                    <i class="fa-solid fa-users-cog fa-2x text-warning mb-2"></i>
-                                                    <h6>Rollbehˆrigheter</h6>
-                                                    <small class="text-muted">St‰ll in vilka roller som kan se olika kategorier</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                             break;
 
                         case SectionType.MemberLogos:
@@ -262,11 +210,11 @@
                                 <div class="card-body">
                                     <div class="alert alert-info mb-3">
                                         <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Status:</strong> Medlemslogotyper visas automatiskt pÂ denna sida n‰r sektionen ‰r aktiverad.
+                                        <strong>Status:</strong> Medlemslogotyper visas automatiskt p√• denna sida n√§r sektionen √§r aktiverad.
                                     </div>
                                     <p class="text-muted mb-3">
-                                        Sektionen "VÂra medlemmar" kommer att visas pÂ sidan med alla aktiva medlemslogotyper.
-                                        Fˆr att hantera vilka logotyper som ska visas, deras ordning och beskrivningar, anv‰nd hanteringssidan nedan.
+                                        Sektionen "V√•ra medlemmar" kommer att visas p√• sidan med alla aktiva medlemslogotyper.
+                                        F√∂r att hantera vilka logotyper som ska visas, deras ordning och beskrivningar, anv√§nd hanteringssidan nedan.
                                     </p>
                                     <div class="d-flex gap-2">
                                         <a href="/admin/memberlogos" class="btn btn-primary">
@@ -274,6 +222,28 @@
                                             Hantera medlemslogotyper
                                         </a>
                                     </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DocumentSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Dokumentsektion</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-file me-2"></i>
+                                        <strong>Status:</strong> Dokumentsektionen visar en l√§nk till dokumentsidan.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Dokumentsektionen visar en l√§nk till dokumentsidan d√§r anv√§ndare kan hitta
+                                        relevanta dokument och filer.
+                                    </p>
+                                    <a href="/admin/dokument" class="btn btn-primary">
+                                        <i class="fa-solid fa-file me-1"></i>
+                                        Hantera dokument
+                                    </a>
                                 </div>
                             </div>
                             break;
@@ -285,7 +255,6 @@
 </div>
 
 @code {
-    private PageContentViewModel pageContent = new();
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
@@ -300,30 +269,21 @@
     {
         try
         {
-            pageContent = await Cms.GetPageContentAsync("dokument") ?? new PageContentViewModel
-            {
-                PageKey = "dokument",
-                Title = "Dokument",
-                HtmlContent = "",
-                LastModified = DateTime.Now,
-                Images = new List<PageImageViewModel>()
-            };
-
             // Ladda alla sektionsdata
-            introSection = await Cms.GetIntroSectionAsync("dokument");
-            featureSections = await Cms.GetFeatureSectionsAsync("dokument");
-            faqSections = await Cms.GetFaqSectionsAsync("dokument");
+            introSection = await Cms.GetIntroSectionAsync("medlemsnytt");
+            featureSections = await Cms.GetFeatureSectionsAsync("medlemsnytt");
+            faqSections = await Cms.GetFaqSectionsAsync("medlemsnytt");
             
             // Ladda sektionskonfiguration
-            sectionConfigItems = await Cms.GetPageSectionConfigAsync("dokument");
+            sectionConfigItems = await Cms.GetPageSectionConfigAsync("medlemsnytt");
 
-            // S‰kerst‰ll att vi har innehÂll fˆr sektioner
+            // S√§kerst√§ll att vi har inneh√•ll f√∂r sektioner
             await EnsureDefaultContent();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid laddning av innehÂll fˆr Dokument admin");
-            await Toast.Error("Ett fel intr‰ffade vid laddning av innehÂllet.");
+            Logger.LogError(ex, "Fel vid laddning av inneh√•ll f√∂r Medlemsnytt admin");
+            await Toast.Error("Ett fel intr√§ffade vid laddning av inneh√•llet.");
             await SetFallbackContent();
         }
         finally
@@ -334,16 +294,27 @@
 
     private Task EnsureDefaultContent()
     {
-        // S‰kerst‰ll att vi har feature-sektioner om de ‰r aktiverade
+        // S√§tt standardv√§rden f√∂r introsektionen om den √§r tom
+        if (string.IsNullOrEmpty(introSection.Title))
+        {
+            introSection.Title = "F√∂r medlemmar";
+            introSection.Content = @"<p>H√§r hittar du de senaste uppdateringarna och nyheterna om KronoX och konsortiet.</p>
+                                    <p>Vill du l√§sa mer om Konsortiets medlemmar och hur de arbetar med KronoX hittar du det under <strong>Hur vi arbetar med KronoX</strong>.</p>
+                                    <p>Letar du efter kontaktuppgifter till medlemmarna finns det under <strong>Om konsortiet</strong>.</p>
+                                    <p>S√∂ker du information om handhavande/anv√§ndarinstruktioner f√∂r schemasystemet, hittar du det i <strong>Manualen</strong>.</p>";
+            introSection.BreadcrumbTitle = "MEDLEMSNYTT";
+        }
+
+        // S√§kerst√§ll att vi har feature-sektioner om de √§r aktiverade
         if (sectionConfigItems.Any(s => s.Type == SectionType.FeatureSections && s.IsEnabled) && 
             featureSections.Count == 0)
         {
             featureSections.Add(new FeatureSectionViewModel
             {
                 Id = 0,
-                PageKey = "dokument",
-                Title = "Dokumenthantering",
-                Content = "<p>L‰gg till innehÂll h‰r...</p>",
+                PageKey = "medlemsnytt",
+                Title = "Information f√∂r medlemmar",
+                Content = "<p>L√§gg till inneh√•ll h√§r...</p>",
                 ImageUrl = "",
                 ImageAltText = "",
                 HasImage = false,
@@ -351,23 +322,23 @@
             });
         }
 
-        // S‰kerst‰ll att vi har FAQ-sektioner om de ‰r aktiverade
+        // S√§kerst√§ll att vi har FAQ-sektioner om de √§r aktiverade
         if (sectionConfigItems.Any(s => s.Type == SectionType.FaqSections && s.IsEnabled) && 
             faqSections.Count == 0)
         {
             faqSections.Add(new FaqSectionViewModel
             {
                 Id = 0,
-                PageKey = "dokument",
-                Title = "Vanliga frÂgor om dokument",
-                Description = "H‰r hittar du svar pÂ vanliga frÂgor om dokumenthantering",
+                PageKey = "medlemsnytt",
+                Title = "Vanliga fr√•gor f√∂r medlemmar",
+                Description = "H√§r hittar du svar p√• vanliga fr√•gor fr√•n medlemmar",
                 SortOrder = 0,
                 FaqItems = new List<FaqItemViewModel>
                 {
                     new FaqItemViewModel
                     {
-                        Question = "Hur laddar jag upp dokument?",
-                        Answer = "<p>Anv‰nd dokumenthanteringsmodulen fˆr att ladda upp nya dokument.</p>",
+                        Question = "Hur f√•r jag tillg√•ng till medlemsomr√•det?",
+                        Answer = "<p>Kontakta din kontaktperson f√∂r att f√• tillg√•ng.</p>",
                         SortOrder = 0
                     }
                 }
@@ -381,12 +352,13 @@
     {
         introSection = new IntroSectionViewModel
         {
-            Title = "Dokument",
-            Content = "<p>Dokumenthantering fˆr KronoX</p>"
+            Title = "F√∂r medlemmar",
+            Content = "<p>Information f√∂r konsortiemedlemmar</p>",
+            BreadcrumbTitle = "MEDLEMSNYTT"
         };
         featureSections = new List<FeatureSectionViewModel>();
         faqSections = new List<FaqSectionViewModel>();
-        sectionConfigItems = await Cms.GetPageSectionConfigAsync("dokument");
+        sectionConfigItems = await Cms.GetPageSectionConfigAsync("medlemsnytt");
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -402,14 +374,14 @@
     {
         try
         {
-            // Global rensning endast en gÂng
+            // Global rensning endast en g√•ng
             await JS.InvokeVoidAsync("destroyAllEditors");
             await Task.Delay(300);
 
             StateHasChanged();
             await Task.Delay(200);
 
-            // Initiera varje komponents editorer separat
+            // Initiera editorer f√∂r alla komponenter
             var initializationTasks = new List<Task>();
 
             // Intro-editor
@@ -432,10 +404,10 @@
                 initializationTasks.Add(faqManagerRef.InitializeEditorsOnly());
             }
 
-            // V‰nta pÂ att alla editorer initialiseras parallellt
+            // V√§nta p√• att alla editorer initialiseras parallellt
             await Task.WhenAll(initializationTasks);
 
-            Logger.LogInformation("Alla editorer initialiserade framgÂngsrikt");
+            Logger.LogInformation("Editorer initialiserade framg√•ngsrikt f√∂r medlemsnytt");
         }
         catch (Exception ex)
         {
@@ -451,7 +423,7 @@
             if (elementExists)
             {
                 await JS.InvokeVoidAsync("initTinyMCE", "intro-editor");
-                Logger.LogInformation("Intro-editor initialiserad");
+                Logger.LogInformation("Intro-editor initialiserad f√∂r medlemsnytt");
             }
         }
         catch (Exception ex)
@@ -489,7 +461,7 @@
         await EnsureDefaultContent();
         StateHasChanged();
         
-        // L‰ngre fˆrdrˆjning fˆr DOM-uppdatering
+        // L√§ngre f√∂rdr√∂jning f√∂r DOM-uppdatering
         await Task.Delay(500);
         await InitializeEditors();
     }
@@ -498,7 +470,7 @@
     {
         try
         {
-            var success = await Cms.SavePageSectionConfigAsync("dokument", configItems);
+            var success = await Cms.SavePageSectionConfigAsync("medlemsnytt", configItems);
             if (success)
             {
                 sectionConfigItems = configItems;
@@ -513,7 +485,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid sparning av sektionskonfiguration");
-            await Toast.Error("Ett ov‰ntat fel intr‰ffade");
+            await Toast.Error("Ett ov√§ntat fel intr√§ffade");
         }
     }
 
@@ -540,32 +512,27 @@
             // Spara intro-sektion om aktiverad
             if (activeSections.Any(s => s.Type == SectionType.Intro))
             {
-                await Cms.SaveIntroSectionAsync("dokument", introSection);
+                await Cms.SaveIntroSectionAsync("medlemsnytt", introSection);
             }
 
             // Spara feature-sektioner om aktiverade
             if (activeSections.Any(s => s.Type == SectionType.FeatureSections))
             {
-                await Cms.SaveFeatureSectionsAsync("dokument", featureSections);
+                await Cms.SaveFeatureSectionsAsync("medlemsnytt", featureSections);
             }
 
             // Spara FAQ-sektioner om aktiverade
             if (activeSections.Any(s => s.Type == SectionType.FaqSections))
             {
-                await Cms.SaveFaqSectionsAsync("dokument", faqSections);
-            }
-            else
-            {
-                // Ta bort FAQ-sektioner om de ‰r inaktiverade
-                await Cms.DeleteFaqSectionsAsync("dokument");
+                await Cms.SaveFaqSectionsAsync("medlemsnytt", faqSections);
             }
 
-            await Toast.Success("InnehÂllet har sparats framgÂngsrikt!");
+            await Toast.Success("Inneh√•llet har sparats framg√•ngsrikt!");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid sparning av innehÂll fˆr Dokument");
-            await Toast.Error("Ett fel intr‰ffade vid sparning av innehÂllet.");
+            Logger.LogError(ex, "Fel vid sparning av inneh√•ll f√∂r Medlemsnytt");
+            await Toast.Error("Ett fel intr√§ffade vid sparning av inneh√•llet.");
         }
         finally
         {
@@ -573,19 +540,10 @@
         }
     }
 
-    // Event handlers fˆr olika sektioner
+    // Event handlers f√∂r olika sektioner
     private async Task OnBannerUploaded(PageImageViewModel? img)
     {
-        try
-        {
-            pageContent = await Cms.GetPageContentAsync("dokument") ?? new PageContentViewModel();
-            await Toast.Success("Bannerbild uppdaterad!");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Kunde inte ladda om pageContent efter bannerbild‰ndring");
-            await Toast.Error("Bannerbilden laddades upp men sidan kunde inte uppdateras.");
-        }
+        await Toast.Success("Bannerbild uppdaterad!");
         StateHasChanged();
     }
 
@@ -595,7 +553,7 @@
         {
             try
             {
-                var imageUrl = await Cms.UploadImageAsync(e.File, "dokument");
+                var imageUrl = await Cms.UploadImageAsync(e.File, "medlemsnytt");
                 introSection.ImageUrl = imageUrl;
                 introSection.HasImage = true;
                 await Toast.Success("Introbild uppladdad!");
@@ -614,13 +572,43 @@
         introSection.ImageAltText = "";
     }
 
+    private async Task SaveIntroSection()
+    {
+        try
+        {
+            // Synkronisera f√∂rst
+            await SyncIntroEditor();
+            
+            await Cms.SaveIntroSectionAsync("medlemsnytt", introSection);
+            await Toast.Success("Intro-sektion har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av intro-sektion");
+            await Toast.Error("Fel vid sparande av intro-sektion");
+        }
+    }
+
+    private Task OnShowNavigationButtonsChanged(bool value)
+    {
+        introSection.ShowNavigationButtons = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnNavigationButtonsChanged()
+    {
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    // Event handlers f√∂r feature-sektioner
     private async Task OnFeatureImageUploaded(FeatureSectionManager.ImageUploadInfo info)
     {
         if (info.File != null && info.Section != null)
         {
             try
             {
-                var imageUrl = await Cms.UploadImageAsync(info.File, "dokument");
+                var imageUrl = await Cms.UploadImageAsync(info.File, "medlemsnytt");
                 info.Section.ImageUrl = imageUrl;
                 info.CloseModal?.Invoke();
                 await Toast.Success("Feature-bild uppladdad!");
@@ -633,13 +621,17 @@
         }
     }
 
+    private void OnFeatureSectionsChanged() { }
+    private void OnFeatureImageDeleted(FeatureSectionManager.ImageDeleteInfo info) { }
+
+    // Event handlers f√∂r FAQ-sektioner
     private async Task OnFaqImageUploaded(FaqManager.FaqImageUploadInfo info)
     {
         if (info.File != null && info.Item != null)
         {
             try
             {
-                var imageUrl = await Cms.UploadImageAsync(info.File, "dokument");
+                var imageUrl = await Cms.UploadImageAsync(info.File, "medlemsnytt");
                 info.Item.ImageUrl = imageUrl;
                 await Toast.Success("FAQ-bild uppladdad!");
             }
@@ -651,50 +643,5 @@
         }
     }
 
-    // ÷vriga event handlers
-    private async Task SavePageContent()
-    {
-        try
-        {
-            await Cms.SavePageContentAsync("dokument", pageContent);
-            await Toast.Success("Sidans titel har sparats!");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid sparande av sidtitel");
-            await Toast.Error("Fel vid sparande av sidtitel");
-        }
-    }
-
-    private async Task SaveIntroSection()
-    {
-        try
-        {
-            // Synkronisera fˆrst
-            await SyncIntroEditor();
-            
-            await Cms.SaveIntroSectionAsync("dokument", introSection);
-            await Toast.Success("Intro-sektion har sparats!");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid sparande av intro-sektion");
-            await Toast.Error("Fel vid sparande av intro-sektion");
-        }
-    }
-
-    private void OnFeatureSectionsChanged() { }
-    private void OnFeatureImageDeleted(FeatureSectionManager.ImageDeleteInfo info) { }
     private void OnFaqSectionsChanged() { }
-    private Task OnShowNavigationButtonsChanged(bool value)
-    {
-        introSection.ShowNavigationButtons = value;
-        return Task.CompletedTask;
-    }
-
-    private Task OnNavigationButtonsChanged()
-    {
-        StateHasChanged();
-        return Task.CompletedTask;
-    }
 }

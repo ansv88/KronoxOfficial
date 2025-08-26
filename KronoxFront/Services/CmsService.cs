@@ -1350,7 +1350,21 @@ public class CmsService
                     new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 6 }
                 });
                 break;
-                
+
+            case "medlemsnytt":
+                defaultSections.AddRange(new[]
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = false, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = false, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 4 },
+                    new SectionConfigItem { Type = SectionType.NewsSection, IsEnabled = true, SortOrder = 5 },
+                    new SectionConfigItem { Type = SectionType.DocumentSection, IsEnabled = false, SortOrder = 6 },
+                    new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 7 }
+                });
+                break;
+
             default:
                 // Standardsektioner för alla andra sidor
                 defaultSections.AddRange(new[]

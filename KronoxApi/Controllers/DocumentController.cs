@@ -1,9 +1,9 @@
 ﻿using KronoxApi.Attributes;
 using KronoxApi.Data;
+using KronoxApi.DTOs;
 using KronoxApi.Models;
 using KronoxApi.Requests;
 using KronoxApi.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -92,6 +92,26 @@ public class DocumentController : ControllerBase
         {
             var allDocuments = await _db.Documents
                 .Include(d => d.MainCategory)
+                .Select(d => new DocumentDto
+                {
+                    Id = d.Id,
+                    FileName = d.FileName,
+                    FilePath = d.FilePath,
+                    UploadedAt = d.UploadedAt,
+                    FileSize = d.FileSize,
+                    MainCategoryId = d.MainCategoryId,
+                    SubCategories = d.SubCategories,
+                    IsArchived = d.IsArchived,
+                    ArchivedAt = d.ArchivedAt,
+                    ArchivedBy = d.ArchivedBy,
+                    MainCategory = new MainCategoryDto
+                    {
+                        Id = d.MainCategory.Id,
+                        Name = d.MainCategory.Name,
+                        AllowedRoles = d.MainCategory.AllowedRoles,
+                        IsActive = d.MainCategory.IsActive
+                    }
+                })
                 .ToListAsync();
 
             return Ok(allDocuments);
@@ -118,6 +138,26 @@ public class DocumentController : ControllerBase
             {
                 var allDocuments = await _db.Documents
                     .Include(d => d.MainCategory)
+                    .Select(d => new DocumentDto
+                    {
+                        Id = d.Id,
+                        FileName = d.FileName,
+                        FilePath = d.FilePath,
+                        UploadedAt = d.UploadedAt,
+                        FileSize = d.FileSize,
+                        MainCategoryId = d.MainCategoryId,
+                        SubCategories = d.SubCategories,
+                        IsArchived = d.IsArchived,
+                        ArchivedAt = d.ArchivedAt,
+                        ArchivedBy = d.ArchivedBy,
+                        MainCategory = new MainCategoryDto
+                        {
+                            Id = d.MainCategory.Id,
+                            Name = d.MainCategory.Name,
+                            AllowedRoles = d.MainCategory.AllowedRoles,
+                            IsActive = d.MainCategory.IsActive
+                        }
+                    })
                     .ToListAsync();
                 return Ok(allDocuments);
             }
@@ -125,11 +165,31 @@ public class DocumentController : ControllerBase
             // Hämta kategorier som användaren har tillgång till
             var accessibleCategoryIds = await _roleValidationService.GetAccessibleCategoryIdsAsync(userRoles);
 
-            // Filtrera dokument baserat på kategoriroller
+            // Filtrera dokument baserat på kategoriroller och mappa till DTO
             var accessibleDocuments = await _db.Documents
                 .Include(d => d.MainCategory)
                 .Where(d => !d.IsArchived && 
                            accessibleCategoryIds.Contains(d.MainCategoryId))
+                .Select(d => new DocumentDto
+                {
+                    Id = d.Id,
+                    FileName = d.FileName,
+                    FilePath = d.FilePath,
+                    UploadedAt = d.UploadedAt,
+                    FileSize = d.FileSize,
+                    MainCategoryId = d.MainCategoryId,
+                    SubCategories = d.SubCategories,
+                    IsArchived = d.IsArchived,
+                    ArchivedAt = d.ArchivedAt,
+                    ArchivedBy = d.ArchivedBy,
+                    MainCategory = new MainCategoryDto
+                    {
+                        Id = d.MainCategory.Id,
+                        Name = d.MainCategory.Name,
+                        AllowedRoles = d.MainCategory.AllowedRoles,
+                        IsActive = d.MainCategory.IsActive
+                    }
+                })
                 .ToListAsync();
 
             return Ok(accessibleDocuments);

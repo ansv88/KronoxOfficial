@@ -4,6 +4,7 @@ using KronoxApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KronoxApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250822202323_AddNewsManagement")]
+    partial class AddNewsManagement
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -474,39 +477,6 @@ namespace KronoxApi.Migrations
                     b.ToTable("MemberLogos");
                 });
 
-            modelBuilder.Entity("KronoxApi.Models.NewsDocument", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DisplayName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("DocumentId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("NewsId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("NewsId", "DocumentId")
-                        .IsUnique();
-
-                    b.ToTable("NewsDocuments");
-                });
-
             modelBuilder.Entity("KronoxApi.Models.NewsModel", b =>
                 {
                     b.Property<int>("Id")
@@ -514,6 +484,10 @@ namespace KronoxApi.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Author")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Content")
                         .IsRequired()
@@ -795,25 +769,6 @@ namespace KronoxApi.Migrations
                     b.Navigation("FaqSection");
                 });
 
-            modelBuilder.Entity("KronoxApi.Models.NewsDocument", b =>
-                {
-                    b.HasOne("KronoxApi.Models.Document", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("KronoxApi.Models.NewsModel", "News")
-                        .WithMany("NewsDocuments")
-                        .HasForeignKey("NewsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Document");
-
-                    b.Navigation("News");
-                });
-
             modelBuilder.Entity("KronoxApi.Models.PageImage", b =>
                 {
                     b.HasOne("KronoxApi.Models.ContentBlock", "ContentBlock")
@@ -890,11 +845,6 @@ namespace KronoxApi.Migrations
             modelBuilder.Entity("KronoxApi.Models.MainCategory", b =>
                 {
                     b.Navigation("Documents");
-                });
-
-            modelBuilder.Entity("KronoxApi.Models.NewsModel", b =>
-                {
-                    b.Navigation("NewsDocuments");
                 });
 #pragma warning restore 612, 618
         }

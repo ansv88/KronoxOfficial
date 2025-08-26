@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using KronoxFront.DTOs;
 using KronoxFront.ViewModels;
 using KronoxFront.Requests;
+using KronoxFront.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace KronoxFront.Services;
@@ -19,13 +20,63 @@ public class DocumentService
         _logger = logger;
     }
 
-    // Hämtar alla dokument (endast admin)
-    public Task<List<DocumentViewModel>> GetDocumentsAsync()
-    => _http.GetFromJsonAsync<List<DocumentViewModel>>("api/documents")!;
+    // Hämtar alla dokument (endast admin) med korrekt DTO-mappning
+    public async Task<List<DocumentViewModel>> GetDocumentsAsync()
+    {
+        try
+        {
+            var documentDtos = await _http.GetFromJsonAsync<List<DocumentDto>>("api/documents");
+            return documentDtos?.ToViewModels() ?? new List<DocumentViewModel>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av alla dokument");
+            return new List<DocumentViewModel>();
+        }
+    }
 
-    // **NYCKELMETHOD** - Hämtar dokument baserat på användarens roller
-    public Task<List<DocumentViewModel>> GetAccessibleDocumentsAsync()
-        => _http.GetFromJsonAsync<List<DocumentViewModel>>("api/documents/accessible")!;
+    // **NYCKELMETHOD** - Hämtar dokument baserat på användarens roller med korrekt mappning
+    public async Task<List<DocumentViewModel>> GetAccessibleDocumentsAsync()
+    {
+        try
+        {
+            var documentDtos = await _http.GetFromJsonAsync<List<DocumentDto>>("api/documents/accessible");
+            var viewModels = documentDtos?.ToViewModels() ?? new List<DocumentViewModel>();
+            
+            _logger.LogInformation("Hämtade {Count} tillgängliga dokument från API", viewModels.Count);
+            
+            // Debug-loggning för att kontrollera rolldata
+            foreach (var vm in viewModels.Take(3)) // Logga bara första 3 för att undvika spam
+            {
+                _logger.LogInformation("Dokument {FileName}: Kategori {CategoryName}, Roller: {Roles}", 
+                    vm.FileName, 
+                    vm.MainCategoryDto.Name, 
+                    string.Join(", ", vm.MainCategoryDto.AllowedRoles));
+            }
+            
+            return viewModels;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av tillgängliga dokument");
+            return new List<DocumentViewModel>();
+        }
+    }
+
+    // Hämtar dokument kopplade till en specifik kategori med korrekt mappning
+    public async Task<List<DocumentViewModel>> GetDocumentsByCategoryAsync(int categoryId)
+    {
+        try
+        {
+            var documentDtos = await _http.GetFromJsonAsync<List<DocumentDto>>($"api/documents/by-maincategory/{categoryId}");
+            return documentDtos?.ToViewModels() ?? new List<DocumentViewModel>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av dokument för kategori {CategoryId}", categoryId);
+            return new List<DocumentViewModel>();
+        }
+    }
 
     // Laddar upp ett nytt dokument med tillhörande huvudkategorier.
     public async Task<bool> UploadDocumentAsync(IBrowserFile file, int mainCategoryId, List<SubCategoryDto> subCategoryIds)
@@ -130,10 +181,4 @@ public class DocumentService
             return null;
         }
     }
-
-    // Hämtar dokument kopplade till en specifik kategori (kontrollerar åtkomst per kategori).
-    public Task<List<DocumentViewModel>> GetDocumentsByCategoryAsync(int categoryId)
-        => _http.GetFromJsonAsync<List<DocumentViewModel>>(
-               $"api/documents/by-maincategory/{categoryId}"
-           )!;
 }
