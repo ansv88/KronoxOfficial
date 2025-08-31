@@ -281,7 +281,7 @@ public class AdminController : ControllerBase
     }
 
 
-    // Tar bort en registreringsförfrågan (användare med rollen "Ny användare") och skickar ett avslagsmeddelande via e-post
+    // Tar bort en registreringsförfrågan (användare med rollen "Ny användare")
     [HttpDelete("registration-request/{userName}")]
     public async Task<IActionResult> DeleteRegistrationRequest(string userName)
     {
@@ -303,21 +303,6 @@ public class AdminController : ControllerBase
             // Spara e-postadress och namn innan vi tar bort användaren
             string userEmail = user.Email;
             string firstName = user.FirstName;
-
-            // Skicka e-post om avslag
-            try
-            {
-                var subject = _emailTemplates.AccountRejectedSubject;
-                var body = _emailTemplates.AccountRejectedBody
-                    .Replace("{FirstName}", firstName);
-
-                await _emailService.SendEmailAsync(userEmail, subject, body);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ett fel inträffade vid e-postutskick till {Email}", userEmail);
-                // Fortsätt utan att returnera fel - e-post är inte kritiskt för operationen
-            }
 
             // Radera användaren från systemet
             var result = await _userManager.DeleteAsync(user);

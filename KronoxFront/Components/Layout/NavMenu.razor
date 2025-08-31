@@ -166,7 +166,20 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="password-input">Lösenord</label>
-                            <input id="password-input" type="password" class="form-control" name="password" required />
+                            <div class="input-group">
+                                <input id="password-input" 
+                                       type="@(showPassword ? "text" : "password")" 
+                                       class="form-control" 
+                                       name="password" 
+                                       required />
+                                <button type="button" 
+                                        class="btn btn-outline-secondary" 
+                                        @onclick="TogglePasswordVisibility"
+                                        aria-label="@(showPassword ? "Dölj lösenord" : "Visa lösenord")"
+                                        tabindex="-1">
+                                    <i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -231,6 +244,7 @@
     private bool showLogout;
     private string? loginErrorMessage;
     private string? returnUrl;
+    private bool showPassword = false;
 
     protected override void OnInitialized()
     {
@@ -267,8 +281,9 @@
         modalState = !modalState;
         if (!modalState)
         {
-            // Återställ felmeddelande när modal stängs
+            // Återställ felmeddelande och lösenordsvisning när modal stängs
             loginErrorMessage = null;
+            showPassword = false;
         }
     }
 
@@ -281,5 +296,10 @@
             "unauthorized" => "Du har inte behörighet att logga in.",
             _ => "Ett fel uppstod vid inloggning. Försök igen."
         };
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
     }
 }

@@ -1365,6 +1365,20 @@ public class CmsService
                 });
                 break;
 
+            case "forvaltning":
+                defaultSections.AddRange(new[]
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = false, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.ActionPlanTable, IsEnabled = true, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.DevelopmentSuggestionForm, IsEnabled = true, SortOrder = 4 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = false, SortOrder = 5 },
+                    new SectionConfigItem { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 6 },
+                    new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 7 }
+                });
+                break;
+
             default:
                 // Standardsektioner för alla andra sidor
                 defaultSections.AddRange(new[]
@@ -1716,6 +1730,82 @@ public class CmsService
         {
             _logger.LogError(ex, "Fel vid ändring av aktivstatus för e-postlista");
             return false;
+        }
+    }
+
+    // ---------------------------------------------------
+    // HANDLINGSPLANER
+    // ---------------------------------------------------
+    public async Task<ActionPlanTableViewModel> GetActionPlanAsync(string pageKey)
+    {
+        try
+        {
+            var response = await _http.GetAsync($"api/actionplan/{pageKey}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var dto = JsonSerializer.Deserialize<ActionPlanTableDto>(json, _jsonOptions);
+                
+                return new ActionPlanTableViewModel
+                {
+                    Id = dto?.Id ?? 0,
+                    PageKey = pageKey,
+                    LastModified = dto?.LastModified ?? DateTime.Now,
+                    Items = dto?.Items?.Select(i => new ActionPlanItem
+                    {
+                        Id = i.Id,
+                        Priority = i.Priority,
+                        Module = i.Module,
+                        Activity = i.Activity,
+                        PlannedDelivery = i.PlannedDelivery,
+                        Completed = i.Completed,
+                        SortOrder = i.SortOrder
+                    }).ToList() ?? new List<ActionPlanItem>()
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av handlingsplan för {PageKey}", pageKey);
+        }
+
+        return new ActionPlanTableViewModel { PageKey = pageKey, Items = new List<ActionPlanItem>() };
+    }
+
+    public async Task SaveActionPlanAsync(string pageKey, ActionPlanTableViewModel actionPlan)
+    {
+        try
+        {
+            var dto = new ActionPlanTableDto
+            {
+                Id = actionPlan.Id,
+                PageKey = pageKey,
+                LastModified = DateTime.Now,
+                Items = actionPlan.Items.Select(i => new ActionPlanItemDto
+                {
+                    Id = i.Id,
+                    Priority = i.Priority,
+                    Module = i.Module,
+                    Activity = i.Activity,
+                    PlannedDelivery = i.PlannedDelivery,
+                    Completed = i.Completed,
+                    SortOrder = i.SortOrder
+                }).ToList()
+            };
+
+            var response = await _http.PutAsJsonAsync($"api/actionplan/{pageKey}", dto);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"Failed to save action plan: {response.StatusCode}");
+            }
+
+            _logger.LogInformation("Handlingsplan sparad för {PageKey}", pageKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid sparning av handlingsplan för {PageKey}", pageKey);
+            throw;
         }
     }
 }

@@ -60,6 +60,9 @@ public static class ContentSeed
             // Seeda FAQ-sektioner för Om systemet
             await SeedFaqSectionsAsync(serviceProvider, logger);
 
+            // Seeda förvaltningssidan
+            await SeedForvaltningIntroSectionAsync(serviceProvider, logger);
+
             // Seeda kontaktsida
             await SeedKontaktaossAsync(serviceProvider, logger);
 
@@ -73,6 +76,188 @@ public static class ContentSeed
         {
             logger.LogError(ex, "Ett fel uppstod vid initiering av innehåll.");
             throw;
+        }
+    }
+
+    // Returnerar intro-sektion för förvaltningssidan.
+    private static dynamic GetForvaltningIntroSection()
+    {
+        return new
+        {
+            title = "Handlingsplan och utvecklingsförslag",
+            content = @"<p>Här finns konsortiets handlingsplan (road map) för 2024 och framåt. Denna uppdateras löpande.</p>
+                       <p>Sist på sidan hittar du också ett formulär för utvecklingsförslag, där du kan du skicka in dina utvecklingsförslag direkt till styrgruppen. Glöm inte att vara tydlig när du beskriver ditt förslag för att undvika missförstånd.</p>",
+            hasImage = false,
+            imageUrl = "",
+            imageAltText = "",
+            breadcrumbTitle = "FÖRVALTNING"
+        };
+    }
+
+    // Seedar eller uppdaterar intro-sektionen för förvaltningssidan.
+    private static async Task SeedForvaltningIntroSectionAsync(IServiceProvider serviceProvider, ILogger logger)
+    {
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var forvaltningContent = await dbContext.ContentBlocks.FirstOrDefaultAsync(c => c.PageKey == "forvaltning");
+            if (forvaltningContent == null)
+            {
+                logger.LogInformation("Skapar ContentBlock för förvaltningssidan...");
+
+                var introSection = GetForvaltningIntroSection();
+
+                var sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "ActionPlanTable", IsEnabled = true, SortOrder = 2 },
+                    new { Type = "DevelopmentSuggestionForm", IsEnabled = true, SortOrder = 3 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                };
+
+                var metadata = JsonSerializer.Serialize(new
+                {
+                    introSection,
+                    sectionConfig,
+                    lastConfigUpdate = DateTime.UtcNow
+                });
+
+                forvaltningContent = new ContentBlock
+                {
+                    PageKey = "forvaltning",
+                    Title = "Förvaltning",
+                    HtmlContent = "<p>Handlingsplan och utvecklingsförslag för KronoX-konsortiet.</p>",
+                    Metadata = metadata,
+                    LastModified = DateTime.UtcNow
+                };
+
+                dbContext.ContentBlocks.Add(forvaltningContent);
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation("Förvaltning ContentBlock har skapats och seedats framgångsrikt.");
+                return;
+            }
+
+            // Kontrollera om intro-sektion redan har anpassats av användare
+            if (!string.IsNullOrEmpty(forvaltningContent.Metadata))
+            {
+                try
+                {
+                    var metadata = JsonDocument.Parse(forvaltningContent.Metadata);
+                    if (metadata.RootElement.TryGetProperty("introSection", out var existingIntro))
+                    {
+                        // Kontrollera om intro-sektionen har anpassningar
+                        bool hasCustomization = existingIntro.TryGetProperty("breadcrumbTitle", out _) ||
+                                               existingIntro.TryGetProperty("showNavigationButtons", out _) ||
+                                               existingIntro.TryGetProperty("navigationButtons", out _);
+
+                        if (hasCustomization)
+                        {
+                            logger.LogInformation("Intro-sektion för förvaltningssidan har redan anpassningar, hoppar över seeding.");
+                            return;
+                        }
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Om JSON är korrupt, fortsätt med seeding
+                }
+            }
+
+            var introSectionData = GetForvaltningIntroSection();
+
+            if (string.IsNullOrEmpty(forvaltningContent.Metadata))
+            {
+                var sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "ActionPlanTable", IsEnabled = true, SortOrder = 2 },
+                    new { Type = "DevelopmentSuggestionForm", IsEnabled = true, SortOrder = 3 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                };
+
+                forvaltningContent.Metadata = JsonSerializer.Serialize(new
+                {
+                    introSection = introSectionData,
+                    sectionConfig,
+                    lastConfigUpdate = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                try
+                {
+                    var metadata = JsonDocument.Parse(forvaltningContent.Metadata);
+                    var root = metadata.RootElement;
+
+                    using var ms = new MemoryStream();
+                    using var writer = new Utf8JsonWriter(ms);
+                    writer.WriteStartObject();
+
+                    bool hasIntroSection = false;
+                    foreach (var property in root.EnumerateObject())
+                    {
+                        if (property.Name == "introSection")
+                        {
+                            hasIntroSection = true;
+                            // Behåll befintlig introSection om den finns
+                            property.WriteTo(writer);
+                        }
+                        else
+                        {
+                            property.WriteTo(writer);
+                        }
+                    }
+
+                    // Lägg till introSection bara om det inte fanns någon
+                    if (!hasIntroSection)
+                    {
+                        writer.WritePropertyName("introSection");
+                        writer.WriteStartObject();
+                        writer.WriteString("title", introSectionData.title);
+                        writer.WriteString("content", introSectionData.content);
+                        writer.WriteBoolean("hasImage", introSectionData.hasImage);
+                        writer.WriteString("imageUrl", introSectionData.imageUrl);
+                        writer.WriteString("imageAltText", introSectionData.imageAltText);
+                        writer.WriteString("breadcrumbTitle", introSectionData.breadcrumbTitle);
+                        writer.WriteEndObject();
+                    }
+
+                    writer.WriteEndObject();
+                    writer.Flush();
+
+                    forvaltningContent.Metadata = Encoding.UTF8.GetString(ms.ToArray());
+                }
+                catch (JsonException)
+                {
+                    // Om JSON är korrupt, skapa ny metadata
+                    var sectionConfig = new[]
+                    {
+                        new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                        new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                        new { Type = "ActionPlanTable", IsEnabled = true, SortOrder = 2 },
+                        new { Type = "DevelopmentSuggestionForm", IsEnabled = true, SortOrder = 3 },
+                        new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
+                    };
+
+                    forvaltningContent.Metadata = JsonSerializer.Serialize(new
+                    {
+                        introSection = introSectionData,
+                        sectionConfig,
+                        lastConfigUpdate = DateTime.UtcNow
+                    });
+                }
+            }
+
+            await dbContext.SaveChangesAsync();
+            logger.LogInformation("Seedade intro-sektion för förvaltningssidan");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Fel vid seeding av intro-sektion för förvaltning");
         }
     }
 
@@ -1474,6 +1659,7 @@ public static class ContentSeed
                         writer.WriteBoolean("hasImage", introSection.hasImage);
                         writer.WriteString("imageUrl", introSection.imageUrl);
                         writer.WriteString("imageAltText", introSection.imageAltText);
+                        writer.WriteString("breadcrumbTitle", introSection.breadcrumbTitle);
                         writer.WriteEndObject();
                     }
 
@@ -1570,7 +1756,7 @@ public static class ContentSeed
                         if (property.Name == "introSection")
                         {
                             hasIntroSection = true;
-                            // VIKTIGT: Behåll befintlig introSection om den finns
+                            // VIKTIGT: Behåll befintlig introSection om den finns istället för att skriva över den
                             property.WriteTo(writer);
                         }
                         else

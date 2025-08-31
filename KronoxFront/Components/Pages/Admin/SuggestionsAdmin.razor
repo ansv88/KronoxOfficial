@@ -1,0 +1,316 @@
+@page "/admin/suggestions"
+@using KronoxFront.ViewModels
+@using KronoxFront.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject ILogger<SuggestionsAdmin> Logger
+@inject AuthenticationStateProvider AuthState
+
+<HeadContent>
+    <meta name="description" content="Hantera utvecklingsförslag från medlemmar" />
+</HeadContent>
+
+<PageTitle>Admin - Utvecklingsförslag</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Hantera utvecklingsförslag</h1>
+                    <p class="text-muted">Utvecklingsförslag inskickade via förvaltningssidan</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="RefreshData">
+                        <i class="fa-solid fa-refresh me-1"></i>
+                        Uppdatera
+                    </button>
+                    <div class="form-check form-switch d-flex align-items-center">
+                        <input class="form-check-input me-2" type="checkbox" id="showProcessed"
+                               @onchange="OnShowProcessedChanged">
+                        <label class="form-check-label" for="showProcessed">
+                            Visa behandlade
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Laddar...</span>
+                    </div>
+                </div>
+            }
+            else if (!suggestions.Any())
+            {
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fa-solid fa-lightbulb fa-3x text-muted mb-3"></i>
+                        <h4>Inga förslag att visa</h4>
+                        <p class="text-muted">
+                            @if (showProcessed)
+                            {
+                                <span>Det finns inga utvecklingsförslag än.</span>
+                            }
+                            else
+                            {
+                                <span>Alla förslag har behandlats. Aktivera "Visa behandlade" för att se alla förslag.</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">
+                                Visar @suggestions.Count förslag
+                                @if (!showProcessed)
+                                {
+                                    <span class="badge bg-warning text-dark ms-2">Obehandlade</span>
+                                }
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    @foreach (var suggestion in suggestions.OrderByDescending(s => s.SubmittedAt))
+                    {
+                        <div class="col-12 mb-4">
+                            <div class="card @(suggestion.IsProcessed ? "border-success" : "border-warning")">
+                                <div class="card-header d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="card-title mb-1">
+                                            <i class="fa-solid fa-lightbulb me-2 @(suggestion.IsProcessed ? "text-success" : "text-warning")"></i>
+                                            @suggestion.Organization
+                                        </h5>
+                                        <small class="text-muted">
+                                            Inlämnad @suggestion.SubmittedAt.ToString("yyyy-MM-dd HH:mm") av @suggestion.Name
+                                        </small>
+                                    </div>
+                                    <div class="d-flex flex-column align-items-end">
+                                        @if (suggestion.IsProcessed)
+                                        {
+                                            <span class="badge bg-success mb-1">Behandlad</span>
+                                            @if (!string.IsNullOrEmpty(suggestion.ProcessedBy) && suggestion.ProcessedAt.HasValue)
+                                            {
+                                                <small class="text-muted">
+                                                    av @suggestion.ProcessedBy, @suggestion.ProcessedAt.Value.ToString("yyyy-MM-dd HH:mm")
+                                                </small>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark mb-1">Obehandlad</span>
+                                            <button class="btn btn-sm btn-success" @onclick="() => MarkAsProcessed(suggestion)">
+                                                <i class="fa-solid fa-check me-1"></i>
+                                                Markera som behandlad
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6 class="fw-bold text-primary">Vad är behovet?</h6>
+                                            <p class="mb-3">@suggestion.Requirement</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6 class="fw-bold text-primary">Vilken effekt/nytta förväntas?</h6>
+                                            <p class="mb-3">@suggestion.ExpectedBenefit</p>
+                                        </div>
+                                    </div>
+                                    
+                                    @if (!string.IsNullOrEmpty(suggestion.AdditionalInfo))
+                                    {
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <h6 class="fw-bold text-primary">Ytterligare information</h6>
+                                                <p class="mb-3">@suggestion.AdditionalInfo</p>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <div class="border-top pt-3 mt-3">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">
+                                                    <strong>Kontaktperson:</strong> @suggestion.Name<br>
+                                                    <strong>E-post:</strong> <a href="mailto:@suggestion.Email">@suggestion.Email</a>
+                                                </small>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-outline-primary btn-sm" 
+                                                            @onclick="() => CopyToClipboard(GetSuggestionText(suggestion))">
+                                                        <i class="fa-solid fa-copy me-1"></i>
+                                                        Kopiera text
+                                                    </button>
+                                                    <a href="mailto:@suggestion.Email?subject=Angående ditt utvecklingsförslag&body=@GetEmailBody(suggestion)" 
+                                                       class="btn btn-outline-secondary btn-sm">
+                                                        <i class="fa-solid fa-envelope me-1"></i>
+                                                        Svara via e-post
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<DevelopmentSuggestionViewModel> suggestions = new();
+    private bool isLoading = true;
+    private bool showProcessed = false;
+    private string currentUser = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        currentUser = authState.User.Identity?.Name ?? "Admin";
+        
+        await LoadSuggestions();
+    }
+
+    private async Task LoadSuggestions()
+    {
+        isLoading = true;
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync($"api/developmentsuggestion?includeProcessed={showProcessed}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var suggestionsData = await response.Content.ReadFromJsonAsync<List<DevelopmentSuggestionViewModel>>();
+                suggestions = suggestionsData ?? new List<DevelopmentSuggestionViewModel>();
+            }
+            else
+            {
+                Logger.LogError("Fel vid hämtning av utvecklingsförslag: {StatusCode}", response.StatusCode);
+                await Toast.Error("Kunde inte ladda utvecklingsförslag");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid hämtning av utvecklingsförslag");
+            await Toast.Error("Ett fel uppstod vid laddning av data");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnShowProcessedChanged(ChangeEventArgs e)
+    {
+        showProcessed = (bool)(e.Value ?? false);
+        await LoadSuggestions();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadSuggestions();
+        await Toast.Success("Data uppdaterad");
+    }
+
+    private async Task MarkAsProcessed(DevelopmentSuggestionViewModel suggestion)
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.PutAsJsonAsync($"api/developmentsuggestion/{suggestion.Id}/process", new { ProcessedBy = currentUser });
+            
+            if (response.IsSuccessStatusCode)
+            {
+                suggestion.IsProcessed = true;
+                suggestion.ProcessedBy = currentUser;
+                suggestion.ProcessedAt = DateTime.Now;
+                
+                await Toast.Success("Förslag markerat som behandlat");
+                
+                // Ta bort från listan om vi inte visar behandlade
+                if (!showProcessed)
+                {
+                    suggestions.Remove(suggestion);
+                }
+                
+                StateHasChanged();
+            }
+            else
+            {
+                Logger.LogError("Fel vid markering som behandlad: {StatusCode}", response.StatusCode);
+                await Toast.Error("Kunde inte markera som behandlad");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid markering som behandlad");
+            await Toast.Error("Ett fel uppstod");
+        }
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            await Toast.Success("Text kopierad till urklipp");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid kopiering till urklipp");
+            await Toast.Error("Kunde inte kopiera text");
+        }
+    }
+
+    private string GetSuggestionText(DevelopmentSuggestionViewModel suggestion)
+    {
+        return $@"UTVECKLINGSFÖRSLAG
+===================
+
+Lärosäte/Organisation: {suggestion.Organization}
+Inlämnad av: {suggestion.Name} ({suggestion.Email})
+Datum: {suggestion.SubmittedAt:yyyy-MM-dd HH:mm}
+
+VAD ÄR BEHOVET?
+{suggestion.Requirement}
+
+VILKEN EFFEKT/NYTTA FÖRVÄNTAS?
+{suggestion.ExpectedBenefit}
+
+YTTERLIGARE INFORMATION:
+{suggestion.AdditionalInfo}
+
+Status: {(suggestion.IsProcessed ? "Behandlad" : "Obehandlad")}";
+    }
+
+    private string GetEmailBody(DevelopmentSuggestionViewModel suggestion)
+    {
+        return Uri.EscapeDataString($@"Hej {suggestion.Name},
+
+Tack för ditt utvecklingsförslag som inlämnades {suggestion.SubmittedAt:yyyy-MM-dd}.
+
+Vi har tagit del av ditt förslag gällande ""{suggestion.Requirement.Substring(0, Math.Min(suggestion.Requirement.Length, 50))}..."" och kommer att behandla det inom ramen för vår utvecklingsprocess.
+
+Med vänliga hälsningar,
+KronoX-teamet");
+    }
+}

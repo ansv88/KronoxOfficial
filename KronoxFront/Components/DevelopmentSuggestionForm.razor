@@ -1,0 +1,176 @@
+﻿@using KronoxFront.ViewModels
+@using KronoxFront.DTOs
+@using KronoxFront.Extensions
+@using Microsoft.AspNetCore.Components.Forms
+@using KronoxFront.Services
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService ToastService
+@inject ILogger<DevelopmentSuggestionForm> Logger
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h3 class="mb-0">Utvecklingsförslag</h3>
+    </div>
+    <div class="card-body">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <h4 class="h5 mb-4 text-center text-muted">Skicka utvecklingsförslag</h4>
+
+                <EditForm Model="@formModel" OnValidSubmit="@SubmitForm">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label for="organization" class="form-label fw-medium">Lärosäte/organisation*</label>
+                        <select id="organization" 
+                                class="form-select contact-form-field border-secondary" 
+                                @bind="formModel.Organization">
+                            <option value="">-- Välj lärosäte/organisation --</option>
+                            <option value="Blekinge Tekniska Högskola">Blekinge Tekniska Högskola</option>
+                            <option value="Göteborgs universitet">Göteborgs universitet</option>
+                            <option value="Högskolan Dalarna">Högskolan Dalarna</option>
+                            <option value="Högskolan i Borås">Högskolan i Borås</option>
+                            <option value="Högskolan i Gävle">Högskolan i Gävle</option>
+                            <option value="Högskolan i Halmstad">Högskolan i Halmstad</option>
+                            <option value="Högskolan i Skövde">Högskolan i Skövde</option>
+                            <option value="Högskolan Kristianstad">Högskolan Kristianstad</option>
+                            <option value="Högskolan Väst">Högskolan Väst</option>
+                            <option value="Karlstads universitet">Karlstads universitet</option>
+                            <option value="Linköpings universitet">Linköpings universitet</option>
+                            <option value="Linnéuniversitetet">Linnéuniversitetet</option>
+                            <option value="Luleå tekniska universitet">Luleå tekniska universitet</option>
+                            <option value="Lunds universitet">Lunds universitet</option>
+                            <option value="Malmö universitet">Malmö universitet</option>
+                            <option value="Mittuniversitetet">Mittuniversitetet</option>
+                            <option value="Mälardalens universitet">Mälardalens universitet</option>
+                            <option value="Örebro universitet">Örebro universitet</option>
+                            <option value="Stockholms universitet">Stockholms universitet</option>
+                            <option value="Annan">Annan</option>
+                        </select>
+                        <ValidationMessage For="() => formModel.Organization" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label fw-medium">Namn*</label>
+                                <InputText id="name" 
+                                           class="form-control contact-form-field border-secondary" 
+                                           @bind-Value="formModel.Name" 
+                                           placeholder="Ditt fullständiga namn" />
+                                <ValidationMessage For="() => formModel.Name" class="text-danger small mt-1" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label fw-medium">E-postadress*</label>
+                                <InputText id="email" 
+                                           type="email" 
+                                           class="form-control contact-form-field border-secondary" 
+                                           @bind-Value="formModel.Email" 
+                                           placeholder="din.epost@organisation.se" />
+                                <ValidationMessage For="() => formModel.Email" class="text-danger small mt-1" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="emailConfirmation" class="form-label fw-medium">E-postadress (bekräftelse)*</label>
+                        <InputText id="emailConfirmation" 
+                                   type="email" 
+                                   class="form-control contact-form-field border-secondary" 
+                                   @bind-Value="formModel.EmailConfirmation" 
+                                   placeholder="Bekräfta din e-postadress" />
+                        <ValidationMessage For="() => formModel.EmailConfirmation" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="requirement" class="form-label fw-medium">Vad är behovet?*</label>
+                        <InputTextArea id="requirement" 
+                                       class="form-control contact-form-field border-secondary" 
+                                       rows="4" 
+                                       @bind-Value="formModel.Requirement"
+                                       placeholder="Beskriv ditt behov eller förslag detaljerat..." />
+                        <ValidationMessage For="() => formModel.Requirement" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="expectedBenefit" class="form-label fw-medium">Vilken effekt/nytta förväntas?*</label>
+                        <InputTextArea id="expectedBenefit" 
+                                       class="form-control contact-form-field border-secondary" 
+                                       rows="4" 
+                                       @bind-Value="formModel.ExpectedBenefit"
+                                       placeholder="Vilken nytta eller effekt kommer detta att ge?" />
+                        <ValidationMessage For="() => formModel.ExpectedBenefit" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="additionalInfo" class="form-label fw-medium">Ytterligare info</label>
+                        <InputTextArea id="additionalInfo" 
+                                       class="form-control contact-form-field border-secondary" 
+                                       rows="3" 
+                                       @bind-Value="formModel.AdditionalInfo"
+                                       placeholder="Övrig information som kan vara relevant..." />
+                        <ValidationMessage For="() => formModel.AdditionalInfo" class="text-danger small mt-1" />
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="d-flex justify-content-center">
+                        <button type="submit" 
+                                class="btn btn-dark btn-lg px-5 py-2 shadow-sm" 
+                                disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <text>Skickar...</text>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-paper-plane me-2"></i>
+                                <text>Skicka förslag</text>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private DevelopmentSuggestionFormViewModel formModel = new();
+    private bool isSubmitting = false;
+
+    private async Task SubmitForm()
+    {
+        isSubmitting = true;
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var dto = formModel.ToCreateDto();
+
+            var response = await httpClient.PostAsJsonAsync("api/developmentsuggestion", dto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await ToastService.Success("Ditt utvecklingsförslag har skickats!");
+                formModel = new DevelopmentSuggestionFormViewModel();
+                StateHasChanged();
+            }
+            else
+            {
+                await ToastService.Error("Ett fel uppstod vid skickande av förslaget. Försök igen.");
+                Logger.LogError("Failed to submit development suggestion: {StatusCode}", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error submitting development suggestion");
+            await ToastService.Error("Ett oväntat fel uppstod. Försök igen senare.");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

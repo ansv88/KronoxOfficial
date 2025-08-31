@@ -102,6 +102,8 @@ public class Program
 
         builder.Services.AddScoped<IRoleValidationService, RoleValidationService>();
 
+        builder.Services.AddScoped<EmailTemplateService>();
+
         builder.Services.ConfigureApplicationCookie(options =>
         {
             // När en icke‐autentiserad träffar [Authorize] på /api/*

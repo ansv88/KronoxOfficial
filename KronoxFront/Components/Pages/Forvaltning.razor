@@ -1,0 +1,221 @@
+﻿@page "/forvaltning"
+@using KronoxFront.ViewModels
+@using KronoxFront.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject CmsService Cms
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+@inject ILogger<Forvaltning> Logger
+
+<HeadContent>
+    <meta name="description" content="Förvaltning av KronoX-systemet. Handlingsplan och utvecklingsförslag för medlemmar." />
+</HeadContent>
+
+<PageTitle>Förvaltning - KronoX</PageTitle>
+<h1 class="visually-hidden">Förvaltning</h1>
+
+@if (loading)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else
+{
+    @* Dynamisk rendering baserat på sektionskonfiguration *@
+    @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
+    {
+        @switch (section.Type)
+        {
+            case SectionType.Banner:
+                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                                IsAdmin="@isAdmin" PageKey="forvaltning" />
+                break;
+
+            case SectionType.Intro:
+                @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                {
+                    <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                }
+                <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+                break;
+
+            case SectionType.NavigationButtons:
+                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                {
+                    <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                }
+                break;
+
+            case SectionType.ActionPlanTable:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
+                    </section>
+                </div>
+                break;
+
+            case SectionType.DevelopmentSuggestionForm:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <DevelopmentSuggestionForm />
+                    </section>
+                </div>
+                break;
+
+            case SectionType.FeatureSections:
+                @if (featureSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin"
+                                                 PageKey="forvaltning" OnImageClick="@ShowImage" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.FaqSections:
+                @if (faqSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FaqAccordion FaqSections="@faqSections" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.MemberLogos:
+                <div class="wrapper-div py-3">
+                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+                </div>
+                break;
+        }
+    }
+
+    <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
+}
+
+@code {
+    private IntroSectionViewModel introSection = new();
+    private List<FeatureSectionViewModel> featureSections = new();
+    private List<FaqSectionViewModel> faqSections = new();
+    private List<SectionConfigItem> sectionConfigurations = new();
+    private ActionPlanTableViewModel actionPlan = new();
+
+    private bool loading = true;
+    private bool isAdmin = false;
+    private string? activeImage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+        loading = true;
+
+        try
+        {
+            await LoadPageContent();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av förvaltningssida");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task LoadPageContent()
+    {
+        try
+        {
+            // Ladda intro-sektion
+            introSection = await Cms.GetIntroSectionAsync("forvaltning");
+
+            // Ladda feature- och FAQ-sektioner
+            featureSections = await Cms.GetFeatureSectionsAsync("forvaltning");
+            faqSections = await Cms.GetFaqSectionsAsync("forvaltning");
+
+            // Ladda handlingsplan
+            actionPlan = await Cms.GetActionPlanAsync("forvaltning");
+
+            // Sätt standardvärden om inget innehåll finns
+            if (string.IsNullOrEmpty(introSection.Title))
+            {
+                introSection.Title = "Handlingsplan och utvecklingsförslag";
+                introSection.Content = @"<p>Här finns konsortiets handlingsplan med utvecklingsförslag för 2024 och framåt. Denna uppdateras löpande.</p>
+                                        <p>Stöt på sidan hittar du också ett formulär för utvecklingsförslag, där du kan skicka in dina
+                                        utvecklingsförslag direkt till systemgruppen. Glöm inte att beskriva ditt förslag för att undvika missförstånd.</p>";
+                introSection.BreadcrumbTitle = "FÖRVALTNING";
+            }
+
+            // Ladda sektionskonfiguration
+            sectionConfigurations = await Cms.GetPageSectionConfigAsync("forvaltning");
+
+            // Om ingen konfiguration finns, skapa standardkonfiguration
+            if (!sectionConfigurations.Any())
+            {
+                Logger.LogWarning("Ingen sektionskonfiguration hittades för förvaltning, skapar fallback");
+                sectionConfigurations = new List<SectionConfigItem>
+                {
+                    new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
+                    new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
+                    new() { Type = SectionType.ActionPlanTable, SortOrder = 2, IsEnabled = true },
+                    new() { Type = SectionType.DevelopmentSuggestionForm, SortOrder = 3, IsEnabled = true },
+                    new() { Type = SectionType.MemberLogos, SortOrder = 4, IsEnabled = true }
+                };
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av sidinnehåll för förvaltning");
+
+            // Fallback-innehåll
+            introSection = new IntroSectionViewModel
+            {
+                Title = "Förvaltning",
+                Content = "<p>Här hittar du handlingsplan och utvecklingsförslag för KronoX.</p>",
+                BreadcrumbTitle = "FÖRVALTNING"
+            };
+
+            // Skapa minimal konfiguration
+            sectionConfigurations = new List<SectionConfigItem>
+            {
+                new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
+                new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
+                new() { Type = SectionType.ActionPlanTable, SortOrder = 2, IsEnabled = true },
+                new() { Type = SectionType.DevelopmentSuggestionForm, SortOrder = 3, IsEnabled = true }
+            };
+        }
+    }
+
+    private string GetHeroBannerUrl()
+    {
+        return "/images/hero/hero_top_klocka_blue-1300x394.jpg";
+    }
+
+    private string GetHeroBannerAlt()
+    {
+        return "Förvaltning bannerbild";
+    }
+
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    private void CloseModal() => activeImage = null;
+}

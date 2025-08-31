@@ -30,5 +30,11 @@ public enum SectionType
     ContactForm = 8,
 
     [Display(Name = "Nyhetssektion")]
-    NewsSection = 9
+    NewsSection = 9,
+
+    [Display(Name = "Handlingsplantabell")]
+    ActionPlanTable = 10,
+
+    [Display(Name = "Utvecklingsförslagformulär")]
+    DevelopmentSuggestionForm = 11
 }

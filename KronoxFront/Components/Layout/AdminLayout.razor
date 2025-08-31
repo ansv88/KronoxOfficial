@@ -1,5 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@layout MainLayout
 @inherits LayoutComponentBase
 @attribute [Authorize(Roles = "Admin")]
 @inject NavigationManager Nav
@@ -24,17 +25,17 @@
                                     <i class="fa-solid fa-gauge me-2"></i> Dashboard
                                 </NavLink>
                             </li>
+                        </ul>
+
+                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                            <span>Redigera publika sidor</span>
+                        </h5>
+                        <ul class="nav flex-column">
                             <li class="nav-item">
                                 <NavLink class="nav-link" href="/admin/home">
                                     <i class="fa-solid fa-house me-2"></i> Startsida
                                 </NavLink>
                             </li>
-                        </ul>
-
-                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                            <span>Publika sidor</span>
-                        </h5>
-                        <ul class="nav flex-column">
                             <li class="nav-item">
                                 <NavLink class="nav-link" href="/admin/omkonsortiet">
                                     <i class="fa-solid fa-info-circle me-2"></i> Om konsortiet
@@ -58,7 +59,7 @@
                         </ul>
 
                         <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                            <span>Interna sidor</span>
+                            <span>Redigera interna sidor</span>
                         </h5>
                         <ul class="nav flex-column">
                             <li class="nav-item">
@@ -77,7 +78,7 @@
                                 </NavLink>
                             </li>
                             <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/page/forvaltning">
+                                <NavLink class="nav-link" href="/admin/forvaltning">
                                     <i class="fa-solid fa-tasks me-2"></i> Förvaltning
                                 </NavLink>
                             </li>
@@ -100,6 +101,15 @@
                             <li class="nav-item">
                                 <NavLink class="nav-link" href="/admin/documents/manage">
                                     <i class="fa-solid fa-file-alt me-2"></i> Hantera dokument
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/admin/suggestions">
+                                    <i class="fa-solid fa-lightbulb me-2"></i> Hantera utvecklingsförslag
+                                    @if (newSuggestionsCount > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1">@newSuggestionsCount</span>
+                                    }
                                 </NavLink>
                             </li>
                             <li class="nav-item">
@@ -149,6 +159,7 @@
 
 @code {
     private int newUserCount = 0;
+    private int newSuggestionsCount = 0;
     private int mainCategoryCount = 0;
     private int subCategoryCount = 0;
 
@@ -156,7 +167,31 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadNewUserCount();
+        await LoadNewSuggestionsCount();
         await LoadCategoryCount();
+    }
+
+    // Hämtar antal nya utvecklingsförslag från API.
+    private async Task LoadNewSuggestionsCount()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var suggestions = await http.GetFromJsonAsync<List<object>>("api/developmentsuggestion?includeProcessed=false");
+            if (suggestions != null)
+            {
+                newSuggestionsCount = suggestions.Count;
+            }
+            else
+            {
+                newSuggestionsCount = 0;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Kunde inte hämta nya utvecklingsförslag från API.");
+            newSuggestionsCount = 0;
+        }
     }
 
     // Hämtar antal huvud- och underkategorier från API.

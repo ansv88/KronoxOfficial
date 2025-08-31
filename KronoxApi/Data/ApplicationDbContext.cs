@@ -25,8 +25,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PostalAddress> PostalAddresses { get; set; } = null!;
     public DbSet<ContactPerson> ContactPersons { get; set; } = null!;
     public DbSet<EmailList> EmailLists { get; set; } = null!;
-
     public DbSet<NewsDocument> NewsDocuments { get; set; } = null!;
+    public DbSet<ActionPlanTable> ActionPlanTables { get; set; }
+    public DbSet<ActionPlanItem> ActionPlanItems { get; set; }
+    public DbSet<DevelopmentSuggestion> DevelopmentSuggestions { get; set; }
 
     // Konfigurerar entiteter och relationer i modellen.
     protected override void OnModelCreating(ModelBuilder builder)
@@ -213,6 +215,41 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasIndex(nd => new { nd.NewsId, nd.DocumentId })
                 .IsUnique();
+        });
+
+        // ActionPlan konfiguration
+        builder.Entity<ActionPlanTable>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PageKey).HasMaxLength(100).IsRequired();
+            entity.HasIndex(e => e.PageKey).IsUnique();
+        });
+
+        builder.Entity<ActionPlanItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Module).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Activity).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.PlannedDelivery).HasMaxLength(100);
+            entity.Property(e => e.Completed).HasMaxLength(100);
+            
+            entity.HasOne(e => e.ActionPlanTable)
+                  .WithMany(t => t.Items)
+                  .HasForeignKey(e => e.ActionPlanTableId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // DevelopmentSuggestion konfiguration
+        builder.Entity<DevelopmentSuggestion>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Organization).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Requirement).HasMaxLength(2000).IsRequired();
+            entity.Property(e => e.ExpectedBenefit).HasMaxLength(2000).IsRequired();
+            entity.Property(e => e.AdditionalInfo).HasMaxLength(2000);
+            entity.Property(e => e.ProcessedBy).HasMaxLength(100);
         });
     }
 }
