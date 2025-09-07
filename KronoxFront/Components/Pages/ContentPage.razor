@@ -2,18 +2,21 @@
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
+@using KronoxFront.Components.Shared
+@using Microsoft.AspNetCore.Components.Authorization
 @inject CmsService Cms
 @inject ILogger<ContentPage> Logger
+@inject AuthenticationStateProvider AuthState
 
 @*
    Dynamisk sidkomponent som visar innehåll baserat på PageKey från CMS.
 *@
 
 <HeadContent>
-    <meta name="description" content="Informationssida inom KronoX. Här hittar du detaljerad information om utvalda ämnen och funktioner." />
+    <meta name="description" content="@(pageContent?.Title ?? "Informationssida inom KronoX")" />
 </HeadContent>
 
-<PageTitle>KronoX - @pageContent.Title</PageTitle>
+<PageTitle>KronoX - @(pageContent?.Title ?? "Sida")</PageTitle>
 
 @if (loading)
 {
@@ -23,73 +26,276 @@
         </div>
     </div>
 }
-else
+else if (pageContent == null)
 {
     <div class="container my-5">
-        <div class="mb-4">
-            <h1>@pageContent.Title</h1>
-            <p class="text-muted">
-                <small>Senast uppdaterad: @pageContent.LastModified.ToString("g")</small>
-            </p>
-        </div>
-
-        @if (pageContent.Images.Any())
-        {
-            <div class="row mb-4">
-                @foreach (var image in pageContent.Images)
-                {
-                    <div class="col-md-4 mb-3">
-                        <img src="@image.Url" alt="@image.AltText" class="img-fluid rounded" />
-                    </div>
-                }
-            </div>
-        }
-
-        <div class="content mb-5">
-            @((MarkupString)pageContent.HtmlContent)
+        <div class="alert alert-warning">
+            <h4>Sidan hittades inte</h4>
+            <p>Det innehåll du söker finns inte tillgängligt.</p>
+            <a href="/" class="btn btn-primary">Tillbaka till startsidan</a>
         </div>
     </div>
+}
+else
+{
+    @* Kontrollera om det är en CustomPage med sektioner *@
+    @if (sectionConfigurations.Any())
+    {
+        @* RENDERERA SEKTIONER FÖR CUSTOMPAGE *@
+        <h1 class="visually-hidden">@pageContent.Title</h1>
+        
+        @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
+        {
+            @switch (section.Type)
+            {
+                case SectionType.Banner:
+                    <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                                    IsAdmin="@isAdmin" PageKey="@PageKey" />
+                    break;
+
+                case SectionType.Intro:
+                    @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                    {
+                        <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                    }
+                    <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+                    break;
+
+                case SectionType.NavigationButtons:
+                    @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                    {
+                        <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                    }
+                    break;
+
+                case SectionType.FeatureSections:
+                    @if (featureSections.Any())
+                    {
+                        <div class="wrapper-div py-3">
+                            <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                                <div style="max-width:800px; margin: 0 auto;">
+                                    <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin" 
+                                                   PageKey="@PageKey" OnImageClick="@ShowImage" />
+                                </div>
+                            </section>
+                        </div>
+                    }
+                    break;
+
+                case SectionType.FaqSections:
+                    @if (faqSections.Any())
+                    {
+                        <div class="wrapper-div py-3">
+                            <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                                <div style="max-width:800px; margin: 0 auto;">
+                                    <FaqAccordion FaqSections="@faqSections" />
+                                </div>
+                            </section>
+                        </div>
+                    }
+                    break;
+
+                case SectionType.MemberLogos:
+                    <div class="wrapper-div py-3">
+                        <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+                    </div>
+                    break;
+
+                case SectionType.DocumentSection:
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <h2>Dokument</h2>
+                                <p>Här hittar du viktiga dokument och information.</p>
+                                <div class="text-center">
+                                    <a href="/dokument" class="btn btn-primary">
+                                        <i class="fa-solid fa-file-alt me-2"></i>
+                                        Visa alla dokument
+                                    </a>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    break;
+
+                case SectionType.NewsSection:
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <h2>Senaste nytt</h2>
+                                <p>Nyhetssektion visas här...</p>
+                            </div>
+                        </section>
+                    </div>
+                    break;
+
+                default:
+                    @* Visa vanligt innehåll för okända sektioner *@
+                    <div class="container my-5">
+                        <div class="content mb-5">
+                            @((MarkupString)pageContent.HtmlContent)
+                        </div>
+                    </div>
+                    break;
+            }
+        }
+
+        <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
+    }
+    else
+    {
+        @* FALLBACK: VISA VANLIGT INNEHÅLL *@
+        <div class="container my-5">
+            <div class="mb-4">
+                <h1>@pageContent.Title</h1>
+                <p class="text-muted">
+                    <small>Senast uppdaterad: @pageContent.LastModified.ToString("g")</small>
+                </p>
+            </div>
+
+            @if (pageContent.Images.Any())
+            {
+                <div class="row mb-4">
+                    @foreach (var image in pageContent.Images)
+                    {
+                        <div class="col-md-4 mb-3">
+                            <img src="@image.Url" alt="@image.AltText" class="img-fluid rounded" />
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="content mb-5">
+                @((MarkupString)pageContent.HtmlContent)
+            </div>
+        </div>
+    }
 }
 
 @code {
     [Parameter]
     public string PageKey { get; set; } = default!;
 
-    private PageContentViewModel pageContent = new();
+    private PageContentViewModel? pageContent;
     private bool loading = true;
+    private bool isAdmin = false;
+    private string? activeImage;
+    
+    // Sektionsdata
+    private IntroSectionViewModel introSection = new();
+    private List<FeatureSectionViewModel> featureSections = new();
+    private List<FaqSectionViewModel> faqSections = new();
+    private List<SectionConfigItem> sectionConfigurations = new();
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+        
+        await LoadPageData();
+    }
+
+    private async Task LoadPageData()
+    {
+        loading = true;
         try
         {
-            var content = await Cms.GetPageContentAsync(PageKey);
+            // Ladda grundläggande sidinnehåll
+            pageContent = await Cms.GetPageContentAsync(PageKey);
 
-            if (content != null)
+            if (pageContent == null)
             {
-                pageContent = content;
-            }
-            else
-            {
+                // Skapa fallback-innehåll
                 pageContent = new PageContentViewModel
-                    {
-                        PageKey = PageKey,
-                        Title = "Sidan hittades inte",
-                        HtmlContent = "<p>Innehållet du söker finns inte tillgängligt.</p>",
-                        LastModified = DateTime.Now,
-                    };
+                {
+                    PageKey = PageKey,
+                    Title = "Sidan hittades inte",
+                    HtmlContent = "<p>Innehållet du söker finns inte tillgängligt.</p>",
+                    LastModified = DateTime.Now,
+                    Images = new List<PageImageViewModel>()
+                };
+                return;
+            }
+
+            // Försök ladda sektionskonfiguration för CustomPages
+            try
+            {
+                sectionConfigurations = await Cms.GetPageSectionConfigAsync(PageKey);
+                
+                // Om vi har sektioner, ladda sektionsdata
+                if (sectionConfigurations.Any(s => s.IsEnabled))
+                {
+                    await LoadSectionData();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte ladda sektionskonfiguration för {PageKey}", PageKey);
+                // Fortsätt med vanligt innehåll
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid hämtning av sidinnehåll för {PageKey}", PageKey);
             pageContent = new PageContentViewModel
-                {
-                    PageKey = PageKey,
-                    Title = "Tekniskt fel",
-                    HtmlContent = "<p>Ett tekniskt fel uppstod vid hämtning av sidan.</p>",
-                    LastModified = DateTime.Now,
-                };
+            {
+                PageKey = PageKey,
+                Title = "Tekniskt fel",
+                HtmlContent = "<p>Ett tekniskt fel uppstod vid hämtning av sidan.</p>",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
         }
-        loading = false;
+        finally
+        {
+            loading = false;
+        }
     }
+
+    private async Task LoadSectionData()
+    {
+        try
+        {
+            // Ladda olika sektionstyper baserat på konfiguration
+            var enabledSections = sectionConfigurations.Where(s => s.IsEnabled).ToList();
+
+            if (enabledSections.Any(s => s.Type == SectionType.Intro))
+            {
+                introSection = await Cms.GetIntroSectionAsync(PageKey);
+            }
+
+            if (enabledSections.Any(s => s.Type == SectionType.FeatureSections))
+            {
+                featureSections = await Cms.GetFeatureSectionsAsync(PageKey);
+            }
+
+            if (enabledSections.Any(s => s.Type == SectionType.FaqSections))
+            {
+                faqSections = await Cms.GetFaqSectionsAsync(PageKey);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av sektionsdata för {PageKey}", PageKey);
+        }
+    }
+
+    private string GetHeroBannerUrl()
+    {
+        var heroBanner = pageContent?.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner?.Url ?? "images/hero/hero_default.jpg";
+    }
+
+    private string GetHeroBannerAlt()
+    {
+        var heroBanner = pageContent?.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
+        return heroBanner != null ? heroBanner.AltText.Substring(5) : pageContent?.Title ?? "Banner";
+    }
+
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    private void CloseModal() => activeImage = null;
 }

@@ -1,0 +1,565 @@
+﻿@page "/admin/{PageKey}"
+@using KronoxFront.ViewModels
+@using KronoxFront.Extensions
+@using KronoxFront.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject CmsService Cms
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject ILogger<CustomPageEditor> Logger
+
+<HeadContent>
+    <meta name="description" content="Redigera innehållet för anpassad sida @PageKey" />
+</HeadContent>
+
+<PageTitle>Admin - Redigera @customPage?.DisplayName</PageTitle>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else if (customPage == null)
+{
+    <div class="container-fluid">
+        <div class="alert alert-danger">
+            <h4>Sidan hittades inte</h4>
+            <p>Den sida du försöker redigera existerar inte eller har tagits bort.</p>
+            <a href="/admin/pages" class="btn btn-primary">Tillbaka till sidhantering</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 class="h3">Redigera "@customPage.DisplayName"</h1>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="/admin">Admin</a></li>
+                                <li class="breadcrumb-item"><a href="/admin/pages">Sidhantering</a></li>
+                                <li class="breadcrumb-item active">@customPage.DisplayName</li>
+                            </ol>
+                        </nav>
+                    </div>
+                    <div class="d-flex flex-column align-items-end">
+                        <div class="d-flex gap-2 mb-2">
+                            <a href="/admin/pages" class="btn btn-outline-secondary">
+                                <i class="fa-solid fa-arrow-left me-1"></i>
+                                Tillbaka
+                            </a>
+                            <a href="@($"/{PageKey}")" class="btn btn-outline-secondary" target="_blank" title="Visar sparade ändringar">
+                                <i class="fa-solid fa-eye me-1"></i>
+                                Visa sparad sida
+                            </a>
+                            <button type="button" class="btn btn-success" @onclick="SaveContent" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                else
+                                {
+                                    <i class="fa-solid fa-save me-1"></i>
+                                }
+                                Spara allt innehåll
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fa-solid fa-info-circle me-1"></i>
+                            För att se dina ändringar, spara först och klicka sedan på "Visa sparad sida"
+                        </small>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mb-4">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">
+                                <i class="fa-solid fa-info-circle me-2"></i>
+                                Sidinformation
+                            </h6>
+                            <div class="row small">
+                                <div class="col-sm-6">
+                                    <strong>URL:</strong> /@PageKey<br>
+                                    <strong>Typ:</strong> @GetNavigationTypeText(customPage.NavigationType)
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Status:</strong> @(customPage.IsActive ? "Aktiv" : "Inaktiv")<br>
+                                    <strong>I navigation:</strong> @(customPage.ShowInNavigation ? "Ja" : "Nej")
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="@(() => Nav.NavigateTo("/admin/pages"))">
+                                <i class="fa-solid fa-cog me-1"></i>
+                                Ändra inställningar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                @* ---------- Section Configuration Manager ----------- *@
+                <PageSectionConfigurator PageKey="@PageKey"
+                                     AvailableSections="sectionConfigItems"
+                                     OnConfigurationChanged="OnSectionConfigurationChanged"
+                                     OnSave="SaveSectionConfiguration" />
+
+                @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
+                @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
+                {
+                    @switch (sectionConfig.Type)
+                    {
+                        case SectionType.Banner:
+                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" />
+                            break;
+
+                        case SectionType.Intro:
+                            <EditForm Model="introSection" OnValidSubmit="SaveIntroSection">
+                                <DataAnnotationsValidator />
+                                <div class="card mb-4">
+                                    <div class="card-header bg-light">
+                                        <h3 class="h5 mb-0">Intro-sektion</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Breadcrumb-titel (visas ovanför introt)</label>
+                                            <InputText class="form-control" 
+                                                       @bind-Value="introSection.BreadcrumbTitle" 
+                                                       placeholder="T.ex. MIN SIDA" />
+                                            <ValidationMessage For="() => introSection.BreadcrumbTitle" />
+                                            <div class="form-text">Lämna tomt för att dölja breadcrumb-titeln</div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-2 form-check">
+                                                    <InputCheckbox class="form-check-input" 
+                                                                   id="intro-has-image" 
+                                                                   @bind-Value="introSection.HasImage" />
+                                                    <label class="form-check-label" for="intro-has-image">Inkludera bild</label>
+                                                </div>
+                                                
+                                                @if (introSection.HasImage)
+                                                {
+                                                    <div class="border p-3 mb-2 bg-light text-center" style="min-height: 200px;">
+                                                        @if (!string.IsNullOrEmpty(introSection.ImageUrl))
+                                                        {
+                                                            <img src="@introSection.ImageUrl" class="img-fluid img-thumbnail mb-2" style="max-height: 200px;" />
+                                                            <div class="mt-2">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage">
+                                                                    <i class="fa-solid fa-times"></i> Ta bort bild
+                                                                </button>
+                                                            </div>
+                                                            <div class="mt-2">
+                                                                <label class="form-label">Bildbeskrivning:</label>
+                                                                <InputText class="form-control form-control-sm" 
+                                                                           @bind-Value="introSection.ImageAltText" 
+                                                                           placeholder="Beskriv bilden" />
+                                                                <ValidationMessage For="() => introSection.ImageAltText" />
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <InputFile OnChange="HandleIntroImageSelected" class="form-control" accept="image/*" />
+                                                            <div class="text-muted small mt-2">Klicka för att välja bild</div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="col-md-8">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Rubrik</label>
+                                                    <InputText class="form-control" @bind-Value="introSection.Title" />
+                                                    <ValidationMessage For="() => introSection.Title" />
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Innehåll</label>
+                                                    <InputTextArea id="intro-editor" 
+                                                                   @bind-Value="introSection.Content" 
+                                                                   class="form-control tinymce-editor"
+                                                                   rows="8" />
+                                                    <ValidationMessage For="() => introSection.Content" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </EditForm>
+                            break;
+
+                        case SectionType.NavigationButtons:
+                            <NavigationButtonManager ShowNavigationButtons="introSection.ShowNavigationButtons"
+                                                      NavigationButtons="introSection.NavigationButtons"
+                                                      ShowNavigationButtonsChanged="OnShowNavigationButtonsChanged"
+                                                      NavigationButtonsChanged="OnNavigationButtonsChanged" />
+                            break;
+
+                        case SectionType.FeatureSections:
+                            <FeatureSectionManager @ref="featureSectionManagerRef"
+                                                   Sections="featureSections"
+                                                   OnSectionsChanged="OnFeatureSectionsChanged"
+                                                   OnImageUpload="OnFeatureImageUploaded"
+                                                   OnImageDelete="OnFeatureImageDeleted" />
+                            break;
+
+                        case SectionType.FaqSections:
+                            <FaqManager @ref="faqManagerRef"
+                                        FaqSections="faqSections"
+                                        OnFaqSectionsChanged="OnFaqSectionsChanged"
+                                        OnFaqImageUpload="OnFaqImageUploaded" />
+                            break;
+
+                        case SectionType.DocumentSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Dokumentsektion</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted">
+                                        Dokumentsektionen visar en länk till dokumentsidan. 
+                                        Dokumenthantering sker på separat sida.
+                                    </p>
+                                    <a href="/admin/dokument" class="btn btn-primary">
+                                        <i class="fa-solid fa-file me-1"></i>
+                                        Hantera dokument
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.ContactForm:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Kontaktformulär</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Info:</strong> Kontaktformuläret är aktiverat och kommer att visas på sidan.
+                                    </div>
+                                    <p class="text-muted">
+                                        Kontaktformuläret använder samma inställningar som huvudkontaktsidan.
+                                    </p>
+                                    <a href="/admin/kontaktaoss" class="btn btn-primary">
+                                        <i class="fa-solid fa-cog me-1"></i>
+                                        Hantera kontaktinställningar
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.MemberLogos:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Medlemslogotyper</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Medlemslogotyper visas automatiskt på denna sida när sektionen är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Sektionen "Våra medlemmar" kommer att visas på sidan med alla aktiva medlemslogotyper.
+                                    </p>
+                                    <a href="/admin/memberlogos" class="btn btn-primary">
+                                        <i class="fa-solid fa-cog me-1"></i>
+                                        Hantera medlemslogotyper
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.NewsSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Nyhetssektion</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Nyhetssektionen visar automatiskt de senaste nyheterna.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Sektionen visar nyheter från systemet. Hantera nyheter via admin-panelen.
+                                    </p>
+                                    <a href="/admin/news" class="btn btn-primary">
+                                        <i class="fa-solid fa-newspaper me-1"></i>
+                                        Hantera nyheter
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.ActionPlanTable:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Handlingsplan</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Info:</strong> Handlingsplanen visar utvecklingsaktiviteter och tidplan.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Denna sektion visar en interaktiv tabell med handlingsplanen för utveckling.
+                                    </p>
+                                    <a href="/admin/forvaltning" class="btn btn-primary">
+                                        <i class="fa-solid fa-tasks me-1"></i>
+                                        Hantera handlingsplan
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DevelopmentSuggestionForm:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Utvecklingsförslagsformulär</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Info:</strong> Formulär för att skicka in utvecklingsförslag.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Denna sektion visar ett formulär där användare kan skicka in utvecklingsförslag.
+                                    </p>
+                                    <a href="/admin/suggestions" class="btn btn-primary">
+                                        <i class="fa-solid fa-lightbulb me-1"></i>
+                                        Hantera utvecklingsförslag
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        default:
+                            <div class="card mb-4">
+                                <div class="card-header bg-warning">
+                                    <h3 class="h5 mb-0">Okänd sektion: @sectionConfig.Type</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted">Denna sektionstyp stöds inte ännu i editorn.</p>
+                                </div>
+                            </div>
+                            break;
+                    }
+                }
+
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string PageKey { get; set; } = "";
+
+    private CustomPageViewModel? customPage;
+    private IntroSectionViewModel introSection = new();
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool isSavingIntro = false;
+    private List<FeatureSectionViewModel> featureSections = new();
+    private List<SectionConfigItem> sectionConfigItems = new();
+    private FeatureSectionManager? featureSectionManagerRef;
+    private List<FaqSectionViewModel> faqSections = new();
+    private FaqManager? faqManagerRef;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadPageData();
+        sectionConfigItems = await Cms.GetPageSectionConfigAsync(PageKey);
+        featureSections = await Cms.GetFeatureSectionsAsync(PageKey);
+        faqSections = await Cms.GetFaqSectionsAsync(PageKey);
+    }
+
+    private async Task LoadPageData()
+    {
+        isLoading = true;
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync($"api/custompage/{PageKey}");
+            if (!response.IsSuccessStatusCode)
+            {
+                customPage = null;
+                return;
+            }
+
+            var dto = await response.Content.ReadFromJsonAsync<KronoxFront.DTOs.CustomPageDto>();
+            customPage = dto?.ToViewModel();
+
+            // Ladda introsektion
+            introSection = await Cms.GetIntroSectionAsync(PageKey);
+            if (introSection == null)
+            {
+                introSection = new IntroSectionViewModel
+                {
+                    Title = customPage?.DisplayName ?? "",
+                    Content = customPage?.Description ?? ""
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av custom page data för {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid laddning av innehållet.");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveContent()
+    {
+        isSaving = true;
+        try
+        {
+            await SaveIntroSection();
+            await Toast.Success("Innehållet har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av innehåll för {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid sparande.");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task SaveIntroSection()
+    {
+        isSavingIntro = true;
+        try
+        {
+            await Cms.SaveIntroSectionAsync(PageKey, introSection);
+            await Toast.Success("Introsektionen har sparats!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av introsektion för {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid sparande av introsektionen.");
+        }
+        finally
+        {
+            isSavingIntro = false;
+        }
+    }
+
+    private async Task OnSectionConfigurationChanged()
+    {
+        StateHasChanged();
+        await Task.Delay(200);
+    }
+
+    private async Task SaveSectionConfiguration(List<SectionConfigItem> configItems)
+    {
+        try
+        {
+            var success = await Cms.SavePageSectionConfigAsync(PageKey, configItems);
+            if (success)
+            {
+                sectionConfigItems = configItems;
+                await Toast.Success("Sektionskonfiguration sparad!");
+                await OnSectionConfigurationChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av sektionskonfiguration");
+            await Toast.Error("Ett oväntat fel inträffade");
+        }
+    }
+
+    private void OnFeatureSectionsChanged() { }
+    private void OnFeatureImageUploaded(FeatureSectionManager.ImageUploadInfo info) { }
+    private void OnFeatureImageDeleted(FeatureSectionManager.ImageDeleteInfo info) { }
+
+    private async Task OnBannerUploaded(PageImageViewModel? img)
+    {
+        await Toast.Success("Bannerbild uppdaterad!");
+        StateHasChanged();
+    }
+
+    private async Task HandleIntroImageSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File != null)
+        {
+            try
+            {
+                var imageUrl = await Cms.UploadImageAsync(e.File, PageKey);
+                introSection.ImageUrl = imageUrl;
+                introSection.HasImage = true;
+                await Toast.Success("Introbild uppladdad!");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid uppladdning av introbild");
+                await Toast.Error("Fel vid uppladdning av bild");
+            }
+        }
+    }
+
+    private void ClearIntroImage()
+    {
+        introSection.ImageUrl = "";
+        introSection.ImageAltText = "";
+    }
+
+    private async Task OnFaqImageUploaded(FaqManager.FaqImageUploadInfo info)
+    {
+        if (info.File != null && info.Item != null)
+        {
+            try
+            {
+                var imageUrl = await Cms.UploadImageAsync(info.File, PageKey);
+                info.Item.ImageUrl = imageUrl;
+                await Toast.Success("FAQ-bild uppladdad!");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid uppladdning av FAQ-bild");
+                await Toast.Error("Fel vid uppladdning av bild");
+            }
+        }
+    }
+
+    private void OnFaqSectionsChanged() { }
+
+    private Task OnShowNavigationButtonsChanged(bool value)
+    {
+        introSection.ShowNavigationButtons = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnNavigationButtonsChanged()
+    {
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private string GetNavigationTypeText(string navigationType)
+    {
+        return navigationType switch
+        {
+            "main" => "Huvudnavigation",
+            "dropdown" => "Dropdown",
+            "footer" => "Footer",
+            "hidden" => "Dold",
+            _ => navigationType
+        };
+    }
+}

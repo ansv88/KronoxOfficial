@@ -29,6 +29,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ActionPlanTable> ActionPlanTables { get; set; }
     public DbSet<ActionPlanItem> ActionPlanItems { get; set; }
     public DbSet<DevelopmentSuggestion> DevelopmentSuggestions { get; set; }
+    public DbSet<CustomPage> CustomPages { get; set; } = null!;
+    public DbSet<NavigationConfig> NavigationConfigs { get; set; } = null!;
 
     // Konfigurerar entiteter och relationer i modellen.
     protected override void OnModelCreating(ModelBuilder builder)
@@ -113,6 +115,43 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(mc => mc.Documents)
                   .HasForeignKey(d => d.MainCategoryId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Konfigurera CustomPage
+        builder.Entity<CustomPage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PageKey).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.NavigationType).HasMaxLength(20);
+            entity.Property(e => e.ParentPageKey).HasMaxLength(100);
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            
+            var requiredRolesProperty = entity.Property(e => e.RequiredRoles)
+                  .HasConversion(
+                      v => string.Join(',', v),
+                      v => string.IsNullOrEmpty(v) ? new List<string>() : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                  );
+            
+            requiredRolesProperty.Metadata.SetValueComparer(
+                new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
+                    (c1, c2) => c1!.SequenceEqual(c2!),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+            
+            entity.HasIndex(e => e.PageKey).IsUnique();
+        });
+
+        // Konfigurera NavigationConfig
+        builder.Entity<NavigationConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.PageKey).IsUnique();
+            entity.Property(e => e.PageKey).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.ItemType).IsRequired().HasMaxLength(20);
         });
 
         // Indexes för prestanda

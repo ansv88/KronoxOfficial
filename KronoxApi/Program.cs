@@ -143,7 +143,7 @@ public class Program
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         AutoReplenishment = true,
-                        PermitLimit = 100,
+                        PermitLimit = 1000,
                         Window = TimeSpan.FromMinutes(1)
                     }));
         });

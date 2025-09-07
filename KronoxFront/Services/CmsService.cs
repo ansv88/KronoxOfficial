@@ -1808,4 +1808,15 @@ public class CmsService
             throw;
         }
     }
+
+    public async Task<List<CustomPageViewModel>> GetCustomPagesAsync()
+    {
+        var response = await _http.GetAsync("api/custompage");
+        if (response.IsSuccessStatusCode)
+        {
+            var dtos = await response.Content.ReadFromJsonAsync<List<CustomPageDto>>();
+            return dtos?.ToViewModels() ?? new();
+        }
+        return new();
+    }
 }

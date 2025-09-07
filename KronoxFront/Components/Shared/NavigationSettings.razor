@@ -1,0 +1,223 @@
+@using KronoxFront.ViewModels
+@using KronoxFront.Services
+@using KronoxFront.DTOs
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService Toast
+
+<div class="card mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="h6 mb-0">
+            <i class="fa-solid fa-compass me-2"></i>
+            Navigationsinställningar
+        </h5>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ToggleSettings">
+            <i class="fa-solid fa-@(showSettings ? "eye-slash" : "cog")"></i>
+            @(showSettings ? "Dölj" : "Visa") inställningar
+        </button>
+    </div>
+    
+    @if (showSettings)
+    {
+        <div class="card-body">
+            @if (navigationConfig != null)
+            {
+                <EditForm Model="navigationConfig" OnValidSubmit="SaveNavigationSettings">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">Länktext i navigation</label>
+                                <InputText class="form-control" @bind-Value="navigationConfig.DisplayName" />
+                                <ValidationMessage For="() => navigationConfig.DisplayName" />
+                                <div class="form-text">Detta namn visas i navigationsmenyn</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">Sorteringsordning</label>
+                                <InputNumber class="form-control" @bind-Value="navigationConfig.SortOrder" />
+                                <ValidationMessage For="() => navigationConfig.SortOrder" />
+                                <div class="form-text">Lägre nummer = högre upp</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">Status</label>
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="navigationConfig.IsActive" />
+                                    <label class="form-check-label">Aktiv i navigation</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">Synlighet för gäster</label>
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="navigationConfig.IsVisibleToGuests" />
+                                    <label class="form-check-label">Visa för oinloggade användare</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">Synlighet för medlemmar</label>
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="navigationConfig.IsVisibleToMembers" />
+                                    <label class="form-check-label">Visa för inloggade användare</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary btn-sm" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <text>Sparar...</text>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-save me-1"></i>
+                                <text>Spara navigationsinställningar</text>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle me-2"></i>
+                    Laddar navigationsinställningar...
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public string? InitialDisplayName { get; set; }
+    [Parameter] public EventCallback<string> OnDisplayNameChanged { get; set; }
+    
+    private NavigationConfigViewModel? navigationConfig;
+    private bool showSettings = false;
+    private bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNavigationConfig();
+    }
+
+    private async Task LoadNavigationConfig()
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync($"api/navigation/page/{PageKey}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var dto = await response.Content.ReadFromJsonAsync<NavigationConfigDto>();
+                if (dto != null)
+                {
+                    navigationConfig = new NavigationConfigViewModel
+                    {
+                        Id = dto.Id,
+                        PageKey = dto.PageKey,
+                        DisplayName = dto.DisplayName,
+                        ItemType = dto.ItemType,
+                        SortOrder = dto.SortOrder,
+                        IsVisibleToGuests = dto.IsVisibleToGuests,
+                        IsVisibleToMembers = dto.IsVisibleToMembers,
+                        IsActive = dto.IsActive,
+                        IsSystemItem = dto.IsSystemItem
+                    };
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // Skapa ny konfiguration
+                navigationConfig = new NavigationConfigViewModel
+                {
+                    PageKey = PageKey,
+                    DisplayName = InitialDisplayName ?? PageKey,
+                    ItemType = "static",
+                    SortOrder = 50,
+                    IsVisibleToGuests = true,
+                    IsVisibleToMembers = true,
+                    IsActive = true
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error("Kunde inte ladda navigationsinställningar");
+        }
+    }
+
+    private void ToggleSettings()
+    {
+        showSettings = !showSettings;
+    }
+
+    private async Task SaveNavigationSettings()
+    {
+        if (navigationConfig == null) return;
+
+        isSaving = true;
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            
+            if (navigationConfig.Id == 0)
+            {
+                var createRequest = new
+                {
+                    PageKey = navigationConfig.PageKey,
+                    DisplayName = navigationConfig.DisplayName,
+                    ItemType = navigationConfig.ItemType,
+                    SortOrder = navigationConfig.SortOrder,
+                    IsVisibleToGuests = navigationConfig.IsVisibleToGuests,
+                    IsVisibleToMembers = navigationConfig.IsVisibleToMembers,
+                    IsActive = navigationConfig.IsActive,
+                    IsSystemItem = navigationConfig.IsSystemItem
+                };
+                await httpClient.PostAsJsonAsync("api/navigation", createRequest);
+            }
+            else
+            {
+                var updateRequest = new
+                {
+                    DisplayName = navigationConfig.DisplayName,
+                    SortOrder = navigationConfig.SortOrder,
+                    IsVisibleToGuests = navigationConfig.IsVisibleToGuests,
+                    IsVisibleToMembers = navigationConfig.IsVisibleToMembers,
+                    IsActive = navigationConfig.IsActive
+                };
+                await httpClient.PutAsJsonAsync($"api/navigation/{navigationConfig.Id}", updateRequest);
+            }
+
+            await Toast.Success("Navigationsinställningar sparade!");
+            
+            // Meddela parent om namnändring
+            if (OnDisplayNameChanged.HasDelegate)
+            {
+                await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
+            }
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error("Fel vid sparning av navigationsinställningar");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

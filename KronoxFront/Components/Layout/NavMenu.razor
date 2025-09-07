@@ -1,56 +1,68 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
+@using KronoxFront.DTOs
+@using KronoxFront.ViewModels
+@using KronoxFront.Extensions
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IHttpClientFactory HttpFactory
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@implements IDisposable
 
 <nav class="navbar navbar-expand-lg navbar-custom bg-dark">
     <div class="container-fluid d-flex align-items-center">
         <!-- Logga till vänster -->
-        <a class="navbar-brand position-relative" href="/">
+        <NavLink class="navbar-brand position-relative" href="/">
             <img src="images/logo.png" alt="KronoX logga" class="logo" />
-        </a>
+        </NavLink>
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-        aria-controls="navbarNav" aria-expanded="false" aria-label="Visa/dölj navigeringsmeny">
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Visa/dölj navigeringsmeny">
             <span class="navbar-toggler-icon"></span>
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
             <AuthorizeView>
                 <NotAuthorized>
-                    <ul class="navbar-nav ms-auto gap-3 text-center justify-content-center">
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/omkonsortiet" ActiveClass="active-link">
-                                Om konsortiet
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/omsystemet" ActiveClass="active-link">
-                                Om systemet
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/visioner" ActiveClass="active-link">
-                                Visioner & Verksamhetsidé
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/kontakt" ActiveClass="active-link">
-                                Kontakta oss
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
+                    <ul class="navbar-nav ms-auto gap-3 text-center justify-content-center responsive-nav">
+                        @foreach (var item in GetAllNavigationItems(false))
+                        {
+                            @if (item.CustomPage != null && item.CustomPage.Children.Any())
+                            {
+                                <!-- Dropdown för ALLA sidor med children -->
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle text-white" href="#" role="button" 
+                                       data-bs-toggle="dropdown" aria-expanded="false">
+                                        @item.DisplayName
+                                    </a>
+                                    <ul class="dropdown-menu">
+                                        <li><NavLink class="dropdown-item" href="@($"/{item.PageKey}")">@item.DisplayName</NavLink></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        @foreach (var child in item.CustomPage.Children.OrderBy(c => c.SortOrder))
+                                        {
+                                            <li><NavLink class="dropdown-item" href="@($"/{child.PageKey}")">@child.DisplayName</NavLink></li>
+                                        }
+                                    </ul>
+                                </li>
+                            }
+                            else
+                            {
+                                <!-- Vanlig länk för alla sidor utan children -->
+                                <li class="nav-item">
+                                    <NavLink class="nav-link text-white position-relative" href="@($"/{item.PageKey}")" ActiveClass="active-link">
+                                        @item.DisplayName
+                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                                    </NavLink>
+                                </li>
+                            }
+                        }
+
                         <li class="nav-item ms-lg-5">
                             <button class="btn btn-link nav-link text-white d-flex align-items-center justify-content-center gap-2"
-                            @onclick="() => ToggleModal(ref showLogin)"
-                            aria-label="Öppna inloggningsformulär">
+                                    @onclick="() => ToggleModal(ref showLogin)"
+                                    aria-label="Öppna inloggningsformulär">
                                 <i class="fa-solid fa-lock fa-xs" aria-hidden="true"></i> Logga in
                             </button>
                         </li>
@@ -59,74 +71,94 @@
 
                 <Authorized>
                     <!-- Navigering för inloggade användare -->
-                    <ul class="navbar-nav ms-auto gap-3 text-center justify-content-center">
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/medlemsnytt" ActiveClass="active-link">
-                                Medlemsnytt
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/omkonsortiet" ActiveClass="active-link">
-                                Om konsortiet
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
+                    <ul class="navbar-nav ms-auto gap-3 text-center justify-content-center responsive-nav">
+                        <!-- Endast dynamiska länkar från navigationskonfiguration -->
+                        @foreach (var item in GetAllNavigationItems(true))
+                        {
+                            @if (item.PageKey == "admin")
+                            {
+                                <!-- Särskild hantering för admin -->
+                                <AuthorizeView Roles="Admin" Context="adminContext">
+                                    <Authorized Context="adminAuth">
+                                        <li class="nav-item dropdown">
+                                            <a class="nav-link dropdown-toggle text-white" href="#" role="button" 
+                                               data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fa-solid fa-gauge fa-xs me-1" aria-hidden="true"></i> @item.DisplayName
+                                            </a>
+                                            <ul class="dropdown-menu">
+                                                <li><NavLink class="dropdown-item" href="/admin">Dashboard</NavLink></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><NavLink class="dropdown-item" href="/admin/pages">Hantera sidor</NavLink></li>
+                                                <li><NavLink class="dropdown-item" href="/admin/users">Hantera användare</NavLink></li>
+                                                <li><NavLink class="dropdown-item" href="/admin/documents/manage">Hantera dokument</NavLink></li>
+                                                <li><NavLink class="dropdown-item" href="/admin/navigation">Hantera navigation</NavLink></li>
+                                            </ul>
+                                        </li>
+                                    </Authorized>
+                                </AuthorizeView>
+                            }
+                            else if (item.PageKey == "logout")
+                            {
+                                <!-- Särskild hantering för logout -->
+                                <li class="nav-item ms-lg-5">
+                                    <button class="btn btn-link nav-link text-white d-flex align-items-center justify-content-center gap-2"
+                                            @onclick="() => ToggleModal(ref showLogout)"
+                                            aria-label="Öppna utloggningsformulär">
+                                        <i class="fa-solid fa-unlock fa-xs" aria-hidden="true"></i> @item.DisplayName
+                                    </button>
+                                </li>
+                            }
+                            else if (item.CustomPage != null && item.CustomPage.Children.Any())
+                            {
+                                <!-- Dropdown för ALLA sidor med barn -->
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle text-white" href="#" role="button" 
+                                       data-bs-toggle="dropdown" aria-expanded="false">
+                                        @item.DisplayName
+                                    </a>
+                                    <ul class="dropdown-menu">
+                                        <li><NavLink class="dropdown-item" href="@($"/{item.PageKey}")">@item.DisplayName</NavLink></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        @foreach (var child in item.CustomPage.Children.OrderBy(c => c.SortOrder))
+                                        {
+                                            <li><NavLink class="dropdown-item" href="@($"/{child.PageKey}")">@child.DisplayName</NavLink></li>
+                                        }
+                                    </ul>
+                                </li>
+                            }
+                            else
+                            {
+                                <!-- Vanliga länkar utan dropdown -->
+                                <li class="nav-item">
+                                    <NavLink class="nav-link text-white position-relative" href="@($"/{item.PageKey}")" ActiveClass="active-link">
+                                        @item.DisplayName
+                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
+                                    </NavLink>
+                                </li>
+                            }
+                        }
+
                         <!-- Länkar enbart för Admin eller Styrelse -->
                         <AuthorizeView Roles="Admin,Styrelse" Context="roleContext">
                             <Authorized>
-                                <li class="nav-item">
-                                    <NavLink class="nav-link text-white position-relative" href="/for-styrelsen" ActiveClass="active-link">
-                                        För styrelsen
-                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                                    </NavLink>
-                                </li>
-                                <li class="nav-item">
-                                    <NavLink class="nav-link text-white position-relative" href="/for-vnsg" ActiveClass="active-link">
-                                        För VNSG
-                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                                    </NavLink>
-                                </li>
+                                @if (GetCustomPagesForParent("for-styrelsen").Any())
+                                {
+                                    <!-- Dropdown för styrelsesidor -->
+                                    <li class="nav-item dropdown">
+                                        <a class="nav-link dropdown-toggle text-white" href="#" role="button" 
+                                           data-bs-toggle="dropdown" aria-expanded="false">
+                                            För styrelsen
+                                        </a>
+                                        <ul class="dropdown-menu">
+                                            @foreach (var stylePage in GetCustomPagesForParent("for-styrelsen"))
+                                            {
+                                                <li><NavLink class="dropdown-item" href="@($"/{stylePage.PageKey}")">@stylePage.DisplayName</NavLink></li>
+                                            }
+                                        </ul>
+                                    </li>
+                                }
                             </Authorized>
                         </AuthorizeView>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/forvaltning" ActiveClass="active-link">
-                                Förvaltning
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/dokument" ActiveClass="active-link">
-                                Dokument
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
-                        <li class="nav-item">
-                            <NavLink class="nav-link text-white position-relative" href="/kontakt" ActiveClass="active-link">
-                                Kontakta oss
-                                <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                            </NavLink>
-                        </li>
-
-                        <!-- Admin-länk visas bara för administratörer -->
-                        <AuthorizeView Roles="Admin" Context="adminContext">
-                            <Authorized>
-                                <li class="nav-item">
-                                    <NavLink class="nav-link text-white position-relative" href="/admin" ActiveClass="active-link">
-                                        <i class="fa-solid fa-gauge fa-xs me-1" aria-hidden="true"></i> Admin
-                                        <span class="position-absolute bottom-0 start-50 translate-middle-x active-indicator"></span>
-                                    </NavLink>
-                                </li>
-                            </Authorized>
-                        </AuthorizeView>
-
-                        <li class="nav-item ms-lg-5">
-                            <button class="btn btn-link nav-link text-white d-flex align-items-center justify-content-center gap-2"
-                            @onclick="() => ToggleModal(ref showLogout)"
-                            aria-label="Öppna utloggningsformulär">
-                                <i class="fa-solid fa-unlock fa-xs" aria-hidden="true"></i> Logga ut
-                            </button>
-                        </li>
                     </ul>
                 </Authorized>
             </AuthorizeView>
@@ -240,40 +272,194 @@
 }
 
 @code {
+    private List<NavigationPageDto> navigationPages = new();
+    private List<NavigationConfigDto> navigationConfigs = new();
     private bool showLogin;
     private bool showLogout;
     private string? loginErrorMessage;
     private string? returnUrl;
     private bool showPassword = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Kontrollera URL-parametrar vid initialisering
-    var uri = Nav.ToAbsoluteUri(Nav.Uri);
-    var queryParams = QueryHelpers.ParseQuery(uri.Query);
-
-    if (queryParams.TryGetValue("loginerror", out var errorValues))
-    {
-        showLogin = true;
-        loginErrorMessage = GetErrorMessage(errorValues.ToString());
-    }
-
-    // Kontrollera om det finns en returnUrl
-    if (queryParams.TryGetValue("returnUrl", out var returnUrlValues))
-    {
-        // Dekoda URL från URL-encoding
-        returnUrl = System.Net.WebUtility.UrlDecode(returnUrlValues.ToString());
+        Nav.LocationChanged += OnLocationChanged;
         
-        // Säkerställ att URL är korrekt formaterad
-        if (!returnUrl.StartsWith("/"))
-            returnUrl = "/" + returnUrl;
-            
-        // Öppna login-modal om vi är på startsidan
-        if (uri.AbsolutePath == "/" || uri.AbsolutePath == "/home")
+        await LoadNavigationPages();
+        await LoadNavigationConfig();
+        
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+        if (queryParams.TryGetValue("loginerror", out var errorValues))
         {
             showLogin = true;
+            loginErrorMessage = GetErrorMessage(errorValues.ToString());
+        }
+
+        if (queryParams.TryGetValue("returnUrl", out var returnUrlValues))
+        {
+            returnUrl = System.Net.WebUtility.UrlDecode(returnUrlValues.ToString());
+            
+            if (!returnUrl.StartsWith("/"))
+                returnUrl = "/" + returnUrl;
+                
+            if (uri.AbsolutePath == "/" || uri.AbsolutePath == "/home")
+            {
+                showLogin = true;
+            }
         }
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Aktivera Bootstrap dropdown-funktionalitet
+            await JS.InvokeVoidAsync("eval", @"
+                if (typeof bootstrap !== 'undefined') {
+                    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+                    var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+                        return new bootstrap.Dropdown(dropdownToggleEl);
+                    });
+                }
+            ");
+        }
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (e.Location.Contains("/admin/pages") ||
+            e.Location.Contains("/admin/navigation") ||
+            e.Location.EndsWith("/admin") ||
+            e.Location.Contains("/admin/") && e.Location.Contains("save"))
+        {
+            await Task.Delay(300);
+            await LoadNavigationPages();
+            await LoadNavigationConfig();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadNavigationPages()
+    {
+        try
+        {
+            var httpClient = HttpFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync("api/custompage/navigation");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                navigationPages = await response.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Logga fel men fortsätt utan navigation pages
+        }
+    }
+
+    private async Task LoadNavigationConfig()
+    {
+        try
+        {
+            var httpClient = HttpFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync("api/navigation");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                navigationConfigs = await response.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            navigationConfigs = GetFallbackNavigation();
+        }
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+
+    private List<NavigationPageDto> GetCustomPagesForParent(string parentPageKey)
+    {
+        var authState = AuthStateProvider.GetAuthenticationStateAsync().Result;
+        var user = authState.User;
+        var isAuthenticated = user.Identity?.IsAuthenticated == true;
+        
+        return navigationPages
+            .Where(c => c.ParentPageKey == parentPageKey && 
+                       c.IsAuthorized(isAuthenticated, user))
+            .OrderBy(c => c.SortOrder)
+            .ToList();
+    }
+
+    private List<NavigationItemViewModel> GetAllNavigationItems(bool isAuthenticated)
+    {
+        var items = new List<NavigationItemViewModel>();
+        var authState = AuthStateProvider.GetAuthenticationStateAsync().Result;
+        var user = authState.User;
+        
+        var allConfigs = navigationConfigs
+            .Where(n => n.IsActive)
+            .Where(n => isAuthenticated ? n.IsVisibleToMembers : n.IsVisibleToGuests);
+
+        foreach (var config in allConfigs)
+        {
+            var sortOrder = isAuthenticated 
+                ? (config.MemberSortOrder ?? config.SortOrder)
+                : (config.GuestSortOrder ?? config.SortOrder);
+            
+            // Hitta motsvarande NavigationPageDto från API:et (som redan har Children)
+            var navPage = navigationPages.FirstOrDefault(p => p.PageKey == config.PageKey);
+            
+            if (navPage != null)
+            {
+                // Använd NavigationPageDto direkt med dess befintliga Children
+                var authorizedChildren = navPage.Children
+                    .Where(c => c.IsAuthorized(isAuthenticated, user))
+                    .Select(c => c.ToNavigationViewModel())
+                    .OrderBy(c => c.SortOrder)
+                    .ToList();
+                
+                items.Add(new NavigationItemViewModel 
+                { 
+                    Type = config.ItemType, 
+                    PageKey = config.PageKey, 
+                    DisplayName = config.DisplayName, 
+                    SortOrder = sortOrder,
+                    CustomPage = new NavigationPageViewModel 
+                    {
+                        PageKey = config.PageKey,
+                        DisplayName = config.DisplayName,
+                        NavigationType = navPage.NavigationType,
+                        SortOrder = sortOrder,
+                        Children = authorizedChildren
+                    }
+                });
+            }
+            else
+            {
+                // Fallback för konfigurationer utan motsvarande NavigationPageDto
+                items.Add(new NavigationItemViewModel 
+                { 
+                    Type = config.ItemType, 
+                    PageKey = config.PageKey, 
+                    DisplayName = config.DisplayName, 
+                    SortOrder = sortOrder,
+                    CustomPage = new NavigationPageViewModel 
+                    {
+                        PageKey = config.PageKey,
+                        DisplayName = config.DisplayName,
+                        NavigationType = "main",
+                        SortOrder = sortOrder,
+                        Children = new List<NavigationPageViewModel>()
+                    }
+                });
+            }
+        }
+        
+        return items.OrderBy(i => i.SortOrder).ToList();
     }
 
     private void ToggleModal(ref bool modalState)
@@ -301,5 +487,21 @@
     private void TogglePasswordVisibility()
     {
         showPassword = !showPassword;
+    }
+
+    // Fallback-metod för om API inte fungerar
+    private List<NavigationConfigDto> GetFallbackNavigation()
+    {
+        return new List<NavigationConfigDto>
+        {
+            new() { PageKey = "omkonsortiet", DisplayName = "Om konsortiet", ItemType = "static", 
+                   SortOrder = 1, IsVisibleToGuests = true, IsVisibleToMembers = true, IsActive = true },
+            new() { PageKey = "omsystemet", DisplayName = "Om systemet", ItemType = "static", 
+                   SortOrder = 2, IsVisibleToGuests = true, IsVisibleToMembers = true, IsActive = true },
+            new() { PageKey = "visioner", DisplayName = "Visioner & verksamhetsidé", ItemType = "static", 
+                   SortOrder = 3, IsVisibleToGuests = true, IsVisibleToMembers = true, IsActive = true },
+            new() { PageKey = "kontakt", DisplayName = "Kontakta oss", ItemType = "static", 
+                   SortOrder = 17, IsVisibleToGuests = true, IsVisibleToMembers = true, IsActive = true }
+        };
     }
 }

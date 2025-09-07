@@ -9,6 +9,7 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Home> Logger
+@inject IServiceProvider ServiceProvider
 
 <HeadContent>
     <meta name="description" content="KronoX – Schemaläggning och bokningssystem för högre utbildning. Upptäck funktioner, nyheter och medlemsinformation." />
@@ -117,6 +118,7 @@ else
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
+    private static bool imagesSynced = false;
 
     private List<SectionConfigItem> sectionConfigurations = new();
 
@@ -137,7 +139,13 @@ else
 
         try
         {
-            await Cms.SyncImagesFromApiAsync();
+            // Synkronisera bilder endast en gång per applikation
+            if (!imagesSynced)
+            {
+                await Cms.SyncImagesFromApiAsync();
+                imagesSynced = true;
+            }
+
             pageContent = await Cms.GetHomeAsync() ?? new PageContentViewModel();
 
             introSection = await Cms.GetIntroSectionAsync("home");

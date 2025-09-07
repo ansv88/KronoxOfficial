@@ -1,0 +1,464 @@
+﻿@page "/admin/navigation"
+@using Microsoft.AspNetCore.Authorization
+@using KronoxFront.ViewModels
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService Toast
+
+<PageTitle>Admin - Hantera navigation</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Navigationshantering</h1>
+                    <p class="text-muted">Hantera ordning och synlighet för alla navigationslänkar</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/admin/pages" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-cog me-1"></i>
+                        Hantera sidor
+                    </a>
+                    <button class="btn btn-success" @onclick="SaveAllChanges" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <text>Sparar...</text>
+                        }
+                        else
+                        {
+                            <i class="fa-solid fa-save me-1"></i>
+                            <text>Spara alla ändringar</text>
+                        }
+                    </button>
+                </div>
+            </div>
+
+            <!-- Förbättrad informationsruta -->
+            <div class="alert alert-info mb-4">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h6 class="mb-2">
+                            <i class="fa-solid fa-info-circle me-2"></i>
+                            Hur fungerar navigationshantering?
+                        </h6>
+                        <ul class="mb-0 small">
+                            <li><strong>Ordning:</strong> Använd nummerboxarna (1-20) för att ändra ordning. Lägre nummer visas först.</li>
+                            <li><strong>Separata inställningar:</strong> Du kan ställa in olika ordning för inloggade och oinloggade användare.</li>
+                            <li><strong>Dropdown-menyer:</strong> Sidor markerade med <span class="badge bg-info text-dark">Dropdown</span> har undersidor.</li>
+                            <li><strong>Undersidor följer huvudsidan:</strong> När du ändrar ordning på en huvudsida flyttas alla dess undersidor automatiskt med.</li>
+                            <li><strong>Skapa nya sidor:</strong> Använd "Hantera sidor" för att skapa nya sidor och ställa in dropdown-struktur.</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-flex flex-column gap-1">
+                            <small class="text-muted">
+                                <i class="fa-solid fa-layer-group me-1"></i>
+                                <strong>@GetPagesWithChildrenCount()</strong> @GetPagesWithChildrenText()
+                            </small>
+                            <small class="text-muted">
+                                <i class="fa-solid fa-link me-1"></i>
+                                <strong>@GetTotalNavigationItemsCount()</strong> totala navigationslänkar
+                            </small>
+                            <small class="text-muted">
+                                <i class="fa-solid fa-arrow-down me-1"></i>
+                                <strong>@GetTotalChildPagesCount()</strong> @GetTotalChildPagesText()
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informationsruta om dropdown-hantering -->
+            @if (GetPagesWithChildrenCount() > 0)
+            {
+                <div class="alert alert-warning mb-4">
+                    <div class="row">
+                        <div class="col-md-1 text-center">
+                            <i class="fa-solid fa-layer-group fa-2x text-warning"></i>
+                        </div>
+                        <div class="col-md-11">
+                            <h6 class="mb-1">
+                                <strong>Viktigt om dropdown-menyer:</strong>
+                            </h6>
+                            <p class="mb-0 small">
+                                Sidor med undersidor fungerar som dropdown-menyer i navigationen. 
+                                När du ändrar ordning på huvudsidan så följer alla dess undersidor automatiskt med.
+                                Undersidornas inbördes ordning ställs in via "Hantera sidor" där du kan redigera varje undersidas sorteringsordning.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="row">
+                <!-- För gäster -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fa-solid fa-globe me-2"></i>
+                                För oinloggade användare
+                            </h5>
+                            <small class="text-muted">@guestNavigationItems.Count objekt</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="navigation-sortable" id="guest-navigation">
+                                @foreach (var item in guestNavigationItems.OrderBy(n => n.SortOrder))
+                                {
+                                    <div class="navigation-item card mb-2" data-id="@item.Id">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                                        <input type="text" class="form-control form-control-sm" 
+                                                               @bind="item.DisplayName" 
+                                                               @bind:after="() => MarkAsChanged(item)"
+                                                               disabled="@(IsProtectedItem(item))" />
+                                                        @if (HasChildren(item.PageKey))
+                                                        {
+                                                            <span class="badge bg-info text-dark" title="Denna sida har undersidor som följer med när huvudsidan flyttas">
+                                                                <i class="fa-solid fa-layer-group fa-xs me-1"></i>
+                                                                Dropdown
+                                                            </span>
+                                                        }
+                                                        @if (IsProtectedItem(item))
+                                                        {
+                                                            <span class="badge bg-warning text-dark" title="Systemsida - namnet kan inte ändras">
+                                                                <i class="fa-solid fa-shield fa-xs me-1"></i>
+                                                                System
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                    <div class="d-flex justify-content-between">
+                                                        <small class="text-muted">/@item.PageKey</small>
+                                                        @if (HasChildren(item.PageKey))
+                                                        {
+                                                            <small class="text-info">
+                                                                <i class="fa-solid fa-arrow-down fa-xs me-1"></i>
+                                                                @GetChildrenCountText(item.PageKey)
+                                                            </small>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <div class="ms-3 text-end">
+                                                    <div class="mb-1">
+                                                        <label class="form-label form-label-sm mb-1">Ordning</label>
+                                                        <input type="number" class="form-control form-control-sm" 
+                                                               style="width: 70px;" 
+                                                               min="1" max="20"
+                                                               @bind="item.SortOrder" 
+                                                               @bind:after="() => MarkAsChanged(item)" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- För medlemmar -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fa-solid fa-users me-2"></i>
+                                För inloggade användare
+                            </h5>
+                            <small class="text-muted">@memberNavigationItems.Count objekt</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="navigation-sortable" id="member-navigation">
+                                @foreach (var item in memberNavigationItems.OrderBy(n => n.SortOrder))
+                                {
+                                    <div class="navigation-item card mb-2" data-id="@item.Id">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                                        <input type="text" class="form-control form-control-sm" 
+                                                               @bind="item.DisplayName" 
+                                                               @bind:after="() => MarkAsChanged(item)"
+                                                               disabled="@(IsProtectedItem(item))" />
+                                                        @if (HasChildren(item.PageKey))
+                                                        {
+                                                            <span class="badge bg-info text-dark" title="Denna sida har undersidor som följer med när huvudsidan flyttas">
+                                                                <i class="fa-solid fa-layer-group fa-xs me-1"></i>
+                                                                Dropdown
+                                                            </span>
+                                                        }
+                                                        @if (IsProtectedItem(item))
+                                                        {
+                                                            <span class="badge bg-warning text-dark" title="Systemsida - namnet kan inte ändras">
+                                                                <i class="fa-solid fa-shield fa-xs me-1"></i>
+                                                                System
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                    <div class="d-flex justify-content-between">
+                                                        <small class="text-muted">/@item.PageKey</small>
+                                                        @if (HasChildren(item.PageKey))
+                                                        {
+                                                            <small class="text-info">
+                                                                <i class="fa-solid fa-arrow-down fa-xs me-1"></i>
+                                                                @GetChildrenCountText(item.PageKey)
+                                                            </small>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <div class="ms-3 text-end">
+                                                    <div class="mb-1">
+                                                        <label class="form-label form-label-sm mb-1">Ordning</label>
+                                                        <input type="number" class="form-control form-control-sm" 
+                                                               style="width: 70px;" 
+                                                               min="1" max="20"
+                                                               @bind="item.SortOrder" 
+                                                               @bind:after="() => MarkAsChanged(item)" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            @if (changedItems.Any())
+            {
+                <div class="alert alert-warning mt-3">
+                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                    <strong>Osparade ändringar:</strong> Du har @changedItems.Count objekt med ändringar. Glöm inte att spara!
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<NavigationConfigViewModel> guestNavigationItems = new();
+    private List<NavigationConfigViewModel> memberNavigationItems = new();
+    private List<NavigationPageDto> navigationPages = new();
+    private HashSet<int> changedItems = new();
+    private bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNavigationData();
+    }
+
+    private async Task LoadNavigationData()
+    {
+        await LoadNavigationItems();
+        await LoadNavigationPages();
+    }
+
+    private async Task LoadNavigationItems()
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync("api/navigation");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var dtos = await response.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
+                
+                // Skapa två separata listor med separata kopior av objekten
+                guestNavigationItems = dtos
+                    .Where(dto => dto.IsVisibleToGuests && dto.IsActive)
+                    .Select(dto => new NavigationConfigViewModel
+                    {
+                        Id = dto.Id,
+                        PageKey = dto.PageKey,
+                        DisplayName = dto.DisplayName,
+                        ItemType = dto.ItemType,
+                        SortOrder = dto.GuestSortOrder ?? dto.SortOrder, // Använd GuestSortOrder eller fallback till SortOrder
+                        GuestSortOrder = dto.GuestSortOrder,
+                        MemberSortOrder = dto.MemberSortOrder,
+                        IsVisibleToGuests = dto.IsVisibleToGuests,
+                        IsVisibleToMembers = dto.IsVisibleToMembers,
+                        IsActive = dto.IsActive,
+                        IsSystemItem = dto.IsSystemItem
+                    }).ToList();
+
+                memberNavigationItems = dtos
+                    .Where(dto => dto.IsVisibleToMembers && dto.IsActive)
+                    .Select(dto => new NavigationConfigViewModel
+                    {
+                        Id = dto.Id,
+                        PageKey = dto.PageKey,
+                        DisplayName = dto.DisplayName,
+                        ItemType = dto.ItemType,
+                        SortOrder = dto.MemberSortOrder ?? dto.SortOrder, // Använd MemberSortOrder eller fallback till SortOrder
+                        GuestSortOrder = dto.GuestSortOrder,
+                        MemberSortOrder = dto.MemberSortOrder,
+                        IsVisibleToGuests = dto.IsVisibleToGuests,
+                        IsVisibleToMembers = dto.IsVisibleToMembers,
+                        IsActive = dto.IsActive,
+                        IsSystemItem = dto.IsSystemItem
+                    }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error("Kunde inte ladda navigation");
+        }
+    }
+
+    private async Task LoadNavigationPages()
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync("api/custompage/navigation");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                navigationPages = await response.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Silent fail for navigation pages - it's supplementary info
+        }
+    }
+
+    private void MarkAsChanged(NavigationConfigViewModel item)
+    {
+        changedItems.Add(item.Id);
+        StateHasChanged();
+    }
+
+    private bool IsProtectedItem(NavigationConfigViewModel item)
+    {
+        var protectedItems = new[] { "admin", "logout" };
+        return protectedItems.Contains(item.PageKey.ToLower());
+    }
+
+    private bool HasChildren(string pageKey)
+    {
+        return navigationPages.Any(p => p.PageKey == pageKey && p.Children.Any());
+    }
+
+    private int GetChildrenCount(string pageKey)
+    {
+        var page = navigationPages.FirstOrDefault(p => p.PageKey == pageKey);
+        return page?.Children?.Count ?? 0;
+    }
+
+    private string GetChildrenCountText(string pageKey)
+    {
+        var count = GetChildrenCount(pageKey);
+        return count == 1 ? "1 undersida" : $"{count} undersidor";
+    }
+
+    private int GetPagesWithChildrenCount()
+    {
+        return navigationPages.Count(p => p.Children.Any());
+    }
+
+    private string GetPagesWithChildrenText()
+    {
+        var count = GetPagesWithChildrenCount();
+        return count == 1 ? "sida har undersidor" : "sidor har undersidor";
+    }
+
+    private int GetTotalNavigationItemsCount()
+    {
+        var totalGuests = guestNavigationItems.Count;
+        var totalMembers = memberNavigationItems.Count;
+        
+        var allUniqueItems = guestNavigationItems.Select(g => g.PageKey)
+            .Union(memberNavigationItems.Select(m => m.PageKey))
+            .Distinct()
+            .Count();
+            
+        var totalChildPages = navigationPages.Sum(p => p.Children.Count);
+        
+        return allUniqueItems + totalChildPages;
+    }
+
+    private int GetTotalChildPagesCount()
+    {
+        return navigationPages.Sum(p => p.Children.Count);
+    }
+
+    private string GetTotalChildPagesText()
+    {
+        var count = GetTotalChildPagesCount();
+        return count == 1 ? "undersida totalt" : "undersidor totalt";
+    }
+
+    private async Task SaveAllChanges()
+    {
+        if (!changedItems.Any())
+        {
+            await Toast.Info("Inga ändringar att spara");
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            
+            foreach (var itemId in changedItems)
+            {
+                // Hitta objektet i båda listorna
+                var guestItem = guestNavigationItems.FirstOrDefault(i => i.Id == itemId);
+                var memberItem = memberNavigationItems.FirstOrDefault(i => i.Id == itemId);
+                
+                // Bestäm vilken sortordning som ska användas för varje typ
+                var guestSortOrder = guestItem?.SortOrder;
+                var memberSortOrder = memberItem?.SortOrder;
+                
+                // Använd det första objektet vi hittar för de gemensamma fälten
+                var item = guestItem ?? memberItem;
+                if (item != null)
+                {
+                    var updateDto = new NavigationUpdateDto
+                    {
+                        DisplayName = item.DisplayName,
+                        SortOrder = item.SortOrder,
+                        GuestSortOrder = guestSortOrder,
+                        MemberSortOrder = memberSortOrder,
+                        IsVisibleToGuests = item.IsVisibleToGuests,
+                        IsVisibleToMembers = item.IsVisibleToMembers,
+                        IsActive = item.IsActive
+                    };
+                    
+                    var response = await httpClient.PutAsJsonAsync($"api/navigation/{item.Id}", updateDto);
+                    
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var error = await response.Content.ReadAsStringAsync();
+                        throw new Exception($"API Error för {item.PageKey}: {error}");
+                    }
+                }
+            }
+            
+            changedItems.Clear();
+            await Toast.Success($"Alla ändringar sparade! Navigationen kommer att uppdateras.");
+            
+            await LoadNavigationData();
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Fel vid sparande: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

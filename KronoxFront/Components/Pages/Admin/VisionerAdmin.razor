@@ -64,6 +64,12 @@
                                          OnConfigurationChanged="OnSectionConfigurationChanged"
                                          OnSave="SaveSectionConfiguration" />
 
+                @* ---------- Navigeringsinställningar ----------- *@
+
+                <NavigationSettings PageKey="omkonsortiet"
+                                    InitialDisplayName="@pageContent.Title"
+                                    OnDisplayNameChanged="OnNavigationNameChanged" />
+
                 @* ---------- Sidans titel ------------------------------------ *@
                 <EditForm Model="pageContent" OnValidSubmit="SavePageContent">
                     <DataAnnotationsValidator />
@@ -641,5 +647,21 @@
     {
         StateHasChanged();
         return Task.CompletedTask;
+    }
+
+    private async Task OnNavigationNameChanged(string newDisplayName)
+    {
+        // Synkronisera sidtiteln om önskas
+        if (!string.IsNullOrEmpty(newDisplayName) && pageContent.Title != newDisplayName)
+        {
+            var shouldSync = await JS.InvokeAsync<bool>("confirm",
+                $"Vill du också ändra sidtiteln till '{newDisplayName}'?");
+
+            if (shouldSync)
+            {
+                pageContent.Title = newDisplayName;
+                await SavePageContent();
+            }
+        }
     }
 }

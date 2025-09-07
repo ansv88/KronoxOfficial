@@ -7,7 +7,7 @@ namespace KronoxApi.Data.Seed;
 // Innehåller metoder för att seeda grundläggande data vid applikationsstart.
 public static class StartupSeed
 {
-    // Konfigurerar och seedar användardata och kategorier för applikationen.
+    // Konfigurerar och seedar användardata, kategorier och navigeringslänkar för applikationen.
     public static async Task SeedAllAsync(this IServiceProvider serviceProvider, IConfiguration configuration)
     {
         using var scope = serviceProvider.CreateScope();
@@ -28,6 +28,9 @@ public static class StartupSeed
 
             // Seeda kategorier om de inte redan finns
             await SeedCategoriesAsync(dbContext, logger);
+
+            // Navigationsseeding
+            await NavigationSeed.SeedNavigationConfigAsync(dbContext);
         }
         catch (Exception ex)
         {

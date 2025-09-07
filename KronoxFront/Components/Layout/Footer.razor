@@ -1,8 +1,11 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
+@using KronoxFront.DTOs
 @inject AuthenticationStateProvider AuthProvider
+@inject IHttpClientFactory HttpClientFactory
 
 @* 
-   Footer-komponent som visar sidfot med kontaktinformation och navigation.
+   Footer-komponent som visar sidfot med kontaktinformation och dynamisk navigation.
+   Sitemapen uppdateras automatiskt baserat på skapade sidor och navigationskonfiguration.
    Innehåller olika navigationsalternativ baserat på användarens autentisering och roller.
    Responsiv design med desktop- och mobilvyer.
 *@
@@ -32,32 +35,57 @@
 			<div class="col-md-4 text-center">
 				<img src="images/logo.png" alt="KronoX logotyp" class="logo" width="200" height="47" loading="lazy" />
 			</div>
-			<!-- Höger kolumn: Sitemap -->
+			<!-- Höger kolumn: Dynamisk Sitemap -->
 			<div class="col-md-4 text-end">
 				<nav aria-label="Sidfotsmeny">
 					<h3 class="text-white fs-6 h4" id="sitemap-desktop">SITEMAP</h3>
 					<AuthorizeView>
 						<NotAuthorized>
-							<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
-								<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-								<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
-								<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
-								<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
-							</ul>
+							@if (guestSitemapPages.Any())
+							{
+								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+									@foreach (var navItem in guestSitemapPages.OrderBy(p => p.SortOrder))
+									{
+										<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+									}
+								</ul>
+							}
+							else
+							{
+								<!-- Fallback till statiska länkar om API inte fungerar -->
+								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+									<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+									<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
+									<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
+									<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+								</ul>
+							}
 						</NotAuthorized>
 						<Authorized>
-							<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
-								<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
-								<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-								<!-- Länkar för Admin eller Styrelse -->
-								<AuthorizeView Roles="Admin,Styrelse" Context="rolesAuthState">
-									<li><NavLink href="/for-styrelsen" class="text-white">För styrelsen</NavLink></li>
-									<li><NavLink href="/for-vnsg" class="text-white">För VNSG</NavLink></li>
-								</AuthorizeView>
-								<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
-								<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
-								<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
-							</ul>
+							@if (memberSitemapPages.Any())
+							{
+								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+									@foreach (var navItem in memberSitemapPages.OrderBy(p => p.SortOrder))
+									{
+										<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+									}
+								</ul>
+							}
+							else
+							{
+								<!-- Fallback till statiska länkar om API inte fungerar -->
+								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+									<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
+									<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+									<AuthorizeView Roles="Admin,Styrelse" Context="rolesAuthState">
+										<li><NavLink href="/for-styrelsen" class="text-white">För styrelsen</NavLink></li>
+										<li><NavLink href="/for-vnsg" class="text-white">För VNSG</NavLink></li>
+									</AuthorizeView>
+									<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
+									<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
+									<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+								</ul>
+							}
 						</Authorized>
 					</AuthorizeView>
 				</nav>
@@ -86,32 +114,58 @@
 			</div>
 			<!-- Separator -->
 			<hr class="my-3" aria-hidden="true" />
-			<!-- Sitemap -->
+			<!-- Dynamisk Sitemap för mobil -->
 			<div class="row text-center">
 				<div class="col-12">
 					<nav aria-label="Sidfotsmeny för mobil">
 						<h3 class="fs-6 h4" id="sitemap-mobile">SITEMAP</h3>
 						<AuthorizeView>
 							<NotAuthorized>
-								<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
-									<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-									<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
-									<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
-									<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
-								</ul>
+								@if (guestSitemapPages.Any())
+								{
+									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+										@foreach (var navItem in guestSitemapPages.OrderBy(p => p.SortOrder))
+										{
+											<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+										}
+									</ul>
+								}
+								else
+								{
+									<!-- Fallback till statiska länkar om API inte fungerar -->
+									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+										<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+										<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
+										<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
+										<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+									</ul>
+								}
 							</NotAuthorized>
 							<Authorized>
-								<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
-									<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
-									<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-									<AuthorizeView Roles="Admin,Styrelse" Context="innerAuthState">
-										<li><NavLink href="/for-styrelsen" class="text-white">För styrelsen</NavLink></li>
-										<li><NavLink href="/for-vnsg" class="text-white">För VNSG</NavLink></li>
-									</AuthorizeView>
-									<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
-									<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
-									<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
-								</ul>
+								@if (memberSitemapPages.Any())
+								{
+									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+										@foreach (var navItem in memberSitemapPages.OrderBy(p => p.SortOrder))
+										{
+											<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+										}
+									</ul>
+								}
+								else
+								{
+									<!-- Fallback till statiska länkar om API inte fungerar -->
+									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+										<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
+										<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+										<AuthorizeView Roles="Admin,Styrelse" Context="innerAuthState">
+											<li><NavLink href="/for-styrelsen" class="text-white">För styrelsen</NavLink></li>
+											<li><NavLink href="/for-vnsg" class="text-white">För VNSG</NavLink></li>
+										</AuthorizeView>
+										<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
+										<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
+										<li><NavLink href="/kontakt" class="text-white">Kontakta oss</NavLink></li>
+									</ul>
+								}
 							</Authorized>
 						</AuthorizeView>
 					</nav>
@@ -120,3 +174,111 @@
 		</div>
 	</div>
 </footer>
+
+@code {
+	private List<NavigationConfigDto> guestSitemapPages = new();
+	private List<NavigationConfigDto> memberSitemapPages = new();
+	private List<NavigationPageDto> customPages = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadSitemapData();
+	}
+
+	private async Task LoadSitemapData()
+	{
+		try
+		{
+			var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+			
+			// Ladda navigationskonfiguration
+			var navResponse = await httpClient.GetAsync("api/navigation");
+			if (navResponse.IsSuccessStatusCode)
+			{
+				var allNavItems = await navResponse.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
+				
+				// Filtrera för sitemap - endast aktiva sidor som ska visas i navigation
+				// Exkludera admin och logout från sitemap
+				var sitemapItems = allNavItems
+					.Where(item => item.IsActive && 
+								  !item.PageKey.Equals("admin", StringComparison.OrdinalIgnoreCase) &&
+								  !item.PageKey.Equals("logout", StringComparison.OrdinalIgnoreCase))
+					.ToList();
+
+				// Separera för gäster och medlemmar
+				guestSitemapPages = sitemapItems
+					.Where(item => item.IsVisibleToGuests)
+					.OrderBy(item => item.GuestSortOrder ?? item.SortOrder)
+					.ToList();
+
+				memberSitemapPages = sitemapItems
+					.Where(item => item.IsVisibleToMembers)
+					.OrderBy(item => item.MemberSortOrder ?? item.SortOrder)
+					.ToList();
+			}
+
+			// Ladda custom pages för att komplettera med eventuella sidor som bara finns där
+			var customResponse = await httpClient.GetAsync("api/custompage/navigation");
+			if (customResponse.IsSuccessStatusCode)
+			{
+				customPages = await customResponse.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
+				
+				// Lägg till custom pages som är aktiva och ska visas i navigation men som kanske inte finns i navigationskonfigurationen än
+				await AddMissingCustomPages();
+			}
+		}
+		catch (Exception)
+		{
+			// Silent fail - använd fallback-länkar om API inte fungerar
+		}
+	}
+
+	private async Task AddMissingCustomPages()
+	{
+		var authState = await AuthProvider.GetAuthenticationStateAsync();
+		var user = authState.User;
+		var isAuthenticated = user.Identity?.IsAuthenticated == true;
+
+		foreach (var customPage in customPages)
+		{
+			// Kontrollera om sidan ska visas i navigation och är behörig
+			if (customPage.NavigationType != "hidden" && 
+				customPage.IsAuthorized(isAuthenticated, user))
+			{
+				// Kontrollera om den redan finns i navigationskonfigurationen
+				var existsInGuestNav = guestSitemapPages.Any(g => g.PageKey == customPage.PageKey);
+				var existsInMemberNav = memberSitemapPages.Any(m => m.PageKey == customPage.PageKey);
+
+				// Lägg till för gäster om den inte redan finns och är publik
+				if (!existsInGuestNav && !customPage.RequiredRoles.Any())
+				{
+					guestSitemapPages.Add(new NavigationConfigDto
+					{
+						PageKey = customPage.PageKey,
+						DisplayName = customPage.DisplayName,
+						SortOrder = customPage.SortOrder,
+						IsActive = true,
+						IsVisibleToGuests = true
+					});
+				}
+
+				// Lägg till för medlemmar om den inte redan finns
+				if (!existsInMemberNav)
+				{
+					memberSitemapPages.Add(new NavigationConfigDto
+					{
+						PageKey = customPage.PageKey,
+						DisplayName = customPage.DisplayName,
+						SortOrder = customPage.SortOrder,
+						IsActive = true,
+						IsVisibleToMembers = true
+					});
+				}
+			}
+		}
+
+		// Sortera om efter att ha lagt till custom pages
+		guestSitemapPages = guestSitemapPages.OrderBy(p => p.SortOrder).ToList();
+		memberSitemapPages = memberSitemapPages.OrderBy(p => p.SortOrder).ToList();
+	}
+}
