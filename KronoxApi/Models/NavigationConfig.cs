@@ -27,6 +27,9 @@ public class NavigationConfig
     public bool IsActive { get; set; } = true;
     public bool IsSystemItem { get; set; } = false;
     
+    [StringLength(500)]
+    public string? RequiredRoles { get; set; }
+    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
 }

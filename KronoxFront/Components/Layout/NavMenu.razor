@@ -72,7 +72,6 @@
                 <Authorized>
                     <!-- Navigering för inloggade användare -->
                     <ul class="navbar-nav ms-auto gap-3 text-center justify-content-center responsive-nav">
-                        <!-- Endast dynamiska länkar från navigationskonfiguration -->
                         @foreach (var item in GetAllNavigationItems(true))
                         {
                             @if (item.PageKey == "admin")
@@ -128,7 +127,6 @@
                             }
                             else
                             {
-                                <!-- Vanliga länkar utan dropdown -->
                                 <li class="nav-item">
                                     <NavLink class="nav-link text-white position-relative" href="@($"/{item.PageKey}")" ActiveClass="active-link">
                                         @item.DisplayName
@@ -137,28 +135,6 @@
                                 </li>
                             }
                         }
-
-                        <!-- Länkar enbart för Admin eller Styrelse -->
-                        <AuthorizeView Roles="Admin,Styrelse" Context="roleContext">
-                            <Authorized>
-                                @if (GetCustomPagesForParent("for-styrelsen").Any())
-                                {
-                                    <!-- Dropdown för styrelsesidor -->
-                                    <li class="nav-item dropdown">
-                                        <a class="nav-link dropdown-toggle text-white" href="#" role="button" 
-                                           data-bs-toggle="dropdown" aria-expanded="false">
-                                            För styrelsen
-                                        </a>
-                                        <ul class="dropdown-menu">
-                                            @foreach (var stylePage in GetCustomPagesForParent("for-styrelsen"))
-                                            {
-                                                <li><NavLink class="dropdown-item" href="@($"/{stylePage.PageKey}")">@stylePage.DisplayName</NavLink></li>
-                                            }
-                                        </ul>
-                                    </li>
-                                }
-                            </Authorized>
-                        </AuthorizeView>
                     </ul>
                 </Authorized>
             </AuthorizeView>
@@ -406,16 +382,26 @@
 
         foreach (var config in allConfigs)
         {
+            // Rollkontroll
+            if (!string.IsNullOrEmpty(config.RequiredRoles) && user != null)
+            {
+                var requiredRoles = config.RequiredRoles.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                var hasRequiredRole = requiredRoles.Any(role => user.IsInRole(role.Trim()));
+                
+                if (!hasRequiredRole)
+                {
+                    continue; // Hoppa över denna länk om användaren inte har rätt roll
+                }
+            }
+            
             var sortOrder = isAuthenticated 
                 ? (config.MemberSortOrder ?? config.SortOrder)
                 : (config.GuestSortOrder ?? config.SortOrder);
             
-            // Hitta motsvarande NavigationPageDto från API:et (som redan har Children)
             var navPage = navigationPages.FirstOrDefault(p => p.PageKey == config.PageKey);
             
             if (navPage != null)
             {
-                // Använd NavigationPageDto direkt med dess befintliga Children
                 var authorizedChildren = navPage.Children
                     .Where(c => c.IsAuthorized(isAuthenticated, user))
                     .Select(c => c.ToNavigationViewModel())
@@ -440,7 +426,6 @@
             }
             else
             {
-                // Fallback för konfigurationer utan motsvarande NavigationPageDto
                 items.Add(new NavigationItemViewModel 
                 { 
                     Type = config.ItemType, 

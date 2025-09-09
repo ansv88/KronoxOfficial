@@ -6,8 +6,10 @@
 @inject NavigationManager Nav
 @inject IHttpClientFactory HttpClientFactory
 @inject ILogger<AdminLayout> Logger
+@inject IJSRuntime JS
 
 @namespace KronoxFront.Components.Layout
+
 
 <AuthorizeView Roles="Admin">
     <Authorized>
@@ -15,125 +17,169 @@
             <div class="row">
                 <!-- Sidebar -->
                 <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
-                    <div class="position-sticky pt-3">
-                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                            <span>Administration</span>
-                        </h5>
-                        <ul class="nav flex-column">
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin" Match="NavLinkMatch.All">
-                                    <i class="fa-solid fa-gauge me-2"></i> Dashboard
-                                </NavLink>
-                            </li>
-                        </ul>
+                    <div class="position-sticky pt-3 d-flex flex-column" style="height: calc(100vh - 56px);">
+                        <div class="flex-grow-1">
+                            <!-- Administration - alltid synlig -->
+                            <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
+                                <span class ="fs-5">Administration</span>
+                            </h4>
+                            <ul class="nav flex-column">
+                                <li class="nav-item">
+                                    <NavLink class="nav-link" href="/admin" Match="NavLinkMatch.All">
+                                        <i class="fa-solid fa-gauge me-2"></i> Dashboard
+                                    </NavLink>
+                                </li>
+                            </ul>
 
-                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                            <span>Redigera publika sidor</span>
-                        </h5>
-                        <ul class="nav flex-column">
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/home">
-                                    <i class="fa-solid fa-house me-2"></i> Startsida
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/omkonsortiet">
-                                    <i class="fa-solid fa-info-circle me-2"></i> Om konsortiet
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/omsystemet">
-                                    <i class="fa-solid fa-cogs me-2"></i> Om systemet
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/visioner">
-                                    <i class="fa-solid fa-bullseye me-2"></i> Visioner & Verksamhetsidé
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/kontaktaoss">
-                                    <i class="fa-solid fa-address-book me-2"></i> Kontakta oss
-                                </NavLink>
-                            </li>
-                        </ul>
+                            <!-- Redigera publika sidor - kollapsbar -->
+                            <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-dark">
+                                <button class="btn btn-link p-0 text-decoration-none text-dark border-0 w-100 text-start d-flex justify-content-between align-items-center"
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#publicPagesCollapse" 
+                                        aria-expanded="@publicPagesExpanded.ToString().ToLower()" 
+                                        aria-controls="publicPagesCollapse"
+                                        @onclick="() => ToggleSection(ref publicPagesExpanded)">
+                                    <span class="fs-5">Publika sidor</span>
+                                    <i class="fa-solid @(publicPagesExpanded ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                </button>
+                            </h4>
+                            <div class="collapse @(publicPagesExpanded ? "show" : "")" id="publicPagesCollapse">
+                                <ul class="nav flex-column">
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/home">
+                                            <i class="fa-solid fa-house me-2"></i> Startsida
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/omkonsortiet">
+                                            <i class="fa-solid fa-info-circle me-2"></i> Om konsortiet
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/omsystemet">
+                                            <i class="fa-solid fa-cogs me-2"></i> Om systemet
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/visioner">
+                                            <i class="fa-solid fa-bullseye me-2"></i> Visioner & Verksamhetsidé
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/kontaktaoss">
+                                            <i class="fa-solid fa-address-book me-2"></i> Kontakta oss
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </div>
 
-                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                            <span>Redigera interna sidor</span>
-                        </h5>
-                        <ul class="nav flex-column">
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/medlemsnytt">
-                                    <i class="fa-solid fa-newspaper me-2"></i> Medlemsnytt
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/page/for-styrelsen">
-                                    <i class="fa-solid fa-users-cog me-2"></i> För styrelsen
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/page/for-vnsg">
-                                    <i class="fa-solid fa-user-tie me-2"></i> För VNSG
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/forvaltning">
-                                    <i class="fa-solid fa-tasks me-2"></i> Förvaltning
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/dokument">
-                                    <i class="fa-solid fa-file-contract me-2"></i> Dokument
-                                </NavLink>
-                            </li>
-                        </ul>
+                            <!-- Redigera interna sidor - kollapsbar -->
+                            <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-dark">
+                                <button class="btn btn-link p-0 text-decoration-none text-dark border-0 w-100 text-start d-flex justify-content-between align-items-center"
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#internalPagesCollapse" 
+                                        aria-expanded="@internalPagesExpanded.ToString().ToLower()" 
+                                        aria-controls="internalPagesCollapse"
+                                        @onclick="() => ToggleSection(ref internalPagesExpanded)">
+                                    <span class="fs-5">Interna sidor</span>
+                                    <i class="fa-solid @(internalPagesExpanded ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                </button>
+                            </h4>
+                            <div class="collapse @(internalPagesExpanded ? "show" : "")" id="internalPagesCollapse">
+                                <ul class="nav flex-column">
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/medlemsnytt">
+                                            <i class="fa-solid fa-newspaper me-2"></i> Medlemsnytt
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/forstyrelsen">
+                                            <i class="fa-solid fa-users-cog me-2"></i> För styrelsen
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/forvnsg">
+                                            <i class="fa-solid fa-user-tie me-2"></i> För VNSG
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/forvaltning">
+                                            <i class="fa-solid fa-tasks me-2"></i> Förvaltning
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/dokument">
+                                            <i class="fa-solid fa-file-contract me-2"></i> Dokument
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </div>
 
-                        <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                            <span>Funktioner</span>
-                        </h5>
-                        <ul class="nav flex-column mb-2">
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/news">
-                                    <i class="fa-solid fa-newspaper me-2"></i> Hantera nyheter
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/documents/manage">
-                                    <i class="fa-solid fa-file-alt me-2"></i> Hantera dokument
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/suggestions">
-                                    <i class="fa-solid fa-lightbulb me-2"></i> Hantera utvecklingsförslag
-                                    @if (newSuggestionsCount > 0)
-                                    {
-                                        <span class="badge bg-warning text-dark ms-1">@newSuggestionsCount</span>
-                                    }
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/memberlogos">
-                                    <i class="fa-solid fa-university me-2"></i> Hantera medlemslogotyper
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/users">
-                                    <i class="fa-solid fa-users me-2"></i> Hantera användare
-                                    @if (newUserCount > 0)
-                                    {
-                                        <span class="badge bg-danger ms-1">@newUserCount</span>
-                                    }
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/admin/pages">
-                                    <i class="fa-solid fa-file-plus me-2"></i> Hantera sidor
-                                </NavLink>
-                            </li>
-                        </ul>
+                            <!-- Funktioner - kollapsbar -->
+                            <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-dark">
+                                <button class="btn btn-link p-0 text-decoration-none text-dark border-0 w-100 text-start d-flex justify-content-between align-items-center"
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#functionsCollapse" 
+                                        aria-expanded="@functionsExpanded.ToString().ToLower()" 
+                                        aria-controls="functionsCollapse"
+                                        @onclick="() => ToggleSection(ref functionsExpanded)">
+                                    <span class="fs-5">Funktioner</span>
+                                    <i class="fa-solid @(functionsExpanded ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                </button>
+                            </h4>
+                            <div class="collapse @(functionsExpanded ? "show" : "")" id="functionsCollapse">
+                                <ul class="nav flex-column mb-2">
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/news">
+                                            <i class="fa-solid fa-newspaper me-2"></i> Hantera nyheter
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/documents/manage">
+                                            <i class="fa-solid fa-file-alt me-2"></i> Hantera dokument
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/suggestions">
+                                            <i class="fa-solid fa-lightbulb me-2"></i> Hantera utvecklingsförslag
+                                            @if (newSuggestionsCount > 0)
+                                            {
+                                                <span class="badge bg-warning text-dark ms-1">@newSuggestionsCount</span>
+                                            }
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/memberlogos">
+                                            <i class="fa-solid fa-university me-2"></i> Hantera medlemslogotyper
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/users">
+                                            <i class="fa-solid fa-users me-2"></i> Hantera användare
+                                            @if (newUserCount > 0)
+                                            {
+                                                <span class="badge bg-danger ms-1">@newUserCount</span>
+                                            }
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/pages">
+                                            <i class="fa-solid fa-plus-minus me-2"></i> Hantera nya sidor
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/navigation">
+                                            <i class="fa-solid fa-compass me-2"></i> Hantera navigation
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
 
-                        <div class="px-3 mt-4">
+                        <div class="px-3 pb-4 my-4">
                             <button class="btn btn-outline-primary w-100" @onclick="GoToFrontpage">
                                 <i class="fa-solid fa-arrow-left me-1"></i> Tillbaka till webbplatsen
                             </button>
@@ -167,6 +213,11 @@
     private int newSuggestionsCount = 0;
     private int mainCategoryCount = 0;
     private int subCategoryCount = 0;
+    
+    // Kollaps-tillstånd för sektionerna
+    private bool publicPagesExpanded = false;
+    private bool internalPagesExpanded = false;
+    private bool functionsExpanded = false;
 
     // Vid initiering, hämta statistik för sidomenyn
     protected override async Task OnInitializedAsync()
@@ -174,6 +225,28 @@
         await LoadNewUserCount();
         await LoadNewSuggestionsCount();
         await LoadCategoryCount();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Aktivera Bootstrap collapse-funktionalitet
+            await JS.InvokeVoidAsync("eval", @"
+                if (typeof bootstrap !== 'undefined') {
+                    var collapseElementList = [].slice.call(document.querySelectorAll('.collapse'));
+                    var collapseList = collapseElementList.map(function (collapseEl) {
+                        return new bootstrap.Collapse(collapseEl, { toggle: false });
+                    });
+                }
+            ");
+        }
+    }
+
+    private void ToggleSection(ref bool sectionExpanded)
+    {
+        sectionExpanded = !sectionExpanded;
+        StateHasChanged();
     }
 
     // Hämtar antal nya utvecklingsförslag från API.

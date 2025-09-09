@@ -663,6 +663,8 @@ public class CmsService
             "visioner" => "Visioner & Verksamhetsidé",
             "kontaktaoss" => "Kontakta oss",
             "omsystemet" => "Om systemet",
+            "forstyrelsen" => "För styrelsen",
+            "forvnsg" => "För VNSG",
             _ => "Sida"
         };
     }
@@ -721,36 +723,6 @@ public class CmsService
         return json.ToLogoViewModels() ?? new();
     }
 
-    //public async Task<MemberLogoViewModel?> UploadLogoAsync(MemberLogoUploadDto dto)
-    //{
-    //    try
-    //    {
-    //        using var content = new MultipartFormDataContent();
-    //        var stream = dto.File.OpenReadStream(maxAllowedSize: 10_000_000);
-    //        var fileContent = new StreamContent(stream);
-    //        fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(dto.File.ContentType));
-    //        content.Add(fileContent, "File", dto.File.Name);
-    //        content.Add(new StringContent(dto.AltText), "AltText");
-    //        content.Add(new StringContent(dto.SortOrd.ToString()), "SortOrd");
-    //        content.Add(new StringContent(dto.LinkUrl), "LinkUrl");
-
-    //        var resp = await _http.PostAsync("api/cms/logos/upload", content);
-    //        if (!resp.IsSuccessStatusCode)
-    //        {
-    //            var errorJson = await resp.Content.ReadAsStringAsync();
-    //            _logger.LogError("Misslyckades med uppladdning av logotyp: {Error}", errorJson);
-    //            throw new ApplicationException($"Upload failed: {errorJson}");
-    //        }
-    //        var json = await resp.Content.ReadAsStringAsync();
-    //        return json.ToLogoViewModel();
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Fel vid uppladdning av logotyp");
-    //        throw;
-    //    }
-    //}
-
     // Metadata-register (filer som redan ligger i wwwroot/images/members)
     public async Task<MemberLogoViewModel?> RegisterLogoMetadataAsync(string sourcePath,
                                                                       string originalFileName,
@@ -772,36 +744,6 @@ public class CmsService
         var json = await resp.Content.ReadAsStringAsync();
         return json.ToLogoViewModel();
     }
-
-    //public async Task DeleteLogoAsync(int logoId)
-    //{
-    //    _logger.LogInformation("Tar bort logotyp {LogoId}", logoId);
-    //    var resp = await _http.DeleteAsync($"api/cms/logos/{logoId}");
-    //    resp.EnsureSuccessStatusCode();
-    //}
-
-    //public async Task<bool> MoveLogoAsync(int logoId, int direction)
-    //{
-    //    var payload = new { LogoId = logoId, Direction = direction };
-    //    var resp = await _http.PostAsJsonAsync("api/cms/logos/move", payload);
-    //    return resp.IsSuccessStatusCode;
-    //}
-
-    //public async Task<bool> UpdateLogoDescriptionAsync(int logoId, string description)
-    //{
-    //    var resp = await _http.PutAsJsonAsync(
-    //        $"api/cms/logos/{logoId}/description",
-    //        new { Description = description });
-    //    return resp.IsSuccessStatusCode;
-    //}
-
-    //public async Task<bool> UpdateLogoLinkUrlAsync(int logoId, string linkUrl)
-    //{
-    //    var resp = await _http.PutAsJsonAsync(
-    //        $"api/cms/logos/{logoId}/link",
-    //        new { LinkUrl = linkUrl });
-    //    return resp.IsSuccessStatusCode;
-    //}
 
     // Ladda upp ny medlemslogotyp
     public async Task<MemberLogoViewModel?> UploadMemberLogoAsync(MemberLogoUploadDto uploadDto)
@@ -1315,7 +1257,7 @@ public class CmsService
         switch (pageKey.ToLower())
         {
             case "home":
-                defaultSections.AddRange(new[]
+                defaultSections.AddRange(new []
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1328,7 +1270,7 @@ public class CmsService
                 break;
                 
             case "dokument":
-                defaultSections.AddRange(new[]
+                defaultSections.AddRange(new []
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1339,7 +1281,7 @@ public class CmsService
                 break;
 
             case "kontaktaoss":
-                defaultSections.AddRange(new[]
+                defaultSections.AddRange(new []
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1352,7 +1294,7 @@ public class CmsService
                 break;
 
             case "medlemsnytt":
-                defaultSections.AddRange(new[]
+                defaultSections.AddRange(new []
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1366,7 +1308,7 @@ public class CmsService
                 break;
 
             case "forvaltning":
-                defaultSections.AddRange(new[]
+                defaultSections.AddRange(new []
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1379,9 +1321,35 @@ public class CmsService
                 });
                 break;
 
+            case "forstyrelsen":
+                defaultSections.AddRange(new []
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = false, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = true, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.DocumentSection, IsEnabled = true, SortOrder = 4 },
+                    new SectionConfigItem { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 5 },
+                    new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 6 }
+                });
+                break;
+
+            case "forvnsg":
+                defaultSections.AddRange(new []
+                {
+                    new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+                    new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+                    new SectionConfigItem { Type = SectionType.NavigationButtons, IsEnabled = false, SortOrder = 2 },
+                    new SectionConfigItem { Type = SectionType.FeatureSections, IsEnabled = true, SortOrder = 3 },
+                    new SectionConfigItem { Type = SectionType.DocumentSection, IsEnabled = true, SortOrder = 4 },
+                    new SectionConfigItem { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 5 },
+                    new SectionConfigItem { Type = SectionType.MemberLogos, IsEnabled = true, SortOrder = 6 }
+                });
+                break;
+
             default:
                 // Standardsektioner för alla andra sidor
-                defaultSections.AddRange(new[]
+                defaultSections.AddRange(new []
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },

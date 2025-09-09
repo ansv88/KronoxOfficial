@@ -20,6 +20,7 @@ public static class NavigationConfigExtensions
             IsVisibleToMembers = config.IsVisibleToMembers,
             IsActive = config.IsActive,
             IsSystemItem = config.IsSystemItem,
+            RequiredRoles = config.RequiredRoles,
             CreatedAt = config.CreatedAt,
             LastModified = config.LastModified
         };
@@ -45,6 +46,7 @@ public static class NavigationConfigExtensions
             IsVisibleToMembers = dto.IsVisibleToMembers,
             IsActive = dto.IsActive,
             IsSystemItem = dto.IsSystemItem,
+            RequiredRoles = dto.RequiredRoles,
             CreatedAt = dto.CreatedAt,
             LastModified = dto.LastModified
         };

@@ -67,6 +67,7 @@ public class NavigationController : ControllerBase
                 IsVisibleToMembers = root.GetProperty("isVisibleToMembers").GetBoolean(),
                 IsActive = root.GetProperty("isActive").GetBoolean(),
                 IsSystemItem = root.TryGetProperty("isSystemItem", out var sysItem) ? sysItem.GetBoolean() : false,
+                RequiredRoles = root.TryGetProperty("requiredRoles", out var reqRoles) ? reqRoles.GetString() : null,
                 CreatedAt = DateTime.UtcNow,
                 LastModified = DateTime.UtcNow
             };
@@ -135,6 +136,9 @@ public class NavigationController : ControllerBase
             config.MemberSortOrder = request.MemberSortOrder;
             config.IsActive = request.IsActive;
             config.LastModified = DateTime.UtcNow;
+
+            // Uppdatera RequiredRoles
+            config.RequiredRoles = request.RequiredRoles;
 
             _logger.LogInformation("About to save changes for {PageKey}", config.PageKey);
             await _context.SaveChangesAsync();
@@ -213,6 +217,7 @@ public class NavigationController : ControllerBase
                     IsVisibleToGuests = root.GetProperty("isVisibleToGuests").GetBoolean(),
                     IsVisibleToMembers = root.GetProperty("isVisibleToMembers").GetBoolean(),
                     IsActive = true,
+                    RequiredRoles = root.TryGetProperty("requiredRoles", out var reqRoles) ? reqRoles.GetString() : null,
                     CreatedAt = DateTime.UtcNow,
                     LastModified = DateTime.UtcNow
                 };
