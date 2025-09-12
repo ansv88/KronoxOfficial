@@ -43,104 +43,11 @@ else
         <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
     }
 
-@* 
-    <section class="container mt-3" style="max-width:1000px; margin: 0 auto;">
-        <div class="row align-items-center">
-            @if (introSection.HasImage && !string.IsNullOrEmpty(introSection.ImageUrl))
-            {
-                <div class="col-md-4 mb-4 mb-md-0">
-                    <img src="@introSection.ImageUrl" class="img-fluid rounded-3 shadow"
-                         alt="@(string.IsNullOrEmpty(introSection.ImageAltText) ? introSection.Title : introSection.ImageAltText)"
-                         style="cursor:pointer"
-                         @onclick="() => ShowImage(introSection.ImageUrl)" />
-                </div>
-                <div class="col-md-8">
-                    @if (!string.IsNullOrWhiteSpace(introSection.Title))
-                    {
-                        <h2 class="mb-4 fw-bold">@introSection.Title</h2>
-                    }
-                    <div class="intro-content">
-                        @((MarkupString)introSection.Content)
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="col-12 text-center">
-                    @if (!string.IsNullOrWhiteSpace(introSection.Title))
-                    {
-                        <h2 class="mb-4 fw-bold">@introSection.Title</h2>
-                    }
-                    else
-                    {
-
-                        <h1 class="fw-semibold mb-3">
-                            Ladda ner alla filer du behöver här
-                        </h1>
-                    }
-                    
-                    <div class="intro-content">
-                        @if (!string.IsNullOrWhiteSpace(introSection.Content))
-                        {
-                            @((MarkupString)introSection.Content)
-                        }
-                        else
-                        {
-                             <div class="mb-3 fs-5">
-                                Här hittar du alla mötesprotokoll, anteckningar, förvaltningsdokument med mera.
-                            </div>
-                            <div class="mb-4 fs-5">
-                                <a href="/manual" class="text-decoration-underline text-dark small">
-                                    Letar du efter Manualen hittar du den här <i class="fa fa-arrow-right ms-1"></i>
-                                </a>
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
-        </div>
-    </section>
-
-    @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
-    {
-        <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
-            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 my-4">
-                @foreach (var button in introSection.NavigationButtons.OrderBy(b => b.SortOrder))
-                {
-                    <a class="btn btn-dark px-4 py-3 btn-arrow" href="@button.Url">
-                        @button.Text <i class="@button.IconClass ms-2"></i>
-                    </a>
-                }
-            </div>
-        </section>
-    }
-    else
-    {
-        <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
-            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 my-4">
-                <a href="/manual" class="btn btn-dark px-4 py-2 shadow-sm" style="min-width: 140px;">
-                    Manualen <i class="fa fa-arrow-right ms-2"></i>
-                </a>
-            </div>
-        </section>
-    } *@
-
     <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
 
     @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
     {
         <NavigationButtons Buttons="@introSection.NavigationButtons" />
-    }
-    else
-    {
-        @* Fallback för manualen-knapp *@
-        <section class="container mt-4" style="max-width:1000px; margin: 0 auto;">
-            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 my-4">
-                <a href="/manual" class="btn btn-dark px-4 py-2 shadow-sm" style="min-width: 140px;">
-                    Manualen <i class="fa fa-arrow-right ms-2"></i>
-                </a>
-            </div>
-        </section>
     }
 
     <div class="wrapper-div py-3">

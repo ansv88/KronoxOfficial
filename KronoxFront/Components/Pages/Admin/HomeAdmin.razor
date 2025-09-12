@@ -29,7 +29,10 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3">Redigera startsidan</h1>
                 <div class="d-flex flex-column align-items-end">
-                    <div class="d-flex gap-2 mb-2">
+                    <div class="d-flex gap-2 mb-2 align-items-center">
+                        <!-- Diskret statustext -->
+                        <PageStatusText PageKey="home" />
+                        
                         <a href="/" class="btn btn-outline-secondary" title="Visar sparade ändringar">
                             <i class="fa-solid fa-eye me-1"></i>
                             Visa sparad sida
@@ -44,6 +47,11 @@
                                 <i class="fa-solid fa-save me-1"></i>
                             }
                             Spara allt innehåll
+                        </button>
+                        
+                        <!-- Kugghjul för navigationsinställningar -->
+                        <button type="button" class="btn btn-outline-secondary" @onclick="ScrollToNavigationSettings" title="Gå till navigationsinställningar">
+                            <i class="fa-solid fa-cog"></i>
                         </button>
                     </div>
                     <small class="text-muted">
@@ -68,6 +76,11 @@
                                          AvailableSections="sectionConfigItems"
                                          OnConfigurationChanged="OnSectionConfigurationChanged"
                                          OnSave="SaveSectionConfiguration" />
+
+                @* ---------- Navigeringsinställningar ----------- *@
+                <NavigationSettings PageKey="home"
+                                    InitialDisplayName="@pageContent.Title"
+                                    OnDisplayNameChanged="OnNavigationNameChanged" />
 
                 @* ---------- Sidans titel ------------------------------------ *@
                 <EditForm Model="pageContent" OnValidSubmit="SavePageContent">
@@ -654,5 +667,33 @@
     {
         StateHasChanged();
         return Task.CompletedTask;
+    }
+
+    private async Task ScrollToNavigationSettings()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("scrollToNavigationSettings");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte scrolla till navigationsinställningar");
+        }
+    }
+
+    private async Task OnNavigationNameChanged(string newDisplayName)
+    {
+        // Synkronisera sidtiteln om önskas
+        if (!string.IsNullOrEmpty(newDisplayName) && pageContent.Title != newDisplayName)
+        {
+            var shouldSync = await JS.InvokeAsync<bool>("confirm",
+                $"Vill du också ändra sidtiteln till '{newDisplayName}'?");
+
+            if (shouldSync)
+            {
+                pageContent.Title = newDisplayName;
+                await SavePageContent();
+            }
+        }
     }
 }

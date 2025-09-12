@@ -383,3 +383,24 @@ window.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+// Smooth scroll till navigationsinställningar
+window.scrollToNavigationSettings = function () {
+    const element = document.getElementById('navigation-settings-card');
+    if (element) {
+        element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+        
+        // Lägg till highlight-effekt
+        element.classList.add('highlight-animation');
+        setTimeout(() => {
+            element.classList.remove('highlight-animation');
+        }, 2000);
+        
+        return true;
+    }
+    console.warn('Navigation settings card not found');
+    return false;
+};

@@ -33,4 +33,5 @@ public class NavigationConfigViewModel
     public bool IsVisibleToMembers { get; set; } = true;
     public bool IsActive { get; set; } = true;
     public bool IsSystemItem { get; set; } = false;
+    public string? RequiredRoles { get; set; }
 }

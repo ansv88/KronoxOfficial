@@ -1,0 +1,37 @@
+@page "/404"
+@layout MainLayout
+
+<HeadContent>
+    <meta name="description" content="Sidan hittades inte - KronoX" />
+    <title>404 - Sidan hittades inte</title>
+</HeadContent>
+
+<PageTitle>Sidan hittades inte - KronoX</PageTitle>
+
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="mb-4">
+                <i class="fa-solid fa-exclamation-triangle fa-4x text-warning mb-3"></i>
+            </div>
+            
+            <h1 class="display-4 mb-3">404</h1>
+            <h2 class="h3 mb-4">Sidan hittades inte</h2>
+            
+            <p class="lead mb-4 text-muted">
+                Den sida du söker efter existerar inte eller är för tillfället otillgänglig.
+            </p>
+            
+            <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+                <NavLink href="/" class="btn btn-primary">
+                    <i class="fa-solid fa-home me-2"></i>
+                    Tillbaka till startsidan
+                </NavLink>
+                <button class="btn btn-outline-secondary" onclick="history.back()">
+                    <i class="fa-solid fa-arrow-left me-2"></i>
+                    Föregående sida
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

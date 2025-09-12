@@ -22,7 +22,10 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3">Redigera sidan "Förvaltning"</h1>
                 <div class="d-flex flex-column align-items-end">
-                    <div class="d-flex gap-2 mb-2">
+                    <div class="d-flex gap-2 mb-2 align-items-center">
+
+                        <PageStatusText PageKey="forvaltning" />
+                        
                         <a href="/forvaltning" class="btn btn-outline-secondary" title="Visar sparade ändringar">
                             <i class="fa-solid fa-eye me-1"></i>
                             Visa sparad sida
@@ -37,6 +40,10 @@
                                 <i class="fa-solid fa-save me-1"></i>
                             }
                             Spara allt innehåll
+                        </button>
+                        
+                        <button type="button" class="btn btn-outline-secondary" @onclick="ScrollToNavigationSettings" title="Gå till navigationsinställningar">
+                            <i class="fa-solid fa-cog"></i>
                         </button>
                     </div>
                     <small class="text-muted">
@@ -63,8 +70,7 @@
                                          OnSave="SaveSectionConfiguration" />
 
                 @* ---------- Navigeringsinställningar ----------- *@
-
-                <NavigationSettings PageKey="omkonsortiet"
+                <NavigationSettings PageKey="forvaltning"
                                     InitialDisplayName="@pageContent.Title"
                                     OnDisplayNameChanged="OnNavigationNameChanged" />
 
@@ -677,6 +683,18 @@
         {
             Logger.LogError(ex, "Fel vid sparande av sidtitel");
             await Toast.Error("Fel vid sparande av sidtitel");
+        }
+    }
+
+    private async Task ScrollToNavigationSettings()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("scrollToNavigationSettings");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte scrolla till navigationsinställningar");
         }
     }
 }

@@ -302,6 +302,33 @@ a.btn,
     min-height: 235px; /* Desktop-version */
 }
 
+/* Smooth scrolling för hela sidan */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Highlight-animering för navigationsinställningar */
+.highlight-animation {
+    animation: highlight-pulse 2s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+        border-color: inherit;
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(13, 110, 253, 0.2);
+        border-color: rgba(13, 110, 253, 0.5);
+    }
+}
+
+/* Scroll margin för anchor-länkar */
+#navigation-settings-card {
+    scroll-margin-top: 20px;
+}
+
 @media (max-width: 768px) {
     .footer-custom hr {
         border-top: 1px solid #ffeeaa;

@@ -19,24 +19,33 @@
                     <h6>Befintliga knappar:</h6>
                     @foreach (var (button, index) in NavigationButtons.OrderBy(b => b.SortOrder).Select((b, i) => (b, i)))
                     {
-                        <div class="row mb-2 p-2 border rounded">
+                        <div class="row mb-3 p-3 border rounded">
                             <div class="col-md-4">
+                                <label class="form-label small fw-medium">Knapptext</label>
                                 <input type="text" class="form-control form-control-sm" 
-                                       placeholder="Knapptext" 
+                                       placeholder="T.ex. Manualen" 
                                        @bind="button.Text" />
                             </div>
                             <div class="col-md-4">
+                                <label class="form-label small fw-medium">Länk</label>
                                 <input type="text" class="form-control form-control-sm" 
-                                       placeholder="Länk (t.ex. /omsystemet)" 
+                                       placeholder="T.ex. /manual eller https://www.google.se" 
                                        @bind="button.Url" />
                             </div>
                             <div class="col-md-2">
+                                <label class="form-label small fw-medium">Font Awesome ikon</label>
                                 <input type="text" class="form-control form-control-sm" 
-                                       placeholder="Ikon" 
+                                       placeholder="T.ex. fa-solid fa-arrow-right" 
                                        @bind="button.IconClass" />
+                                <div class="form-text small">
+                                    <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small">
+                                        fontawesome.com/icons
+                                    </a>
+                                </div>
                             </div>
                             <div class="col-md-2">
-                                <div class="btn-group">
+                                <label class="form-label small fw-medium">Åtgärder</label>
+                                <div class="d-flex gap-1">
                                     @if (index > 0)
                                     {
                                         <button type="button" class="btn btn-sm btn-outline-secondary" 
@@ -66,22 +75,31 @@
                 <h6>Lägg till ny knapp:</h6>
                 <div class="row">
                     <div class="col-md-4">
+                        <label class="form-label fw-medium">Knapptext</label>
                         <input type="text" class="form-control" 
-                               placeholder="Knapptext" 
+                               placeholder="T.ex. Manualen" 
                                @bind="newButtonText" />
                     </div>
                     <div class="col-md-4">
+                        <label class="form-label fw-medium">Länk</label>
                         <input type="text" class="form-control" 
-                               placeholder="Länk (t.ex. /omsystemet)" 
+                               placeholder="T.ex. /manual eller https://www.google.se" 
                                @bind="newButtonUrl" />
                     </div>
                     <div class="col-md-2">
+                        <label class="form-label fw-medium">Font Awesome ikon</label>
                         <input type="text" class="form-control" 
-                               placeholder="Ikon (t.ex. fa-solid fa-arrow-right)" 
+                               placeholder="T.ex. fa-solid fa-arrow-right" 
                                @bind="newButtonIcon" />
+                        <div class="form-text small">
+                            <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small">
+                                fontawesome.com/icons
+                            </a>
+                        </div>
                     </div>
                     <div class="col-md-2">
-                        <button type="button" class="btn btn-primary" @onclick="AddButton">
+                        <label class="form-label fw-medium">&nbsp;</label>
+                        <button type="button" class="btn btn-primary d-block" @onclick="AddButton">
                             <i class="fa-solid fa-plus"></i> Lägg till
                         </button>
                     </div>

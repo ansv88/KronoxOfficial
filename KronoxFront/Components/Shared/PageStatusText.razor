@@ -1,0 +1,134 @@
+@using KronoxFront.DTOs
+@using KronoxFront.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using System.Reflection
+@inject IHttpClientFactory HttpClientFactory
+
+@if (navigationStatus != null)
+{
+    <small class="text-muted me-2 d-flex align-items-center">
+        <i class="@GetStatusIcon() me-1"></i>
+        @GetSimpleStatusText()
+    </small>
+}
+
+@code {
+    [Parameter] public string PageKey { get; set; } = "";
+    
+    private NavigationConfigDto? navigationStatus;
+    private List<string> pageAuthorizeRoles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        DetectPageAuthorizeRoles();
+        await LoadNavigationStatus();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(PageKey))
+        {
+            DetectPageAuthorizeRoles();
+            await LoadNavigationStatus();
+        }
+    }
+
+    private async Task LoadNavigationStatus()
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.GetAsync($"api/navigation/page/{PageKey}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                navigationStatus = await response.Content.ReadFromJsonAsync<NavigationConfigDto>();
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                navigationStatus = new NavigationConfigDto
+                {
+                    PageKey = PageKey,
+                    DisplayName = PageKey,
+                    IsActive = true,
+                    IsVisibleToGuests = !HasRestrictedRoles(),
+                    IsVisibleToMembers = true,
+                    RequiredRoles = string.Join(",", pageAuthorizeRoles)
+                };
+            }
+        }
+        catch
+        {
+            // Handle error silently
+        }
+        
+        StateHasChanged();
+    }
+
+    private void DetectPageAuthorizeRoles()
+    {
+        pageAuthorizeRoles.Clear();
+        
+        try
+        {
+            var componentType = PageKey switch
+            {
+                "forstyrelsen" => typeof(KronoxFront.Components.Pages.Forstyrelsen),
+                "forvnsg" => typeof(KronoxFront.Components.Pages.Forvnsg),
+                "medlemsnytt" => typeof(KronoxFront.Components.Pages.Medlemsnytt),
+                "forvaltning" => typeof(KronoxFront.Components.Pages.Forvaltning),
+                _ => null
+            };
+
+            if (componentType != null)
+            {
+                var authorizeAttrs = componentType.GetCustomAttributes(typeof(AuthorizeAttribute), false)
+                                                  .Cast<AuthorizeAttribute>();
+                foreach (var attr in authorizeAttrs)
+                {
+                    if (!string.IsNullOrEmpty(attr.Roles))
+                    {
+                        var roles = attr.Roles.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                             .Select(r => r.Trim())
+                                             .ToList();
+                        pageAuthorizeRoles.AddRange(roles);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors in reflection
+        }
+    }
+
+    private string GetStatusIcon()
+    {
+        if (navigationStatus == null) return "fa-solid fa-circle-question text-secondary";
+        
+        return navigationStatus.IsActive switch
+        {
+            false => "fa-solid fa-circle-xmark text-danger",
+            true when HasRestrictedRoles() => "fa-solid fa-shield text-warning",
+            true => "fa-solid fa-circle-check text-success"
+        };
+    }
+
+    private string GetSimpleStatusText()
+    {
+        if (navigationStatus == null) return "Status okänd";
+        
+        return navigationStatus.IsActive switch
+        {
+            false => "Inaktiv sida",
+            true when HasRestrictedRoles() => "Begränsad sida",
+            true => "Aktiv sida"
+        };
+    }
+
+    private bool HasRestrictedRoles()
+    {
+        return pageAuthorizeRoles.Any() || 
+               (!string.IsNullOrEmpty(navigationStatus?.RequiredRoles) && navigationStatus.RequiredRoles.Split(',').Any());
+    }
+}

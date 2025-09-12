@@ -5,6 +5,7 @@ using KronoxFront.DTOs;
 using Microsoft.AspNetCore.Authentication;
 using KronoxFront.Services;
 using Microsoft.AspNetCore.ResponseCompression;
+using KronoxFront.Middleware;
 
 namespace KronoxFront;
 
@@ -205,6 +206,8 @@ public class Program
 
         app.UseAuthentication();
         app.UseAuthorization();
+
+        app.UseMiddleware<PageAuthorizationMiddleware>();
 
         // Explicit hantering av robots.txt
         app.Map("/robots.txt", async context =>
