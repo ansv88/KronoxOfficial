@@ -1,5 +1,7 @@
 @page "/404"
-@layout MainLayout
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
 
 <HeadContent>
     <meta name="description" content="Sidan hittades inte - KronoX" />
@@ -8,30 +10,65 @@
 
 <PageTitle>Sidan hittades inte - KronoX</PageTitle>
 
-<div class="container text-center py-5">
+<div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
-            <div class="mb-4">
-                <i class="fa-solid fa-exclamation-triangle fa-4x text-warning mb-3"></i>
-            </div>
-            
-            <h1 class="display-4 mb-3">404</h1>
-            <h2 class="h3 mb-4">Sidan hittades inte</h2>
-            
-            <p class="lead mb-4 text-muted">
-                Den sida du söker efter existerar inte eller är för tillfället otillgänglig.
-            </p>
-            
-            <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-                <NavLink href="/" class="btn btn-primary">
-                    <i class="fa-solid fa-home me-2"></i>
-                    Tillbaka till startsidan
-                </NavLink>
-                <button class="btn btn-outline-secondary" onclick="history.back()">
-                    <i class="fa-solid fa-arrow-left me-2"></i>
-                    Föregående sida
-                </button>
+            <div class="text-center">
+                <div class="mb-4">
+                    <i class="fa-solid fa-exclamation-triangle text-warning" style="font-size: 4rem;"></i>
+                </div>
+                
+                <h1 class="h3 mb-3">Sidan hittades inte</h1>
+                
+                <AuthorizeView>
+                    <NotAuthorized>
+                        <div class="alert alert-info">
+                            <p class="mb-3">
+                                Den sida du söker finns inte eller så har du inte behörighet att visa den.
+                            </p>
+                            <p class="mb-0">
+                                Om du tror att du borde ha åtkomst till denna sida, 
+                                <button class="btn btn-link p-0 align-baseline" @onclick="ShowLogin">
+                                    logga in här
+                                </button>.
+                            </p>
+                        </div>
+                    </NotAuthorized>
+                    <Authorized>
+                        <div class="alert alert-warning">
+                            <p class="mb-0">
+                                Den sida du söker finns inte eller så har du inte behörighet att visa den.
+                            </p>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+                
+                <div class="mt-4">
+                    <a href="/" class="btn btn-primary me-2">
+                        <i class="fa-solid fa-home me-1"></i>
+                        Till startsidan
+                    </a>
+                    <button class="btn btn-outline-secondary" @onclick="GoBack">
+                        <i class="fa-solid fa-arrow-left me-1"></i>
+                        Tillbaka
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+@code {
+    private async Task ShowLogin()
+    {
+        // Gå till startsidan och trigga login-modal
+        await JS.InvokeVoidAsync("location.assign", "/");
+        await Task.Delay(100);
+        await JS.InvokeVoidAsync("eval", "document.querySelector('[data-bs-toggle=\"modal\"]')?.click()");
+    }
+    
+    private async Task GoBack()
+    {
+        await JS.InvokeVoidAsync("history.back");
+    }
+}

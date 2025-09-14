@@ -1,11 +1,13 @@
 ﻿using KronoxFront.Components;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
 using KronoxFront.DTOs;
-using Microsoft.AspNetCore.Authentication;
-using KronoxFront.Services;
-using Microsoft.AspNetCore.ResponseCompression;
 using KronoxFront.Middleware;
+using KronoxFront.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace KronoxFront;
 
@@ -48,7 +50,23 @@ public class Program
                    o.Cookie.SameSite = SameSiteMode.Strict;
                    o.SlidingExpiration = true;
                    o.ExpireTimeSpan = TimeSpan.FromHours(2);
-                   o.LoginPath = new PathString("/");
+                   o.LoginPath = new PathString("/404");
+
+                   o.Events = new CookieAuthenticationEvents
+                   {
+                       OnRedirectToLogin = context =>
+                       {
+                           // Omdirigera till 404 istället för login
+                           context.Response.Redirect("/404");
+                           return Task.CompletedTask;
+                       },
+                       OnRedirectToAccessDenied = context =>
+                       {
+                           // Även omdirigera access denied till 404
+                           context.Response.Redirect("/404");
+                           return Task.CompletedTask;
+                       }
+                   };
                });
 
         builder.Services.AddAuthorization(options =>

@@ -8,7 +8,7 @@
                 <NotAuthorized>
                     @if (context.User?.Identity?.IsAuthenticated != true)
                     {
-                        <RedirectToLogin />
+                        <RedirectTo404 />
                     }
                     else
                     {

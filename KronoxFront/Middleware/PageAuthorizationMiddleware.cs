@@ -9,10 +9,9 @@ public class PageAuthorizationMiddleware
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<PageAuthorizationMiddleware> _logger;
 
-    // HashSet för prestanda - snabbare lookup än List
     private static readonly HashSet<string> SkippedPaths = new(StringComparer.OrdinalIgnoreCase)
     {
-        "", "home", "404", "error", "robots.txt"
+        "", "home", "404", "error", "robots.txt", "notfound"
     };
 
     public PageAuthorizationMiddleware(RequestDelegate next, IHttpClientFactory httpClientFactory, ILogger<PageAuthorizationMiddleware> logger)
@@ -26,7 +25,6 @@ public class PageAuthorizationMiddleware
     {
         var path = context.Request.Path.Value?.TrimStart('/').ToLower() ?? "";
         
-        // Skippa vissa typer av requests
         if (ShouldSkipPath(path))
         {
             await _next(context);
@@ -35,36 +33,103 @@ public class PageAuthorizationMiddleware
 
         try
         {
-            // Kontrollera om sidan är aktiv i navigationen
             var httpClient = _httpClientFactory.CreateClient("KronoxAPI");
-            var response = await httpClient.GetAsync($"api/navigation/page/{path}");
+            var customPageResponse = await httpClient.GetAsync($"api/custompage/{path}");
             
-            if (response.IsSuccessStatusCode)
+            if (customPageResponse.IsSuccessStatusCode)
             {
-                var json = await response.Content.ReadAsStringAsync();
-                var config = JsonSerializer.Deserialize<NavigationConfigDto>(json, new JsonSerializerOptions 
+                var customPageJson = await customPageResponse.Content.ReadAsStringAsync();
+                var customPage = JsonSerializer.Deserialize<CustomPageDto>(customPageJson, new JsonSerializerOptions 
                 { 
                     PropertyNameCaseInsensitive = true 
                 });
                 
-                if (config != null && !config.IsActive)
+                if (customPage != null)
                 {
-                    _logger.LogInformation("Page {Path} is disabled, redirecting to 404", path);
+                    // Kontrollera om sidan är aktiv
+                    if (!customPage.IsActive)
+                    {
+                        _logger.LogInformation("Custom page {Path} is disabled", path);
+                        context.Response.Redirect("/404");
+                        return;
+                    }
                     
-                    // Omdirigera till 404 om sidan är inaktiverad
+                    // Kontrollera rollbegränsningar
+                    if (customPage.RequiredRoles.Any())
+                    {
+                        var user = context.User;
+                        var isAuthenticated = user?.Identity?.IsAuthenticated == true;
+                        
+                        if (!isAuthenticated || !customPage.RequiredRoles.Any(role => user.IsInRole(role)))
+                        {
+                            _logger.LogInformation("User {User} lacks access to restricted custom page {Path}", 
+                                user?.Identity?.Name ?? "Anonymous", path);
+                            context.Response.Redirect("/404");
+                            return;
+                        }
+                    }
+                }
+            }
+            else if (customPageResponse.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                // API nekar åtkomst på grund av roller - blockera sidan
+                _logger.LogInformation("API denied access to custom page {Path} due to authorization", path);
+                context.Response.Redirect("/404");
+                return;
+            }
+            else if (customPageResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // Inte en custom page - kontrollera navigation config
+                var navResponse = await httpClient.GetAsync($"api/navigation/page/{path}");
+                
+                if (navResponse.IsSuccessStatusCode)
+                {
+                    var json = await navResponse.Content.ReadAsStringAsync();
+                    var config = JsonSerializer.Deserialize<NavigationConfigDto>(json, new JsonSerializerOptions 
+                    { 
+                        PropertyNameCaseInsensitive = true 
+                    });
+                    
+                    if (config != null && !config.IsActive)
+                    {
+                        _logger.LogInformation("Page {Path} is disabled", path);
+                        context.Response.Redirect("/404");
+                        return;
+                    }
+                }
+                else if (navResponse.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    _logger.LogInformation("API denied access to navigation for {Path} due to authorization", path);
                     context.Response.Redirect("/404");
                     return;
                 }
             }
-            // Om API-anropet returnerar 404 betyder det att sidan inte finns i navigation configs
-            // vilket är OK - inte alla sidor behöver finnas där (t.ex. custom pages)
+            else
+            {
+                // Andra HTTP-fel från API
+                _logger.LogWarning("Unexpected API response for {Path}: {StatusCode}", path, customPageResponse.StatusCode);
+                
+                // Vid oväntat API-fel, blockera åtkomst till okända sidor
+                context.Response.Redirect("/404");
+                return;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error when checking authorization for {Path}", path);
+            // Blockera vid nätverksfel
+            context.Response.Redirect("/404");
+            return;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not check page authorization for {Path}", path);
-            // Fail-safe: tillåt åtkomst om kontrollen misslyckas
+            _logger.LogError(ex, "Unexpected error when checking authorization for {Path}", path);
+            // Blockera vid oväntat fel
+            context.Response.Redirect("/404");
+            return;
         }
 
+        // Endast om allt är OK - fortsätt till Blazor
         await _next(context);
     }
     
@@ -77,7 +142,9 @@ public class PageAuthorizationMiddleware
                path.StartsWith("auth") ||
                path.StartsWith("_framework") ||
                path.StartsWith("_blazor") ||
-               path.Contains('.') || // Statiska filer (.css, .js, .png, etc.)
+               path.StartsWith("_vs") ||
+               path.Contains("negotiate") ||
+               path.Contains('.') ||
                path.StartsWith("images");
     }
 }
