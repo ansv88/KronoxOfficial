@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.Validators
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject IHttpClientFactory HttpClientFactory
@@ -982,7 +983,6 @@
             : parentPageKey;
     }
 
-    // Förbättra GetParentPageOptions för att inkludera både statiska och custom pages
     private Dictionary<string, string> GetParentPageOptions()
     {
         var options = new Dictionary<string, string>
@@ -996,7 +996,6 @@
             { "medlemsnytt", "Medlemsnytt" }
         };
 
-        // Lägg till befintliga custom pages som kan vara föräldrar (men bara de med NavigationType "main")
         foreach (var page in customPages.Where(p => p.NavigationType == "main" && p.IsActive))
         {
             if (!options.ContainsKey(page.PageKey))

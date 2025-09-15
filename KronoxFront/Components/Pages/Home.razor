@@ -104,6 +104,54 @@ else
                     </section>
                 </div>
                 break;
+
+                case SectionType.NewsSection:
+    <div class="wrapper-div py-3">
+        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+            <div style="max-width:800px; margin: 0 auto;">
+                <h2 class="text-center mb-4">Senaste nyheterna</h2>
+                <NewsSection PageKey="home" />
+            </div>
+        </section>
+    </div>
+    break;
+
+case SectionType.ActionPlanTable:
+    <div class="wrapper-div py-3">
+        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+            <div style="max-width:800px; margin: 0 auto;">
+                <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
+            </div>
+        </section>
+    </div>
+    break;
+
+case SectionType.DevelopmentSuggestionForm:
+    <div class="wrapper-div py-3">
+        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+            <div style="max-width:800px; margin: 0 auto;">
+                <DevelopmentSuggestionForm />
+            </div>
+        </section>
+    </div>
+    break;
+
+case SectionType.ContactForm:
+    <div class="wrapper-div py-3">
+        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+            <div style="max-width:800px; margin: 0 auto;">
+                <h2 class="text-center mb-4">Kontakta oss</h2>
+                <div class="text-center">
+                    <p class="text-muted mb-3">Har du frågor? Kontakta oss via vårt formulär.</p>
+                    <a href="/kontaktaoss" class="btn btn-primary">
+                        <i class="fa-solid fa-envelope me-2"></i>
+                        Gå till kontaktformulär
+                    </a>
+                </div>
+            </div>
+        </section>
+    </div>
+    break;
         }
     }
 
@@ -118,6 +166,7 @@ else
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
+    private ActionPlanTableViewModel actionPlan = new();
     private static bool imagesSynced = false;
 
     private List<SectionConfigItem> sectionConfigurations = new();
@@ -153,6 +202,11 @@ else
             faqSections = await Cms.GetFaqSectionsAsync("home");
 
             sectionConfigurations = await Cms.GetPageSectionConfigAsync("home");
+
+            if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
+            {
+                actionPlan = await Cms.GetActionPlanAsync("home");
+            }
         }
         catch (Exception ex)
         {

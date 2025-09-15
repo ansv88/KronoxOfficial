@@ -1,17 +1,17 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using KronoxApi.Data;
-using KronoxApi.Models;
-using KronoxApi.DTOs;
 using KronoxApi.Attributes;
-using KronoxApi.Filters;
+using KronoxApi.Data;
+using KronoxApi.DTOs;
+using KronoxApi.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey]
+[EnableRateLimiting("API")]
 public class FaqController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

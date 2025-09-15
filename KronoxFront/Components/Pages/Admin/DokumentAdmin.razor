@@ -3,6 +3,7 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @inject CmsService Cms
 @inject IToastService Toast

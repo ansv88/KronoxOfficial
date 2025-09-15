@@ -5,12 +5,14 @@ using KronoxApi.Extensions;
 using KronoxApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("API")]
 public class NavigationController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

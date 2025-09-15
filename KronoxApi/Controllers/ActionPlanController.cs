@@ -3,6 +3,7 @@ using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
@@ -10,6 +11,7 @@ namespace KronoxApi.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey]
+[EnableRateLimiting("API")]
 public class ActionPlanController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

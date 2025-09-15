@@ -4,9 +4,10 @@ using KronoxFront.Middleware;
 using KronoxFront.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 
 namespace KronoxFront;
@@ -71,12 +72,14 @@ public class Program
 
         builder.Services.AddAuthorization(options =>
         {
+            options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                .RequireAssertion(context =>
+                    !context.User.IsInRole("Ny användare") &&
+                    context.User.Identity.IsAuthenticated)
+                .Build();
+
             options.AddPolicy("RequireAdmin", policy =>
                 policy.RequireRole("Admin"));
-
-            options.AddPolicy("ExcludeNewUser", policy =>
-               policy.RequireAssertion(context =>
-            !context.User.IsInRole("Ny användare") && context.User.Identity.IsAuthenticated));
         });
 
         builder.Services.AddCascadingAuthenticationState();
@@ -123,6 +126,13 @@ public class Program
 
         // Lägg till memory cache
         builder.Services.AddMemoryCache();
+        // Konfigurera Memory Cache med limits
+        builder.Services.Configure<MemoryCacheOptions>(options =>
+        {
+            options.SizeLimit = 1000; // Max 1000 cache-poster
+            options.CompactionPercentage = 0.25; // Rensa 25% när limiten nås
+        });
+
         builder.Services.AddScoped<CacheService>();
 
         builder.Services.AddScoped<IToastService, ToastService>();
@@ -140,6 +150,7 @@ public class Program
             builder.Logging.AddDebug();
 
             builder.Logging.AddFilter("KronoxFront.Services.ApiAuthHandler", LogLevel.Debug);
+            builder.Logging.AddFilter("KronoxFront.Services.CacheService", LogLevel.Debug);
         }
 
         var app = builder.Build();

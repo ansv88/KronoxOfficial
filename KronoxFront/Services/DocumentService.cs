@@ -13,11 +13,13 @@ public class DocumentService
 {
     private readonly HttpClient _http;
     private readonly ILogger<DocumentService> _logger;
+    private readonly CacheService _cache;
 
-    public DocumentService(HttpClient http, ILogger<DocumentService> logger)
+    public DocumentService(HttpClient http, ILogger<DocumentService> logger, CacheService cache)
     {
         _http = http;
         _logger = logger;
+        _cache = cache;
     }
 
     // Hämtar alla dokument (endast admin) med korrekt DTO-mappning
@@ -35,32 +37,57 @@ public class DocumentService
         }
     }
 
-    // **NYCKELMETHOD** - Hämtar dokument baserat på användarens roller med korrekt mappning
+    // Hämtar dokument baserat på användarens roller med korrekt mappning
     public async Task<List<DocumentViewModel>> GetAccessibleDocumentsAsync()
     {
-        try
+        // Använd befintlig cache-metod från CacheService
+        var cachedDocs = await _cache.GetDocumentsAsync(async () =>
         {
-            var documentDtos = await _http.GetFromJsonAsync<List<DocumentDto>>("api/documents/accessible");
-            var viewModels = documentDtos?.ToViewModels() ?? new List<DocumentViewModel>();
+            _logger.LogInformation("Fetching accessible documents from API");
             
-            _logger.LogInformation("Hämtade {Count} tillgängliga dokument från API", viewModels.Count);
-            
-            // Debug-loggning för att kontrollera rolldata
-            foreach (var vm in viewModels.Take(3)) // Logga bara första 3 för att undvika spam
+            try
             {
-                _logger.LogInformation("Dokument {FileName}: Kategori {CategoryName}, Roller: {Roles}", 
-                    vm.FileName, 
-                    vm.MainCategoryDto.Name, 
-                    string.Join(", ", vm.MainCategoryDto.AllowedRoles));
+                var response = await _http.GetAsync("api/documents/accessible");
+                if (response.IsSuccessStatusCode)
+                {
+                    var dtos = await response.Content.ReadFromJsonAsync<List<DocumentDto>>();
+                    return dtos?.Select(MapToViewModel).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching accessible documents");
             }
             
-            return viewModels;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fel vid hämtning av tillgängliga dokument");
             return new List<DocumentViewModel>();
-        }
+        });
+        
+        return cachedDocs ?? new List<DocumentViewModel>();
+    }
+
+    private DocumentViewModel MapToViewModel(DocumentDto dto)
+    {
+        return new DocumentViewModel
+        {
+            Id = dto.Id,
+            FileName = dto.FileName,
+            FilePath = dto.FilePath,
+            UploadedAt = dto.UploadedAt,
+            FileSize = dto.FileSize,
+            MainCategoryId = dto.MainCategoryId,
+            SubCategories = dto.SubCategories ?? new List<int>(),
+            IsArchived = dto.IsArchived,
+            ArchivedAt = dto.ArchivedAt,
+            ArchivedBy = dto.ArchivedBy,
+            MainCategory = dto.MainCategory != null ? new MainCategoryViewModel
+            {
+                Id = dto.MainCategory.Id,
+                Name = dto.MainCategory.Name,
+                AllowedRoles = dto.MainCategory.AllowedRoles ?? new List<string>(),
+                IsActive = dto.MainCategory.IsActive
+            } : null,
+            MainCategoryDto = dto.MainCategory ?? new MainCategoryDto() // Fallback
+        };
     }
 
     // Hämtar dokument kopplade till en specifik kategori med korrekt mappning

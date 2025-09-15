@@ -3,6 +3,7 @@ using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
@@ -11,6 +12,7 @@ namespace KronoxApi.Controllers;
 [ApiController]
 [Route("api/content")]
 [RequireApiKey]
+[EnableRateLimiting("API")]
 public class ContentController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
@@ -170,6 +172,7 @@ public class ContentController : ControllerBase
     // Laddar upp en ny bild och kopplar den till ett innehållsblock.
     [HttpPost("{pageKey}/images")]
     [RequireRole("Admin")]
+    [EnableRateLimiting("Upload")]
     public async Task<IActionResult> UploadImage(string pageKey)
     {
         try

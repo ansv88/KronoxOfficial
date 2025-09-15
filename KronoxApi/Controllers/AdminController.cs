@@ -4,6 +4,7 @@ using KronoxApi.Requests;
 using KronoxApi.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace KronoxApi.Controllers;
@@ -16,6 +17,7 @@ namespace KronoxApi.Controllers;
 [Route("api/[controller]")]
 [RequireRole("Admin")]
 [RequireApiKey]
+[EnableRateLimiting("Admin")]
 public class AdminController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;

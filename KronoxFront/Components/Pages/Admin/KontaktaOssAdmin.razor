@@ -8,6 +8,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging;
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject CmsService Cms
@@ -101,6 +102,7 @@
                 </EditForm>
 
                 @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
+                @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
                 {
                     @switch (sectionConfig.Type)
@@ -119,8 +121,8 @@
                                     <div class="card-body">
                                         <div class="mb-3">
                                             <label class="form-label">Breadcrumb-titel (visas ovanför introt)</label>
-                                            <InputText class="form-control" 
-                                                       @bind-Value="introSection.BreadcrumbTitle" 
+                                            <InputText class="form-control"
+                                                       @bind-Value="introSection.BreadcrumbTitle"
                                                        placeholder="T.ex. KONTAKTA OSS" />
                                             <ValidationMessage For="() => introSection.BreadcrumbTitle" />
                                             <div class="form-text">Lämna tomt för att dölja breadcrumb-titeln</div>
@@ -129,8 +131,8 @@
                                         <div class="row">
                                             <div class="col-md-4">
                                                 <div class="mb-2 form-check">
-                                                    <InputCheckbox class="form-check-input" 
-                                                                   id="intro-has-image" 
+                                                    <InputCheckbox class="form-check-input"
+                                                                   id="intro-has-image"
                                                                    @bind-Value="introSection.HasImage" />
                                                     <label class="form-check-label" for="intro-has-image">Inkludera bild</label>
                                                 </div>
@@ -148,8 +150,8 @@
                                                             </div>
                                                             <div class="mt-2">
                                                                 <label class="form-label">Bildbeskrivning:</label>
-                                                                <InputText class="form-control form-control-sm" 
-                                                                           @bind-Value="introSection.ImageAltText" 
+                                                                <InputText class="form-control form-control-sm"
+                                                                           @bind-Value="introSection.ImageAltText"
                                                                            placeholder="Beskriv bilden" />
                                                                 <ValidationMessage For="() => introSection.ImageAltText" />
                                                             </div>
@@ -170,8 +172,8 @@
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label">Innehåll</label>
-                                                    <InputTextArea id="intro-editor" 
-                                                                   @bind-Value="introSection.Content" 
+                                                    <InputTextArea id="intro-editor"
+                                                                   @bind-Value="introSection.Content"
                                                                    class="form-control tinymce-editor"
                                                                    rows="8" />
                                                     <ValidationMessage For="() => introSection.Content" />
@@ -185,9 +187,9 @@
 
                         case SectionType.NavigationButtons:
                             <NavigationButtonManager ShowNavigationButtons="introSection.ShowNavigationButtons"
-                                                      NavigationButtons="introSection.NavigationButtons"
-                                                      ShowNavigationButtonsChanged="OnShowNavigationButtonsChanged"
-                                                      NavigationButtonsChanged="OnNavigationButtonsChanged" />
+                                                     NavigationButtons="introSection.NavigationButtons"
+                                                     ShowNavigationButtonsChanged="OnShowNavigationButtonsChanged"
+                                                     NavigationButtonsChanged="OnNavigationButtonsChanged" />
                             break;
 
                         case SectionType.FeatureSections:
@@ -218,7 +220,7 @@
                                         <i class="fa-solid fa-info-circle me-2"></i>
                                         <strong>Status:</strong> Kontaktformuläret är aktiverat och kommer att visas på sidan.
                                     </div>
-                                    
+
                                     <div class="row">
                                         <div class="col-md-6">
                                             <h5 class="h6 mb-3">Formulärinställningar</h5>
@@ -226,7 +228,6 @@
                                                 Kontaktformuläret skickar meddelanden till den e-postadress som är konfigurerad i systemet.
                                                 Meddelanden innehåller automatiskt avsändarens kontaktinformation.
                                             </p>
-                                            
 
                                             <div class="bg-light p-3 rounded">
                                                 <small class="text-muted">
@@ -236,14 +237,14 @@
                                                 </small>
                                             </div>
                                         </div>
-                                        
+
                                         <div class="col-md-6">
                                             <h5 class="h6 mb-3">Kontaktuppgifter på sidan</h5>
                                             <p class="text-muted mb-3">
                                                 Kontaktuppgifterna som visas i högerspalten hanteras dynamiskt via databasen.
                                                 Du kan redigera postadress och kontaktpersoner nedan.
                                             </p>
-                                            
+
                                             <div class="bg-light p-3 rounded">
                                                 <small class="text-muted">
                                                     <strong>Kan redigeras:</strong><br />
@@ -255,7 +256,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="mt-3">
                                         <a href="/kontaktaoss" class="btn btn-outline-primary me-2" target="_blank">
                                             <i class="fa-solid fa-external-link-alt me-1"></i>
@@ -269,7 +270,7 @@
 
                                     @* ============== KONTAKTINFORMATION HANTERING ============== *@
                                     <hr class="my-4" />
-                                    
+
                                     <!-- Postadress -->
                                     <div class="mb-4">
                                         <h5 class="h6 mb-3">
@@ -282,22 +283,22 @@
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
                                                         <label class="form-label">Organisationsnamn</label>
-                                                        <InputText class="form-control" 
-                                                                   @bind-Value="contactInfo.PostalAddress.OrganizationName" 
+                                                        <InputText class="form-control"
+                                                                   @bind-Value="contactInfo.PostalAddress.OrganizationName"
                                                                    placeholder="T.ex. KronoX" />
                                                         <ValidationMessage For="() => contactInfo.PostalAddress.OrganizationName" />
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Adressrad 1</label>
-                                                        <InputText class="form-control" 
-                                                                   @bind-Value="contactInfo.PostalAddress.AddressLine1" 
+                                                        <InputText class="form-control"
+                                                                   @bind-Value="contactInfo.PostalAddress.AddressLine1"
                                                                    placeholder="T.ex. Högskolan i Borås" />
                                                         <ValidationMessage For="() => contactInfo.PostalAddress.AddressLine1" />
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Adressrad 2 (valfri)</label>
-                                                        <InputText class="form-control" 
-                                                                   @bind-Value="contactInfo.PostalAddress.AddressLine2" 
+                                                        <InputText class="form-control"
+                                                                   @bind-Value="contactInfo.PostalAddress.AddressLine2"
                                                                    placeholder="T.ex. C/O eller avdelning" />
                                                         <ValidationMessage For="() => contactInfo.PostalAddress.AddressLine2" />
                                                     </div>
@@ -305,22 +306,22 @@
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
                                                         <label class="form-label">Postnummer</label>
-                                                        <InputText class="form-control" 
-                                                                   @bind-Value="contactInfo.PostalAddress.PostalCode" 
+                                                        <InputText class="form-control"
+                                                                   @bind-Value="contactInfo.PostalAddress.PostalCode"
                                                                    placeholder="T.ex. 501 90" />
                                                         <ValidationMessage For="() => contactInfo.PostalAddress.PostalCode" />
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Ort</label>
-                                                        <InputText class="form-control" 
-                                                                   @bind-Value="contactInfo.PostalAddress.City" 
+                                                        <InputText class="form-control"
+                                                                   @bind-Value="contactInfo.PostalAddress.City"
                                                                    placeholder="T.ex. Borås" />
                                                         <ValidationMessage For="() => contactInfo.PostalAddress.City" />
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Land (valfri)</label>
-                                                        <InputText class="form-control" 
-                                                                   @bind-Value="contactInfo.PostalAddress.Country" 
+                                                        <InputText class="form-control"
+                                                                   @bind-Value="contactInfo.PostalAddress.Country"
                                                                    placeholder="T.ex. Sverige" />
                                                         <ValidationMessage For="() => contactInfo.PostalAddress.Country" />
                                                     </div>
@@ -385,15 +386,15 @@
                                                                 </td>
                                                                 <td>
                                                                     <div class="btn-group btn-group-sm">
-                                                                        <button type="button" class="btn btn-outline-primary" 
+                                                                        <button type="button" class="btn btn-outline-primary"
                                                                                 @onclick="() => EditContactPerson(person)">
                                                                             <i class="fa-solid fa-edit"></i>
                                                                         </button>
-                                                                        <button type="button" class="btn btn-outline-warning" 
+                                                                        <button type="button" class="btn btn-outline-warning"
                                                                                 @onclick="() => ToggleContactPersonActive(person.Id)">
                                                                             <i class="fa-solid @(person.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
                                                                         </button>
-                                                                        <button type="button" class="btn btn-outline-danger" 
+                                                                        <button type="button" class="btn btn-outline-danger"
                                                                                 @onclick="() => DeleteContactPerson(person.Id)">
                                                                             <i class="fa-solid fa-trash"></i>
                                                                         </button>
@@ -469,15 +470,15 @@
                                                                 </td>
                                                                 <td>
                                                                     <div class="btn-group btn-group-sm">
-                                                                        <button type="button" class="btn btn-outline-primary" 
+                                                                        <button type="button" class="btn btn-outline-primary"
                                                                                 @onclick="() => EditEmailList(emailList)">
                                                                             <i class="fa-solid fa-edit"></i>
                                                                         </button>
-                                                                        <button type="button" class="btn btn-outline-warning" 
+                                                                        <button type="button" class="btn btn-outline-warning"
                                                                                 @onclick="() => ToggleEmailListActive(emailList.Id)">
                                                                             <i class="fa-solid @(emailList.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
                                                                         </button>
-                                                                        <button type="button" class="btn btn-outline-danger" 
+                                                                        <button type="button" class="btn btn-outline-danger"
                                                                                 @onclick="() => DeleteEmailList(emailList.Id)">
                                                                             <i class="fa-solid fa-trash"></i>
                                                                         </button>
@@ -521,6 +522,94 @@
                                             Hantera medlemslogotyper
                                         </a>
                                     </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.NewsSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-newspaper me-2"></i>Nyhetssektion
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Nyhetssektionen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Sektionen kommer att visa de senaste nyheterna från systemet på kontaktsidan.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/news" class="btn btn-primary">
+                                            <i class="fa-solid fa-cog me-1"></i>
+                                            Hantera nyheter
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DocumentSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-file-alt me-2"></i>Dokumentsektion
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Dokumentsektionen visar en länk till dokumentsidan.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Dokumentsektionen visar dokument eller länkar relaterade till denna sida.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/documents/manage" class="btn btn-primary">
+                                            <i class="fa-solid fa-cog me-1"></i>
+                                            Hantera dokument
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.ActionPlanTable:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-tasks me-2"></i>Handlingsplantabell
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Handlingsplantabellen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Handlingsplantabellen visar aktuella utvecklingsprojekt och deras status.
+                                    </p>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DevelopmentSuggestionForm:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-lightbulb me-2"></i>Utvecklingsförslagformulär
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt när det är aktiverat.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Formuläret låter användare skicka in utvecklingsförslag för systemet.
+                                    </p>
                                 </div>
                             </div>
                             break;

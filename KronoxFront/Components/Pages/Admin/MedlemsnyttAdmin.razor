@@ -3,6 +3,7 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject CmsService Cms
@@ -256,6 +257,34 @@
                                         <i class="fa-solid fa-file me-1"></i>
                                         Hantera dokument
                                     </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.ActionPlanTable:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Handlingsplantabell</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Handlingsplantabellen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DevelopmentSuggestionForm:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Utvecklingsförslagformulär</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt när det är aktiverat.
+                                    </div>
                                 </div>
                             </div>
                             break;

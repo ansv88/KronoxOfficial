@@ -137,14 +137,40 @@ public class Program
         //Rate limiting för att förhindra överbelastningsattacker
         builder.Services.AddRateLimiter(options =>
         {
+            // HUVUDLIMITER - mer generös för att hantera cache bursts
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "localhost",
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         AutoReplenishment = true,
-                        PermitLimit = 1000,
+                        PermitLimit = 2000,  // Ökad från 1000 till 2000
                         Window = TimeSpan.FromMinutes(1)
+                    }));
+
+            // SPECIFIK LIMITER för API-anrop
+            options.AddPolicy("API", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "localhost",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        AutoReplenishment = true,
+                        PermitLimit = 1500,  // Något lägre för API-anrop
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
+
+            // STRIKTARE för admin-operationer
+            options.AddPolicy("Admin", httpContext =>
+                RateLimitPartition.GetTokenBucketLimiter(
+                    partitionKey: httpContext.User?.Identity?.Name ?? "anonymous",
+                    factory: _ => new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = 100,     // Max 100 tokens
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 10,
+                        ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                        TokensPerPeriod = 60, // 60 tokens per minut
+                        AutoReplenishment = true
                     }));
         });
 

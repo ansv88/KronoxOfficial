@@ -5,6 +5,7 @@ using KronoxApi.Models;
 using KronoxApi.Requests;
 using KronoxApi.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
@@ -13,6 +14,7 @@ namespace KronoxApi.Controllers;
 [ApiController]
 [Route("api/documents")]
 [RequireApiKey]
+[EnableRateLimiting("API")]
 public class DocumentController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
@@ -39,6 +41,7 @@ public class DocumentController : ControllerBase
     [HttpPost("upload")]
     [RequireRole("Admin")]
     [Consumes("multipart/form-data")]
+    [EnableRateLimiting("Upload")]
     public async Task<IActionResult> Upload([FromForm] UploadFileRequest req)
     {
         if (req.File == null || req.File.Length == 0)

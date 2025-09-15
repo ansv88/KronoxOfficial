@@ -10,12 +10,14 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging;
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject CmsService Cms
 @inject IToastService Toast
 @inject IJSRuntime JS
 @inject ILogger<HomeAdmin> Logger
+@inject CacheService Cache
 
 <HeadContent>
     <meta name="description" content="Redigera startsidan för KronoX. Lägg till, ändra och hantera innehåll, bilder och sektioner." />
@@ -246,6 +248,44 @@
                                         <i class="fa-solid fa-file me-1"></i>
                                         Hantera dokument
                                     </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.ActionPlanTable:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-tasks me-2"></i>Handlingsplantabell
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Handlingsplantabellen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Handlingsplantabellen visar aktuella utvecklingsprojekt och deras status.
+                                    </p>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DevelopmentSuggestionForm:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-lightbulb me-2"></i>Utvecklingsförslagformulär
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt på denna sida när det är aktiverat.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Formuläret låter användare skicka in utvecklingsförslag för systemet.
+                                    </p>
                                 </div>
                             </div>
                             break;
@@ -531,6 +571,9 @@
                 await Cms.DeleteFaqSectionsAsync("home");
             }
 
+            // Invalidera cache
+            Cache.InvalidatePageCache("home");
+            
             await Toast.Success("Innehållet har sparats framgångsrikt!");
         }
         catch (Exception ex)

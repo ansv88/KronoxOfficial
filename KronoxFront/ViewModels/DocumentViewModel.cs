@@ -12,6 +12,7 @@ public class DocumentViewModel
     public long FileSize { get; set; }
     public int MainCategoryId { get; set; }
     public List<int>? SubCategories { get; set; } = new();
+    public MainCategoryViewModel? MainCategory { get; set; }
     public MainCategoryDto MainCategoryDto { get; set; } = new();
     public List<SubCategoryDto>? SubCategoryDtos { get; set; } = new();
     

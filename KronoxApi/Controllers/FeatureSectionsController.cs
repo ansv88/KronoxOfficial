@@ -1,8 +1,9 @@
-﻿using KronoxApi.Data;
+﻿using KronoxApi.Attributes;
+using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
-using KronoxApi.Attributes;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -11,6 +12,7 @@ namespace KronoxApi.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey]
+[EnableRateLimiting("API")]
 public class FeatureSectionsController : ControllerBase
 {
     private readonly ApplicationDbContext _db;

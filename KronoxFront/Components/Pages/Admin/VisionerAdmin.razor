@@ -5,6 +5,7 @@
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Forms
 @using System.Text
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject CmsService Cms
@@ -222,6 +223,95 @@
                                             Hantera medlemslogotyper
                                         </a>
                                     </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.NewsSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-newspaper me-2"></i>Nyhetssektion
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Nyhetssektionen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Sektionen kommer att visa de senaste nyheterna från systemet.
+                                        Nyheter hanteras via den dedikerade nyhetssektionen.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/news" class="btn btn-primary">
+                                            <i class="fa-solid fa-cog me-1"></i>
+                                            Hantera nyheter
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DocumentSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-file-alt me-2"></i>Dokumentsektion
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Dokumentsektionen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Dokumentsektionen visar en länk till dokumentsidan eller listar dokument direkt.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/documents/manage" class="btn btn-primary">
+                                            <i class="fa-solid fa-cog me-1"></i>
+                                            Hantera dokument
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.ActionPlanTable:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-tasks me-2"></i>Handlingsplantabell
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Handlingsplantabellen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Handlingsplantabellen visar aktuella utvecklingsprojekt och deras status.
+                                    </p>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DevelopmentSuggestionForm:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">
+                                        <i class="fa-solid fa-lightbulb me-2"></i>Utvecklingsförslagformulär
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt på denna sida när det är aktiverat.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Formuläret låter användare skicka in utvecklingsförslag för systemet.
+                                    </p>
                                 </div>
                             </div>
                             break;

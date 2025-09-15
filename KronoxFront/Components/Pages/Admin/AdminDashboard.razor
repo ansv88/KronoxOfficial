@@ -2,6 +2,7 @@
 @page "/admin"
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject NavigationManager Nav

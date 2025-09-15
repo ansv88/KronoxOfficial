@@ -5,6 +5,7 @@
 @using System.Reflection
 @inject IHttpClientFactory HttpClientFactory
 @inject IToastService Toast
+@inject CacheService Cache
 
 <div class="card mb-4" id="navigation-settings-card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -631,6 +632,9 @@
                 };
                 await httpClient.PutAsJsonAsync($"api/navigation/{navigationConfig.Id}", updateRequest);
             }
+
+            // Invalidera navigation cache
+            Cache.InvalidateGroup("navigation");
 
             await Toast.Success("Navigationsinställningar sparade!");
             

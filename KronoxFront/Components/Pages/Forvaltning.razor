@@ -100,6 +100,34 @@ else
                     <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
                 </div>
                 break;
+
+            case SectionType.NewsSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <h2 class="text-center mb-4">Senaste nyheterna</h2>
+                            <NewsSection PageKey="forvaltning" />
+                        </div>
+                    </section>
+                </div>
+                break;
+
+            case SectionType.DocumentSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <h2 class="text-center mb-4">Dokument</h2>
+                            <div class="text-center">
+                                <p class="text-muted mb-3">Här hittar du viktiga dokument och resurser.</p>
+                                <a href="/dokument" class="btn btn-primary">
+                                    <i class="fa-solid fa-file-alt me-2"></i>
+                                    Visa alla dokument
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                break;
         }
     }
 

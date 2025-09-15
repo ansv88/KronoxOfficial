@@ -1,18 +1,20 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using KronoxApi.Attributes;
 using KronoxApi.Data;
-using KronoxApi.Models;
 using KronoxApi.DTOs;
-using KronoxApi.Requests;
-using KronoxApi.Attributes;
-using Microsoft.AspNetCore.Authorization;
 using KronoxApi.Extensions;
+using KronoxApi.Models;
+using KronoxApi.Requests;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey]
+[EnableRateLimiting("API")]
 public class CustomPageController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
