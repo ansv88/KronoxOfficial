@@ -5,6 +5,10 @@
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Authorization
 @using KronoxFront.Components.Shared
+@using KronoxFront.Components.Shared.Content
+@using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.UI
+@using KronoxFront.Components.Shared.Forms
 @inject CmsService Cms
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
@@ -90,71 +94,68 @@ else
                 <div class="wrapper-div py-3">
                     <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                         <div style="max-width:800px; margin: 0 auto;">
-                            <h2 class="text-center mb-4">Dokument</h2>
-                            <p class="text-center text-muted mb-4">
-                                Här hittar du viktiga dokument och information för medlemmar.
-                            </p>
+                            <DocumentSection PageKey="home" 
+                                             Title="Dokument"
+                                             ShowFilters="false"
+                                             ShowCategoryHeaders="true"
+                                             ShowAllDocumentsLink="true"
+                                             MaxDocumentsPerCategory="3" />
+                        </div>
+                    </section>
+                </div>
+                break;
+
+            case SectionType.NewsSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <h2 class="text-center mb-4">Senaste nyheterna</h2>
+                            <NewsSection PageKey="home" />
+                        </div>
+                    </section>
+                </div>
+                break;
+
+            case SectionType.ActionPlanTable:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
+                        </div>
+                    </section>
+                </div>
+                break;
+
+            case SectionType.DevelopmentSuggestionForm:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <DevelopmentSuggestionForm />
+                        </div>
+                    </section>
+                </div>
+                break;
+
+            case SectionType.ContactForm:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <h2 class="text-center mb-4">Kontakta oss</h2>
                             <div class="text-center">
-                                <a href="/dokument" class="btn btn-primary">
-                                    <i class="fa-solid fa-file-alt me-2"></i>
-                                    Visa alla dokument
+                                <p class="text-muted mb-3">Har du frågor? Kontakta oss via vårt formulär.</p>
+                                <a href="/kontaktaoss" class="btn btn-primary">
+                                    <i class="fa-solid fa-envelope me-2"></i>
+                                    Gå till kontaktformulär
                                 </a>
                             </div>
                         </div>
                     </section>
                 </div>
                 break;
-
-                case SectionType.NewsSection:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <h2 class="text-center mb-4">Senaste nyheterna</h2>
-                <NewsSection PageKey="home" />
-            </div>
-        </section>
-    </div>
-    break;
-
-case SectionType.ActionPlanTable:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
-            </div>
-        </section>
-    </div>
-    break;
-
-case SectionType.DevelopmentSuggestionForm:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <DevelopmentSuggestionForm />
-            </div>
-        </section>
-    </div>
-    break;
-
-case SectionType.ContactForm:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <h2 class="text-center mb-4">Kontakta oss</h2>
-                <div class="text-center">
-                    <p class="text-muted mb-3">Har du frågor? Kontakta oss via vårt formulär.</p>
-                    <a href="/kontaktaoss" class="btn btn-primary">
-                        <i class="fa-solid fa-envelope me-2"></i>
-                        Gå till kontaktformulär
-                    </a>
-                </div>
-            </div>
-        </section>
-    </div>
-    break;
         }
     }
 
+    <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
 
@@ -177,6 +178,7 @@ case SectionType.ContactForm:
         {
             await JS.InvokeVoidAsync("initCarousel");
             await JS.InvokeVoidAsync("initFeatureImageClicks");
+            await JS.InvokeVoidAsync("initScrollTopButton"); // Lägg till denna!
         }
     }
 
@@ -207,15 +209,18 @@ case SectionType.ContactForm:
             {
                 actionPlan = await Cms.GetActionPlanAsync("home");
             }
+            
+            Logger.LogInformation("Home sida laddad framgångsrikt med {SectionCount} sektioner", sectionConfigurations.Count);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid inläsning av startsidan: {Message}", ex.Message);
 
+            // Skapa fallback-innehåll
             introSection = new IntroSectionViewModel
             {
-                Title = "Något gick fel",
-                Content = "<p>Det uppstod ett fel vid hämtning av innehållet.</p>"
+                Title = "Välkommen till KronoX",
+                Content = "<p>Schemaläggning och bokningssystem för högre utbildning.</p>"
             };
             featureSections = new List<FeatureSectionViewModel>();
             faqSections = new List<FaqSectionViewModel>();
@@ -224,7 +229,8 @@ case SectionType.ContactForm:
             {
                 new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
                 new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
-                new() { Type = SectionType.FeatureSections, SortOrder = 2, IsEnabled = true }
+                new() { Type = SectionType.FeatureSections, SortOrder = 2, IsEnabled = true },
+                new() { Type = SectionType.MemberLogos, SortOrder = 3, IsEnabled = true }
             };
         }
         finally
@@ -235,14 +241,14 @@ case SectionType.ContactForm:
 
     private string GetHeroBannerUrl()
     {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner != null ? heroBanner.Url : "images/hero/hero_students.jpeg";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.Url ?? "/images/hero/hero_students.jpeg";
     }
 
     private string GetHeroBannerAlt()
     {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner != null ? heroBanner.AltText.Substring(5) : "Studenter bannerbild";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.AltText?.Substring(5) ?? "KronoX bannerbild";
     }
 
     private void ShowImage(string imageUrl)

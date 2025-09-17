@@ -1,7 +1,7 @@
 ﻿@using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Forms
 @inject IJSRuntime JS
-@inject ILogger<FaqManager> Logger
+@inject ILogger<FaqEditor> Logger
 @implements IAsyncDisposable
 
 <div class="card mb-4">
@@ -291,16 +291,16 @@
         }
     }
 
-    private void RemoveFaqSection(int sectionIndex)
+    private async Task RemoveFaqSection(int sectionIndex)
     {
         if (sectionIndex >= 0 && sectionIndex < FaqSections.Count)
         {
             FaqSections.RemoveAt(sectionIndex);
-            OnFaqChanged();
+            await OnFaqChanged();
         }
     }
 
-    private void MoveFaqSection(int index, int direction)
+    private async Task MoveFaqSection(int index, int direction)
     {
         int newIndex = index + direction;
         if (newIndex >= 0 && newIndex < FaqSections.Count)
@@ -308,21 +308,21 @@
             var section = FaqSections[index];
             FaqSections.RemoveAt(index);
             FaqSections.Insert(newIndex, section);
-            OnFaqChanged();
+            await OnFaqChanged();
         }
     }
 
-    private void RemoveFaqItem(int sectionIndex, int itemIndex)
+    private async Task RemoveFaqItem(int sectionIndex, int itemIndex)
     {
         if (sectionIndex >= 0 && sectionIndex < FaqSections.Count &&
             itemIndex >= 0 && itemIndex < FaqSections[sectionIndex].FaqItems.Count)
         {
             FaqSections[sectionIndex].FaqItems.RemoveAt(itemIndex);
-            OnFaqChanged();
+            await OnFaqChanged();
         }
     }
 
-    private void MoveFaqItem(int sectionIndex, int itemIndex, int direction)
+    private async Task MoveFaqItem(int sectionIndex, int itemIndex, int direction)
     {
         if (sectionIndex >= 0 && sectionIndex < FaqSections.Count)
         {
@@ -334,12 +334,12 @@
                 var item = items[itemIndex];
                 items.RemoveAt(itemIndex);
                 items.Insert(newIndex, item);
-                OnFaqChanged();
+                await OnFaqChanged();
             }
         }
     }
 
-    private void ClearFaqImage(int sectionIndex, int itemIndex)
+    private async Task ClearFaqImage(int sectionIndex, int itemIndex)
     {
         if (sectionIndex >= 0 && sectionIndex < FaqSections.Count &&
             itemIndex >= 0 && itemIndex < FaqSections[sectionIndex].FaqItems.Count)
@@ -347,7 +347,7 @@
             var item = FaqSections[sectionIndex].FaqItems[itemIndex];
             item.ImageUrl = "";
             item.ImageAltText = "";
-            OnFaqChanged();
+            await OnFaqChanged();
         }
     }
 

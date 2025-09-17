@@ -1,8 +1,11 @@
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Authorization
 @using System.Net.Http.Json
 @inject IHttpClientFactory HttpClientFactory
+@inject CmsService Cms
+@inject AuthenticationStateProvider AuthState
 @inject IToastService Toast
 @inject ILogger<ContactFormSection> Logger
 
@@ -76,73 +79,83 @@
 
             <!-- Högerspalt: Kontaktuppgifter -->
             <div class="col-md-6 p-4 bg-white rounded-end">
-                <h3 class="h5 mb-4 fw-bold">Postadress</h3>
-                
-                <div class="mb-4 p-3 bg-light rounded border-start border-3 border-primary">
-                    <strong>@ContactInfo.PostalAddress.OrganizationName</strong><br />
-                    @ContactInfo.PostalAddress.AddressLine1<br />
-                    @if (!string.IsNullOrEmpty(ContactInfo.PostalAddress.AddressLine2))
-                    {
-                        @ContactInfo.PostalAddress.AddressLine2<br />
-                    }
-                    @ContactInfo.PostalAddress.PostalCode @ContactInfo.PostalAddress.City
-                    @if (!string.IsNullOrEmpty(ContactInfo.PostalAddress.Country))
-                    {
-                        <br />@ContactInfo.PostalAddress.Country
-                    }
-                </div>
-
-                <h3 class="h5 mb-3 fw-bold">@ContactPersonsTitle</h3>
-                
-                @foreach (var person in ContactInfo.ContactPersons.Where(p => p.IsActive).OrderBy(p => p.SortOrder))
+                @if (isLoadingContactInfo)
                 {
-                    <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
-                        <div class="mb-2">
-                            <strong class="text-dark">@person.Name</strong>
-                            <span class="ms-2">@person.Title</span><br />
-                            <small class="text-muted">
-                                <i class="fa-solid fa-envelope me-1"></i>@person.Email
-                            </small><br />
-                            @if (!string.IsNullOrEmpty(person.Phone))
-                            {
-                                <small class="text-muted">
-                                    <i class="fa-solid fa-phone me-1"></i>@person.Phone
-                                </small>
-                            }
-                        </div>
+                    <div class="text-center py-5">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <p class="mt-2 text-muted">Laddar kontaktuppgifter...</p>
                     </div>
                 }
-
-                @* ===== MEDLEMSINFORMATION (endast för inloggade medlemmar) ===== *@
-                @if (ShowMemberInfo && ContactInfo.EmailLists.Any())
+                else
                 {
-                    <hr class="my-4" />
+                    <h3 class="h5 mb-4 fw-bold">Postadress</h3>
                     
-                    <h3 class="h5 mb-3 fw-bold">
-                        <i class="fa-solid fa-users me-2"></i>
-                        E-postlistor
-                    </h3>
-                    
-                    <div class="alert alert-info mb-3">
-                        <i class="fa-solid fa-info-circle me-2"></i>
-                        <small><strong>Medlemsinformation:</strong> Denna information är endast synlig för inloggade medlemmar.</small>
+                    <div class="mb-4 p-3 bg-light rounded border-start border-3 border-primary">
+                        <strong>@contactInfo.PostalAddress.OrganizationName</strong><br />
+                        @contactInfo.PostalAddress.AddressLine1<br />
+                        @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.AddressLine2))
+                        {
+                            @contactInfo.PostalAddress.AddressLine2<br />
+                        }
+                        @contactInfo.PostalAddress.PostalCode @contactInfo.PostalAddress.City
+                        @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.Country))
+                        {
+                            <br />@contactInfo.PostalAddress.Country
+                        }
                     </div>
 
-                    @foreach (var emailList in ContactInfo.EmailLists.Where(el => el.IsActive).OrderBy(el => el.SortOrder))
+                    <h3 class="h5 mb-3 fw-bold">@ContactPersonsTitle</h3
+                    >
+                    @foreach (var person in contactInfo.ContactPersons.Where(p => p.IsActive).OrderBy(p => p.SortOrder))
                     {
                         <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
                             <div class="mb-2">
-                                <strong class="text-dark">@emailList.Name:</strong><br />
-                                @if (!string.IsNullOrEmpty(emailList.Description))
-                                {
-                                    <small class="text-muted d-block mb-1">@emailList.Description</small>
-                                }
+                                <strong class="text-dark">@person.Name</strong>
+                                <span class="ms-2">@person.Title</span><br />
                                 <small class="text-muted">
-                                    <i class="fa-solid fa-envelope me-1"></i>
-                                    <a href="mailto:@emailList.EmailAddress" class="text-decoration-none">@emailList.EmailAddress</a>
-                                </small>
+                                    <i class="fa-solid fa-envelope me-1"></i>@person.Email
+                                </small><br />
+                                @if (!string.IsNullOrEmpty(person.Phone))
+                                {
+                                    <small class="text-muted">
+                                        <i class="fa-solid fa-phone me-1"></i>@person.Phone
+                                    </small>
+                                }
                             </div>
                         </div>
+                    }
+
+                    @* ===== MEDLEMSINFORMATION (endast för inloggade medlemmar) ===== *@
+                    @if (isLoggedIn && contactInfo.EmailLists.Any())
+                    {
+                        <hr class="my-4" />
+                        
+                        <h3 class="h5 mb-3 fw-bold">
+                            <i class="fa-solid fa-users me-2"></i>
+                            E-postlistor
+                        </h3>
+                        
+                        <div class="alert alert-info mb-3">
+                            <i class="fa-solid fa-info-circle me-2"></i>
+                            <small><strong>Medlemsinformation:</strong> Denna information är endast synlig för inloggade medlemmar.</small>
+                        </div>
+
+                        @foreach (var emailList in contactInfo.EmailLists.Where(el => el.IsActive).OrderBy(el => el.SortOrder))
+                        {
+                            <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
+                                <div class="mb-2">
+                                    <strong class="text-dark">@emailList.Name:</strong><br />
+                                    @if (!string.IsNullOrEmpty(emailList.Description))
+                                    {
+                                        <small class="text-muted d-block mb-1">@emailList.Description</small>
+                                    }
+                                    <small class="text-muted">
+                                        <i class="fa-solid fa-envelope me-1"></i>
+                                        <a href="mailto:@emailList.EmailAddress" class="text-decoration-none">@emailList.EmailAddress</a>
+                                    </small>
+                                </div>
+                            </div>
+                        }
                     }
                 }
             </div>
@@ -151,8 +164,6 @@
 </div>
 
 @code {
-    [Parameter] public ContactPageInfoViewModel ContactInfo { get; set; } = new();
-    [Parameter] public bool ShowMemberInfo { get; set; } = false;
     [Parameter] public string FormTitle { get; set; } = "Fyll i formuläret för att kontakta oss";
     [Parameter] public string ButtonText { get; set; } = "Skicka meddelande";
     [Parameter] public string LoadingText { get; set; } = "Skickar...";
@@ -162,7 +173,51 @@
     [Parameter] public EventCallback<string> OnFormError { get; set; }
 
     private ContactFormViewModel contactForm = new();
+    private ContactPageInfoViewModel contactInfo = new();
     private bool isSubmitting = false;
+    private bool isLoadingContactInfo = true;
+    private bool isLoggedIn = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        isLoggedIn = authState.User?.Identity?.IsAuthenticated == true;
+        
+        await LoadContactInfo();
+    }
+
+    private async Task LoadContactInfo()
+    {
+        isLoadingContactInfo = true;
+        
+        try
+        {
+            contactInfo = await Cms.GetContactInfoAsync();
+            Logger.LogInformation("Kontaktinformation laddad framgångsrikt");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av kontaktinformation");
+            
+            // Skapa fallback-kontaktinfo
+            contactInfo = new ContactPageInfoViewModel
+            {
+                PostalAddress = new ContactPostalAddressViewModel
+                {
+                    OrganizationName = "KronoX-konsortiet",
+                    AddressLine1 = "Kontaktuppgifter kommer snart",
+                    City = "Sverige",
+                    PostalCode = ""
+                },
+                ContactPersons = new List<ContactPagePersonViewModel>(),
+                EmailLists = new List<EmailListViewModel>()
+            };
+        }
+        finally
+        {
+            isLoadingContactInfo = false;
+        }
+    }
 
     private async Task HandleFormSubmit()
     {

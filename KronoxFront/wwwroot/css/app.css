@@ -445,3 +445,7 @@ mark.bg-warning {
     font-weight: 600;
     letter-spacing: 0.025em;
 }
+
+.document-highlighted {
+    background-color: #fff3cd;
+}

@@ -1,5 +1,6 @@
 ﻿@page "/admin/documents/manage"
 @using KronoxFront.Components
+@using KronoxFront.Components.Shared.UI
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
@@ -531,9 +532,9 @@ OnDownload="DownloadDocument" />
     UploadModel uploadModel = new();
     IBrowserFile? selectedFile;
     bool isUploading, isLoading, showArchived;
-    bool newCategoryIsMain = true;
+    // bool newCategoryIsMain = true;
     string newCategoryString = "";
-    string searchTerm = "";
+    // string searchTerm = "";
     private CategoryFormModel newCategory = new();
     DocumentViewModel? documentToEdit;
     bool isSaving;
@@ -631,8 +632,8 @@ OnDownload="DownloadDocument" />
 
         if (on)
         {
-            if (!uploadModel.SelectedSubCategoryIds.Any(s => s.Id == id))
-                uploadModel.SelectedSubCategoryIds.Add(subCategory);
+            if (uploadModel.SelectedSubCategoryIds is not null && !uploadModel.SelectedSubCategoryIds.Any(s => s.Id == id))
+      uploadModel.SelectedSubCategoryIds.Add(subCategory);
         }
         else
         {
@@ -713,7 +714,7 @@ OnDownload="DownloadDocument" />
         }
     }
 
-    async Task ViewDocument(int id, string fileName)
+    void ViewDocument(int id, string fileName)
     {
         selectedDocumentId = id;
         selectedDocumentName = fileName;

@@ -5,6 +5,11 @@
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Authorization
 @using KronoxFront.Components.Shared
+@using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Content
+@using KronoxFront.Components.Shared.UI
+@using KronoxFront.Components.Shared.Forms
+@using KronoxFront.Components.Admin
 @inject CmsService Cms
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
@@ -129,23 +134,28 @@ else
                 </div>
                 break;
 
-                case SectionType.NewsSection:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <h2 class="text-center mb-4">Senaste nyheterna</h2>
-                <NewsSection PageKey="omkonsortiet" />
-            </div>
-        </section>
-    </div>
-    break;
+            case SectionType.NewsSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <NewsSection PageKey="omkonsortiet"
+                                         Title="Konsortienyheter"
+                                         MaxItems="3"
+                                         ShowFilters="false"
+                                         ShowPagination="false"
+                                         ShowArchiveToggle="false"
+                                         ShowAllNewsLink="true" />
+                        </div>
+                    </section>
+                </div>
+                break;
 
             case SectionType.DocumentSection:
                 <div class="wrapper-div py-3">
                     <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                         <div style="max-width:800px; margin: 0 auto;">
                             <DocumentSection PageKey="omkonsortiet"
-                                             Title="Dokument"
+                                             Title="Konsortiedokument"
                                              ShowFilters="false"
                                              ShowCategoryHeaders="true"
                                              ShowAllDocumentsLink="true"
@@ -155,28 +165,31 @@ else
                 </div>
                 break;
 
-case SectionType.ActionPlanTable:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
-            </div>
-        </section>
-    </div>
-    break;
+            case SectionType.ActionPlanTable:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <ActionPlanTableManager ActionPlan="@actionPlan" 
+                                                    IsAdminMode="false"
+                                                    Title="Utvecklingsplan" />
+                        </div>
+                    </section>
+                </div>
+                break;
 
-case SectionType.DevelopmentSuggestionForm:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <DevelopmentSuggestionForm />
-            </div>
-        </section>
-    </div>
-    break;
+            case SectionType.DevelopmentSuggestionForm:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <DevelopmentSuggestionForm />
+                        </div>
+                    </section>
+                </div>
+                break;
         }
     }
 
+    <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
 
@@ -190,7 +203,6 @@ case SectionType.DevelopmentSuggestionForm:
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
-    private List<MemberLogoViewModel> memberLogos = new();
 
     // Sektionskonfiguration
     private List<SectionConfigItem> sectionConfigurations = new();
@@ -229,6 +241,7 @@ case SectionType.DevelopmentSuggestionForm:
 
         try
         {
+            // Hämta grundläggande sidinnehåll (alltid tillgängligt)
             pageContent = await Cms.GetPageContentAsync("omkonsortiet") ?? new PageContentViewModel
             {
                 PageKey = "omkonsortiet",
@@ -238,34 +251,60 @@ case SectionType.DevelopmentSuggestionForm:
                 Images = new List<PageImageViewModel>()
             };
 
-            memberLogos = await Cms.GetMemberLogosAsync();
+            // Hämta intro-sektion (alltid tillgänglig)
             introSection = await Cms.GetIntroSectionAsync("omkonsortiet");
             
-            // Hämta med privat innehåll bara för inloggade
+            // Hämta feature-sektioner med privat innehåll endast för inloggade användare
             featureSections = await Cms.GetFeatureSectionsAsync("omkonsortiet", includePrivate: isLoggedIn);
+            
+            // Hämta FAQ-sektioner (alltid tillgängliga)
             faqSections = await Cms.GetFaqSectionsAsync("omkonsortiet");
 
-            // Ladda sektionskonfiguration för att veta vilka sektioner som ska visas
+            // Hämta sektionskonfiguration för att veta vilka sektioner som ska visas
             sectionConfigurations = await Cms.GetPageSectionConfigAsync("omkonsortiet");
 
+            // Hämta handlingsplan om den är aktiverad
             if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
             {
-                actionPlan = await Cms.GetActionPlanAsync("omkonsortiet");
+                try
+                {
+                    actionPlan = await Cms.GetActionPlanAsync("omkonsortiet");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte hämta handlingsplan för omkonsortiet - fortsätter utan");
+                    actionPlan = new ActionPlanTableViewModel();
+                }
             }
+
+            Logger.LogInformation("Omkonsortiet-sidan laddad framgångsrikt med {SectionCount} sektioner, " +
+                "användare inloggad: {IsLoggedIn}, admin: {IsAdmin}", 
+                sectionConfigurations.Count, isLoggedIn, isAdmin);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid inläsning av Om konsortiet-sidan: {Message}", ex.Message);
             
+            // Skapa fallback-innehåll som fungerar för alla användare
+            pageContent = new PageContentViewModel
+            {
+                PageKey = "omkonsortiet",
+                Title = "Om konsortiet", 
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+            
             introSection = new IntroSectionViewModel
             {
-                Title = "Något gick fel",
-                Content = "<p>Det uppstod ett fel vid hämtning av innehållet.</p>"
+                Title = "Om KronoX-konsortiet",
+                Content = "<p>Information om konsortiet kommer att visas här.</p>"
             };
+            
             featureSections = new List<FeatureSectionViewModel>();
             faqSections = new List<FaqSectionViewModel>();
 
-            // Skapa standardkonfiguration som fallback
+            // Skapa minimal standardkonfiguration som fallback
             sectionConfigurations = new List<SectionConfigItem>
             {
                 new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
@@ -282,19 +321,19 @@ case SectionType.DevelopmentSuggestionForm:
 
     private string GetHeroBannerUrl()
     {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner != null ? heroBanner.Url : "images/hero/konsortiet_hero.jpg";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.Url ?? "images/hero/konsortiet_hero.jpg";
     }
 
     private string GetHeroBannerAlt()
     {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner != null ? heroBanner.AltText.Substring(5) : "KronoX konsortiet";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.AltText?.Substring(5) ?? "KronoX konsortiet";
     }
 
     private string GetEnhancedContent(FeatureSectionViewModel featureItem)
     {
-        var content = featureItem.Content; // Publikt innehåll
+        var content = featureItem.Content; // Publikt innehåll visas alltid
 
         // Lägg till medlemsinformation endast för inloggade användare
         if (isLoggedIn && featureItem.HasPrivateContent)
@@ -305,7 +344,7 @@ case SectionType.DevelopmentSuggestionForm:
                 content += featureItem.PrivateContent;
             }
 
-            // Lägg till kontaktrubrik och kontakter
+            // Lägg till kontaktrubrik och kontakter för medlemmar
             if (featureItem.ContactPersons.Any())
             {
                 if (!string.IsNullOrEmpty(featureItem.ContactHeading))
@@ -317,7 +356,7 @@ case SectionType.DevelopmentSuggestionForm:
                 {
                     if (string.IsNullOrEmpty(contact.Name)) continue;
 
-                    var contactInfo = $"<div class='contact-enhanced py-2 ps-3 mb-3'>";
+                    var contactInfo = $"<div class='contact-enhanced py-2 ps-3 mb-3 border-start border-primary border-3'>";
 
                     contactInfo += $"<div class='fw-semibold mb-1'>{contact.Name}";
                     if (!string.IsNullOrEmpty(contact.Organization))
@@ -346,7 +385,6 @@ case SectionType.DevelopmentSuggestionForm:
                 }
             }
         }
-
         return content;
     }
 

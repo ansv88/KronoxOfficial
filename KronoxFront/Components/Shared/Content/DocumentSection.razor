@@ -1,3 +1,4 @@
+@using KronoxFront.Components.Shared.UI
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
@@ -109,7 +110,7 @@ else
         </div>
     }
 
-    @* FÖRENKLAD Bootstrap dokumentlista *@
+    @* Bootstrap dokumentlista *@
     <div class="row g-3">
         @foreach (var category in AccessibleCategories.Where(c => FilteredDocuments.Any(d => d.MainCategoryId == c.Id)))
         {

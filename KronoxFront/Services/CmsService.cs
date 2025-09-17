@@ -1683,6 +1683,7 @@ public class CmsService
                 });
                 break;
 
+            case "kontakt":
             case "kontaktaoss":
                 defaultSections.AddRange(new []
                 {

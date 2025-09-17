@@ -93,7 +93,8 @@
         var allSectionTypes = Enum.GetValues<SectionType>().ToList();
         
         // Ta bort ContactForm från alla sidor utom kontaktsidan
-        if (PageKey.ToLower() != "kontaktaoss")
+        var pageKeyLower = PageKey.ToLowerInvariant();
+        if (pageKeyLower != "kontaktaoss" && pageKeyLower != "kontakt")
         {
             allSectionTypes = allSectionTypes.Where(t => t != SectionType.ContactForm).ToList();
         }
@@ -128,21 +129,29 @@
     
     private bool GetDefaultEnabledState(SectionType type, string pageKey)
     {
-        return (pageKey.ToLower(), type) switch
+        var key = pageKey.ToLowerInvariant();
+        
+        return (key, type) switch
         {
             ("home", SectionType.Banner) => true,
             ("home", SectionType.Intro) => true,
             ("home", SectionType.FeatureSections) => true,
             ("home", SectionType.MemberLogos) => true,
-            ("kontaktaoss", SectionType.Banner) => true,
-            ("kontaktaoss", SectionType.Intro) => true,
-            ("kontaktaoss", SectionType.ContactForm) => true,
-            ("kontaktaoss", SectionType.MemberLogos) => true,
+            
+            ("kontaktaoss" or "kontakt", SectionType.Banner) => true,
+            ("kontaktaoss" or "kontakt", SectionType.Intro) => true,
+            ("kontaktaoss" or "kontakt", SectionType.ContactForm) => true,
+            ("kontaktaoss" or "kontakt", SectionType.MemberLogos) => true,
+            
+            ("dokument", SectionType.Banner) => true,
+            ("dokument", SectionType.Intro) => true,
             ("dokument", SectionType.DocumentSection) => true,
+            
             ("medlemsnytt", SectionType.Banner) => true,
             ("medlemsnytt", SectionType.Intro) => true,
             ("medlemsnytt", SectionType.NewsSection) => true,
             ("medlemsnytt", SectionType.MemberLogos) => true,
+            
             (_, SectionType.Banner) => true,
             (_, SectionType.Intro) => true,
             _ => false

@@ -5,6 +5,10 @@
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Authorization
 @using KronoxFront.Components.Shared
+@using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Content
+@using KronoxFront.Components.Shared.UI
+@using KronoxFront.Components.Shared.Forms
 @inject CmsService Cms
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
@@ -85,56 +89,62 @@ else
                 </div>
                 break;
 
-                case SectionType.NewsSection:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <h2 class="text-center mb-4">Senaste nyheterna</h2>
-                <NewsSection PageKey="omsystemet" />
-            </div>
-        </section>
-    </div>
-    break;
-
-case SectionType.DocumentSection:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <h2 class="text-center mb-4">Dokument</h2>
-                <div class="text-center">
-                    <p class="text-muted mb-3">Här hittar du viktiga dokument och resurser.</p>
-                    <a href="/dokument" class="btn btn-primary">
-                        <i class="fa-solid fa-file-alt me-2"></i>
-                        Visa alla dokument
-                    </a>
+            case SectionType.NewsSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <NewsSection PageKey="omsystemet" 
+                                         Title="Systemuppdateringar"
+                                         MaxItems="5"
+                                         ShowFilters="false"
+                                         ShowPagination="false"
+                                         ShowArchiveToggle="false"
+                                         ShowAllNewsLink="true" />
+                        </div>
+                    </section>
                 </div>
-            </div>
-        </section>
-    </div>
-    break;
+                break;
 
-case SectionType.ActionPlanTable:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
-            </div>
-        </section>
-    </div>
-    break;
+            case SectionType.DocumentSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <DocumentSection PageKey="omsystemet"
+                                             Title="Systemdokument"
+                                             ShowFilters="false"
+                                             ShowCategoryHeaders="true"
+                                             ShowAllDocumentsLink="true"
+                                             MaxDocumentsPerCategory="5" />
+                        </div>
+                    </section>
+                </div>
+                break;
 
-case SectionType.DevelopmentSuggestionForm:
-    <div class="wrapper-div py-3">
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <DevelopmentSuggestionForm />
-            </div>
-        </section>
-    </div>
-    break;
+            case SectionType.ActionPlanTable:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <ActionPlanTableManager ActionPlan="@actionPlan" 
+                                                    IsAdminMode="false"
+                                                    Title="Utvecklingsplan" />
+                        </div>
+                    </section>
+                </div>
+                break;
+
+            case SectionType.DevelopmentSuggestionForm:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <DevelopmentSuggestionForm />
+                        </div>
+                    </section>
+                </div>
+                break;
         }
     }
 
+    <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
 
@@ -186,18 +196,39 @@ case SectionType.DevelopmentSuggestionForm:
 
             if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
             {
-                actionPlan = await Cms.GetActionPlanAsync("omsystemet");
+                try
+                {
+                    actionPlan = await Cms.GetActionPlanAsync("omsystemet");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte hämta handlingsplan för omsystemet - fortsätter utan");
+                    actionPlan = new ActionPlanTableViewModel();
+                }
             }
+
+            Logger.LogInformation("Om systemet-sidan laddad framgångsrikt med {SectionCount} sektioner", sectionConfigurations.Count);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid inläsning av Om systemet-sidan: {Message}", ex.Message);
 
+            // Skapa fallback-innehåll
+            pageContent = new PageContentViewModel
+            {
+                PageKey = "omsystemet",
+                Title = "Om systemet",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+
             introSection = new IntroSectionViewModel
             {
-                Title = "Något gick fel",
-                Content = "<p>Det uppstod ett fel vid hämtning av innehållet.</p>"
+                Title = "Om KronoX-systemet",
+                Content = "<p>Information om systemet kommer att visas här.</p>"
             };
+            
             featureSections = new List<FeatureSectionViewModel>();
             faqSections = new List<FaqSectionViewModel>();
 
@@ -218,14 +249,14 @@ case SectionType.DevelopmentSuggestionForm:
 
     private string GetHeroBannerUrl()
     {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner != null ? heroBanner.Url : "images/hero/system_hero.jpg";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.Url ?? "images/hero/system_hero.jpg";
     }
 
     private string GetHeroBannerAlt()
     {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner != null ? heroBanner.AltText.Substring(5) : "KronoX systemet";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.AltText?.Substring(5) ?? "KronoX systemet";
     }
 
     private void ShowImage(string imageUrl)

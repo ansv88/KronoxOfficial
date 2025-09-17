@@ -1,17 +1,27 @@
-﻿@page "/kontaktaoss"
-@page "/kontakt"
-@using KronoxFront.ViewModels
+﻿@page "/kontakt"
+@page "/kontaktaoss"
+@using System.Text.Json
+@using KronoxFront.DTOs
 @using KronoxFront.Services
+@using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Authorization
+@using KronoxFront.Components.Shared
+@using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Content
+@using KronoxFront.Components.Shared.UI
+@using KronoxFront.Components.Shared.Forms
 @inject CmsService Cms
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthState
 @inject ILogger<Kontaktaoss> Logger
-@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <HeadContent>
     <meta name="description" content="Kontakta KronoX för frågor om systemet, medlemskap eller support. Här hittar du kontaktuppgifter och formulär." />
 </HeadContent>
 
-<PageTitle>KronoX - Kontakta oss</PageTitle>
+<PageTitle>KronoX - @pageContent.Title</PageTitle>
+<h1 class="visually-hidden">@pageContent.Title</h1>
 
 @if (loading)
 {
@@ -24,128 +34,161 @@
 else
 {
     @* Dynamisk rendering baserat på sektionskonfiguration *@
-    @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
+    @if (sectionConfigurations.Any())
     {
-        @switch (section.Type)
+        @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
         {
-            case SectionType.Banner:
-                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()" 
-                                IsAdmin="@isAdmin" PageKey="kontaktaoss" />
-                break;
+            @switch (section.Type)
+            {
+                case SectionType.Banner:
+                    <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                                    IsAdmin="@isAdmin" PageKey="kontakt" />
+                    break;
 
-            case SectionType.Intro:
-                @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
-                {
-                    <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
-                }
-                <IntroSection Model="@introSection" />
-                break;
+                case SectionType.Intro:
+                    @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                    {
+                        <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                    }
+                    <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+                    break;
 
-            case SectionType.NavigationButtons:
-                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
-                {
-                    <NavigationButtons Buttons="@introSection.NavigationButtons" />
-                }
-                break;
+                case SectionType.NavigationButtons:
+                    @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                    {
+                        <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                    }
+                    break;
 
-            case SectionType.FeatureSections:
-                <FeatureSections PageKey="kontaktaoss" />
-                break;
+                case SectionType.ContactForm:
+                    <ContactFormSection />
+                    break;
 
-            case SectionType.FaqSections:
-                <FaqAccordion PageKey="kontaktaoss" />
-                break;
-
-            case SectionType.ContactForm:
-                <ContactFormSection ContactInfo="@contactInfo"
-                                    ShowMemberInfo="@isMember"
-                                    FormTitle="Fyll i formuläret för att kontakta oss"
-                                    ContactPersonsTitle="Systemförvaltargruppen" />
-                break;
-
-            case SectionType.MemberLogos:
-                <div class="wrapper-div py-3">
-                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
-                </div>
-                break;
-
-            case SectionType.NewsSection:
-                <div class="wrapper-div py-3">
-                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                        <div style="max-width:800px; margin: 0 auto;">
-                            <h2 class="h3 mb-4">Senaste nyheterna</h2>
-                            <NewsSection PageKey="kontaktaoss" />
+                case SectionType.FeatureSections:
+                    @if (featureSections.Any())
+                    {
+                        <div class="wrapper-div py-3">
+                            <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                                <div style="max-width:800px; margin: 0 auto;">
+                                    <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin" 
+                                                   PageKey="kontaktaoss" OnImageClick="@ShowImage" />
+                                </div>
+                            </section>
                         </div>
-                    </section>
-                </div>
-                break;
+                    }
+                    break;
 
-            case SectionType.DocumentSection:
-                <div class="wrapper-div py-3">
-                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                        <div style="max-width:800px; margin: 0 auto;">
-                            <h2 class="h3 mb-4">Dokument</h2>
-                            <div class="text-center">
-                                <p class="text-muted mb-3">Här hittar du viktiga dokument och resurser.</p>
-                                <a href="/dokument" class="btn btn-primary">
-                                    <i class="fa-solid fa-file-alt me-2"></i>
-                                    Visa alla dokument
-                                </a>
+                case SectionType.FaqSections:
+                    @if (faqSections.Any())
+                    {
+                        <div class="wrapper-div py-3">
+                            <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                                <div style="max-width:800px; margin: 0 auto;">
+                                    <FaqAccordion FaqSections="@faqSections" />
+                                </div>
+                            </section>
+                        </div>
+                    }
+                    break;
+
+                case SectionType.MemberLogos:
+                    <div class="wrapper-div py-3">
+                        <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+                    </div>
+                    break;
+
+                case SectionType.NewsSection:
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <NewsSection PageKey="kontaktaoss" 
+                                             Title="Senaste nyheterna"
+                                             MaxItems="3"
+                                             ShowFilters="false"
+                                             ShowPagination="false"
+                                             ShowArchiveToggle="false"
+                                             ShowAllNewsLink="true" />
                             </div>
-                        </div>
-                    </section>
-                </div>
-                break;
+                        </section>
+                    </div>
+                    break;
 
-            case SectionType.ActionPlanTable:
-                <div class="wrapper-div py-3">
-                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                        <div style="max-width:800px; margin: 0 auto;">
-                            <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
-                        </div>
-                    </section>
-                </div>
-                break;
-
-            case SectionType.DevelopmentSuggestionForm:
-                <div class="wrapper-div py-3">
-                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                        <div style="max-width:800px; margin: 0 auto;">
-                            <DevelopmentSuggestionForm />
-                        </div>
-                    </section>
-                </div>
-                break;
+                case SectionType.DocumentSection:
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <DocumentSection PageKey="kontaktaoss"
+                                                 Title="Dokument"
+                                                 ShowFilters="false"
+                                                 ShowCategoryHeaders="true"
+                                                 ShowAllDocumentsLink="true"
+                                                 MaxDocumentsPerCategory="3" />
+                            </div>
+                        </section>
+                    </div>
+                    break;
+            }
         }
     }
+    else
+    {
+        @* Fallback: Visa alltid grundläggande innehåll om inga sektioner är konfigurerade *@
+        <div class="wrapper-div">
+            @* Banner *@
+            <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                            IsAdmin="@isAdmin" PageKey="kontakt" />
+            
+            @* Intro *@
+            @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+            {
+                <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+            }
+            <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+            
+            @* Kontaktformulär *@
+            <ContactFormSection />
+            
+            @* Medlemslogotyper *@
+            <div class="py-3">
+                <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+            </div>
+        </div>
+    }
+
+    <ScrollTopButton />
+    <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
 
 @code {
     private PageContentViewModel pageContent = new();
-    private IntroSectionViewModel introSection = new();
-    private ContactPageInfoViewModel contactInfo = new();
-    private List<SectionConfigItem> sectionConfigurations = new();
-    private ActionPlanTableViewModel actionPlan = new();
     private bool loading = true;
     private bool isAdmin = false;
-    private bool isMember = false;
+    private string? activeImage;
+    private IntroSectionViewModel introSection = new();
+    private List<FeatureSectionViewModel> featureSections = new();
+    private List<FaqSectionViewModel> faqSections = new();
+
+    // Sektionskonfiguration
+    private List<SectionConfigItem> sectionConfigurations = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initCarousel");
+            await JS.InvokeVoidAsync("initFeatureImageClicks");
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+        loading = true;
+
         try
         {
-            loading = true;
-            Logger.LogInformation("Startar inläsning av kontaktsida...");
-
-            // Kontrollera användarens roller
-            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            isAdmin = authState.User.IsInRole("Admin");
-            
-            isMember = authState.User.Identity.IsAuthenticated && 
-                      (authState.User.IsInRole("Admin") || 
-                       authState.User.IsInRole("Styrelse") || 
-                       authState.User.IsInRole("Medlem"));
-
+            // Ladda sidinnehåll
             pageContent = await Cms.GetPageContentAsync("kontaktaoss") ?? new PageContentViewModel
             {
                 PageKey = "kontaktaoss",
@@ -154,110 +197,97 @@ else
                 LastModified = DateTime.Now,
                 Images = new List<PageImageViewModel>()
             };
-            Logger.LogInformation("PageContent hämtad: Title='{Title}', Metadata längd={MetadataLength}", 
-                pageContent.Title, pageContent.Metadata?.Length ?? 0);
 
-            Logger.LogInformation("Hämtar intro-sektion...");
+            // Ladda intro-sektion
             introSection = await Cms.GetIntroSectionAsync("kontaktaoss");
-            Logger.LogInformation("IntroSection hämtad: Title='{Title}', Content längd={ContentLength}", 
-                introSection.Title ?? "NULL", introSection.Content?.Length ?? 0);
-
-            Logger.LogInformation("Hämtar sektionskonfiguration...");
-            sectionConfigurations = await Cms.GetPageSectionConfigAsync("kontaktaoss");
-            Logger.LogInformation("SectionConfig hämtad: {Count} sektioner", sectionConfigurations.Count);
-
-            // Ladda kontaktinformation
-            Logger.LogInformation("Hämtar kontaktinformation...");
-            contactInfo = await Cms.GetContactInfoAsync();
-            Logger.LogInformation("ContactInfo hämtad: {PersonCount} personer", contactInfo.ContactPersons.Count);
-
-            if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
+            
+            // Sätt standardvärden om inget innehåll finns
+            if (string.IsNullOrEmpty(introSection.Title))
             {
-                actionPlan = await Cms.GetActionPlanAsync("kontaktaoss");
+                introSection.Title = "Kontakta oss";
+                introSection.Content = @"<p>Har du frågor eller vill komma i kontakt med oss? Använd formuläret nedan eller kontakta oss direkt.</p>
+                                        <p>Vi hjälper dig gärna med frågor om KronoX-systemet, medlemskap eller teknisk support.</p>";
+                introSection.BreadcrumbTitle = "KONTAKT";
             }
+            
+            // Ladda övriga sektioner
+            featureSections = await Cms.GetFeatureSectionsAsync("kontaktaoss");
+            faqSections = await Cms.GetFaqSectionsAsync("kontaktaoss");
 
-            // Logga vilka sektioner som är aktiverade
-            var enabledSections = sectionConfigurations.Where(s => s.IsEnabled).Select(s => s.Type.ToString()).ToList();
-            Logger.LogInformation("Aktiverade sektioner: [{Sections}]", string.Join(", ", enabledSections));
+            // Ladda sektionskonfiguration
+            sectionConfigurations = await Cms.GetPageSectionConfigAsync("kontaktaoss");
 
             // Om ingen konfiguration finns, skapa standardkonfiguration
             if (!sectionConfigurations.Any())
             {
-                Logger.LogWarning("Ingen sektionskonfiguration hittades, skapar fallback");
+                Logger.LogWarning("Ingen sektionskonfiguration hittades för kontakt, skapar fallback");
                 sectionConfigurations = new List<SectionConfigItem>
                 {
                     new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
                     new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
-                    new() { Type = SectionType.NavigationButtons, SortOrder = 2, IsEnabled = false },
-                    new() { Type = SectionType.FeatureSections, SortOrder = 3, IsEnabled = false },
-                    new() { Type = SectionType.FaqSections, SortOrder = 4, IsEnabled = false },
-                    new() { Type = SectionType.ContactForm, SortOrder = 5, IsEnabled = true },
-                    new() { Type = SectionType.MemberLogos, SortOrder = 6, IsEnabled = true }
+                    new() { Type = SectionType.ContactForm, SortOrder = 2, IsEnabled = true },
+                    new() { Type = SectionType.MemberLogos, SortOrder = 3, IsEnabled = true }
                 };
-                
-                var fallbackSections = sectionConfigurations.Where(s => s.IsEnabled).Select(s => s.Type.ToString()).ToList();
-                Logger.LogInformation("Fallback sektioner skapade: [{Sections}]", string.Join(", ", fallbackSections));
             }
 
-            // Om ingen intro finns, skapa standardintro
-            if (string.IsNullOrEmpty(introSection.Title))
-            {
-                Logger.LogWarning("Ingen intro-titel hittades, skapar fallback");
-                introSection = new IntroSectionViewModel
-                {
-                    BreadcrumbTitle = "KONTAKTA OSS",
-                    Title = "Kontakt",
-                    Content = "<p>Kontakta oss för mer information. Supportfrågor för KronoX-systemet hanteras av vårt lärosätes KronoX-administratör.</p><p>Formuläret ska ej användas för lärosätesspecifika frågor, som t ex glömt lösenord eller problem vid anmälan till tentamen (i dessa fall bör ni ta kontakt med aktuellt lärosäte).</p>",
-                    HasImage = false,
-                    ImageUrl = "",
-                    ImageAltText = "",
-                    ShowNavigationButtons = false,
-                    NavigationButtons = new List<NavigationButtonViewModel>()
-                };
-                Logger.LogInformation("Fallback intro skapade: Title='{Title}'", introSection.Title);
-            }
-
-            Logger.LogInformation("Kontaktsida klar att rendera med {TotalCount} totala sektioner, {EnabledCount} aktiverade", 
-                sectionConfigurations.Count, sectionConfigurations.Count(s => s.IsEnabled));
+            Logger.LogInformation("Kontakta oss-sidan laddad framgångsrikt med {SectionCount} sektioner", sectionConfigurations.Count);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid laddning av kontaktsida");
-            
-            // Fallback-innehåll
+            Logger.LogError(ex, "Fel vid inläsning av Kontakta oss-sidan: {Message}", ex.Message);
+
+            // Skapa robust fallback-innehåll
+            pageContent = new PageContentViewModel
+            {
+                PageKey = "kontaktaoss",
+                Title = "Kontakta oss",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+
             introSection = new IntroSectionViewModel
             {
-                BreadcrumbTitle = "KONTAKTA OSS",
-                Title = "Kontakt",
-                Content = "<p>Kontakta oss för mer information om KronoX-systemet.</p>"
+                Title = "Kontakta oss",
+                Content = @"<p>Har du frågor eller vill komma i kontakt med oss? Använd formuläret nedan eller kontakta oss direkt.</p>
+                           <p>Vi hjälper dig gärna med frågor om KronoX-systemet, medlemskap eller teknisk support.</p>",
+                BreadcrumbTitle = "KONTAKT"
             };
             
-            contactInfo = new ContactPageInfoViewModel();
-            
+            featureSections = new List<FeatureSectionViewModel>();
+            faqSections = new List<FaqSectionViewModel>();
+
+            // Säkerställ att standardkonfiguration alltid finns
             sectionConfigurations = new List<SectionConfigItem>
             {
-                new() { Type = SectionType.Intro, SortOrder = 0, IsEnabled = true },
-                new() { Type = SectionType.ContactForm, SortOrder = 1, IsEnabled = true }
+                new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
+                new() { Type = SectionType.Intro, SortOrder = 1, IsEnabled = true },
+                new() { Type = SectionType.ContactForm, SortOrder = 2, IsEnabled = true },
+                new() { Type = SectionType.MemberLogos, SortOrder = 3, IsEnabled = true }
             };
-            
-            Logger.LogInformation("Exception fallback aktiverad med {Count} sektioner", sectionConfigurations.Count);
         }
         finally
         {
             loading = false;
-            Logger.LogInformation("Kontaktsida inläsning slutförd");
         }
     }
 
     private string GetHeroBannerUrl()
     {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner?.Url ?? "images/hero/hero_students.jpeg";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.Url ?? "/images/hero/hero_students.jpeg";
     }
 
     private string GetHeroBannerAlt()
     {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        return heroBanner?.AltText.Substring(5) ?? "Kontakta oss bannerbild";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.AltText?.Substring(5) ?? "Kontakta oss";
     }
+
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    private void CloseModal() => activeImage = null;
 }

@@ -328,7 +328,7 @@
                 navigationPages = await response.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Logga fel men fortsätt utan navigation pages
         }
@@ -346,7 +346,7 @@
                 navigationConfigs = await response.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             navigationConfigs = GetFallbackNavigation();
         }

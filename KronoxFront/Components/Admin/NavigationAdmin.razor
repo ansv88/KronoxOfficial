@@ -310,7 +310,7 @@
                     }).ToList();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await Toast.Error("Kunde inte ladda navigation");
         }
@@ -328,7 +328,7 @@
                 navigationPages = await response.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
 
         }

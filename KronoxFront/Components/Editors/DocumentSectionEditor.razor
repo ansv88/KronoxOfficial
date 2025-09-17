@@ -1,0 +1,95 @@
+@using KronoxFront.Services
+@inject CmsService Cms
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h3 class="h5 mb-0">
+            <i class="fa-solid fa-file-alt me-2"></i>
+            Dokumentsektion
+        </h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-3">
+            <i class="fa-solid fa-info-circle me-2"></i>
+            <strong>@Title</strong><br>
+            @Description
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="d-grid gap-2">
+                    <a href="/admin/documents/manage" class="btn btn-primary">
+                        <i class="fa-solid fa-cog me-1"></i>
+                        Hantera dokument
+                    </a>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="d-grid gap-2">
+                    @* Visa sidan där dokumentsektionen används *@
+                    @if (PageKey == "dokument")
+                    {
+                        <a href="/dokument" class="btn btn-outline-info" target="_blank">
+                            <i class="fa-solid fa-external-link-alt me-1"></i>
+                            Visa fullständig dokumentsida
+                        </a>
+                    }
+                    else
+                    {
+                        <a href="/@GetPageUrl()" class="btn btn-outline-info" target="_blank">
+                            <i class="fa-solid fa-external-link-alt me-1"></i>
+                            Visa sida med dokumentsektion
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* Information om dokumentvisning *@
+        <div class="mt-4">
+            <h6 class="text-muted mb-2">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                Vad som visas:
+            </h6>
+            <ul class="list-unstyled small text-muted">
+                <li><i class="fas fa-check text-success me-2"></i>Användare ser endast dokument för sina roller</li>
+                <li><i class="fas fa-check text-success me-2"></i>Dokument grupperas automatiskt per kategori</li>
+                <li><i class="fas fa-check text-success me-2"></i>Sök- och filtreringsfunktioner inkluderas</li>
+                <li><i class="fas fa-check text-success me-2"></i>Admin kan se och hantera arkiverade dokument</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public string Title { get; set; } = "Dokumentsektion";
+    [Parameter] public string Description { get; set; } = "Denna sektion visar automatiskt relevanta dokument baserat på användarens roller och behörigheter.";
+    
+    private string GetPageUrl()
+    {
+        return PageKey.ToLowerInvariant() switch
+        {
+            "home" => "",
+            "medlemsnytt" => "medlemsnytt",
+            "forstyrelsen" => "forstyrelsen",
+            "forvnsg" => "forvnsg",
+            "dokument" => "dokument",
+            _ => PageKey
+        };
+    }
+    
+    private string GetPageDisplayName()
+    {
+        return PageKey.ToLowerInvariant() switch
+        {
+            "home" => "Startsida",
+            "medlemsnytt" => "Medlemsnytt",
+            "forstyrelsen" => "Styrelse",
+            "forvnsg" => "VNSG",
+            "dokument" => "Dokument",
+            _ => PageKey
+        };
+    }
+}

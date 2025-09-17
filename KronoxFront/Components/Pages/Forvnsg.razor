@@ -1,5 +1,9 @@
 ﻿@page "/forvnsg"
 @using System.Text.Json
+@using KronoxFront.Components.Shared.Content
+@using KronoxFront.Components.Shared.Forms
+@using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.UI
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
@@ -131,6 +135,7 @@ else
         }
     }
 
+    <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
 

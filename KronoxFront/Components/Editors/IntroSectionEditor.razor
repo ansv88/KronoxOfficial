@@ -1,0 +1,260 @@
+@using KronoxFront.ViewModels
+@using KronoxFront.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject CmsService Cms
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject ILogger<IntroSectionEditor> Logger
+
+<EditForm Model="IntroSection" OnValidSubmit="SaveIntroSection">
+    <DataAnnotationsValidator />
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h3 class="h5 mb-0">Intro-sektion</h3>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Breadcrumb-titel (visas ovanför introt)</label>
+                <InputText class="form-control"
+                           @bind-Value="IntroSection.BreadcrumbTitle"
+                           placeholder="@BreadcrumbPlaceholder" />
+                <ValidationMessage For="() => IntroSection.BreadcrumbTitle" />
+                <div class="form-text">Lämna tomt för att dölja breadcrumb-titeln</div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-2 form-check">
+                        <InputCheckbox class="form-check-input"
+                                       id="@($"intro-has-image-{PageKey}")"
+                                       @bind-Value="IntroSection.HasImage" />
+                        <label class="form-check-label" for="@($"intro-has-image-{PageKey}")">Inkludera bild</label>
+                    </div>
+
+                    @if (IntroSection.HasImage)
+                    {
+                        <div class="border p-3 mb-2 bg-light text-center" style="min-height: 200px;">
+                            @if (!string.IsNullOrEmpty(IntroSection.ImageUrl))
+                            {
+                                <img src="@IntroSection.ImageUrl" class="img-fluid img-thumbnail mb-2" style="max-height: 200px;" />
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage">
+                                        <i class="fa-solid fa-times"></i> Ta bort bild
+                                    </button>
+                                </div>
+                                <div class="mt-2">
+                                    <label class="form-label">Bildbeskrivning:</label>
+                                    <InputText class="form-control form-control-sm"
+                                               @bind-Value="IntroSection.ImageAltText"
+                                               placeholder="Beskriv bilden" />
+                                    <ValidationMessage For="() => IntroSection.ImageAltText" />
+                                </div>
+                            }
+                            else
+                            {
+                                <InputFile OnChange="HandleIntroImageSelected" class="form-control" accept="image/*" />
+                                <div class="text-muted small mt-2">Klicka för att välja bild</div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label class="form-label">Rubrik</label>
+                        <InputText class="form-control" @bind-Value="IntroSection.Title" />
+                        <ValidationMessage For="() => IntroSection.Title" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Innehåll</label>
+                        <textarea id="@editorId"
+                                  @bind="IntroSection.Content"
+                                  @bind:event="oninput"
+                                  class="form-control tinymce-editor"
+                                  rows="8">
+                        </textarea>
+                        <ValidationMessage For="() => IntroSection.Content" />
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary me-2" disabled="@IsSaving">
+                @if (IsSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                <i class="fa-solid fa-save me-1"></i>
+                Spara intro-sektion
+            </button>
+            <small class="text-muted">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                Ändringar sparas automatiskt när du klickar "Spara allt innehåll" ovan
+            </small>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] public IntroSectionViewModel IntroSection { get; set; } = new();
+    [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public string BreadcrumbPlaceholder { get; set; } = "T.ex. SIDTITEL";
+    [Parameter] public bool IsSaving { get; set; }
+    [Parameter] public EventCallback OnIntroSectionChanged { get; set; }
+    [Parameter] public EventCallback<IntroSectionViewModel> OnSaveIntroSection { get; set; }
+
+    private string editorId => $"intro-editor-{PageKey}";
+    private bool isInitialized = false;
+
+    public async Task InitializeEditor()
+    {
+        if (isInitialized) return;
+
+        try
+        {
+            await Task.Delay(200);
+            
+            var elementExists = await JS.InvokeAsync<bool>("elementExists", editorId);
+            if (elementExists)
+            {
+                await JS.InvokeVoidAsync("initTinyMCE", editorId);
+                
+                var exists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
+                if (!exists)
+                {
+                    Logger.LogWarning("TinyMCE-editor {EditorId} skapades inte vid första försöket, försöker igen", editorId);
+                    await Task.Delay(100);
+                    await JS.InvokeVoidAsync("initTinyMCE", editorId);
+                }
+                
+                isInitialized = true;
+                Logger.LogInformation("Intro-editor initialiserad för {PageKey} med ID {EditorId}", PageKey, editorId);
+            }
+            else
+            {
+                Logger.LogWarning("Element {EditorId} finns inte i DOM för {PageKey}", editorId, PageKey);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initialisering av intro-editor för {PageKey}", PageKey);
+        }
+    }
+
+    public async Task InitializeEditorsOnly()
+    {
+        try
+        {
+            if (!isInitialized)
+            {
+                await InitializeEditor();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid InitializeEditorsOnly för intro-editor");
+        }
+    }
+
+    public async Task SyncEditor()
+    {
+        try
+        {
+            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
+            if (editorExists)
+            {
+                var content = await JS.InvokeAsync<string>("eval",
+                    $"tinymce.get('{editorId}') ? tinymce.get('{editorId}').getContent() : ''");
+
+                if (!string.IsNullOrEmpty(content))
+                {
+                    IntroSection.Content = content;
+                    Logger.LogInformation("Intro-editor synkroniserad för {PageKey}: {ContentLength} tecken", PageKey, content.Length);
+                }
+            }
+            else
+            {
+                Logger.LogWarning("TinyMCE editor {EditorId} existerar inte för synkronisering", editorId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte synkronisera intro-editor för {PageKey}", PageKey);
+        }
+    }
+
+    private async Task HandleIntroImageSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File != null)
+        {
+            try
+            {
+                var imageUrl = await Cms.UploadImageAsync(e.File, PageKey);
+                IntroSection.ImageUrl = imageUrl;
+                IntroSection.HasImage = true;
+                await Toast.Success("Introbild uppladdad!");
+                await OnIntroSectionChanged.InvokeAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid uppladdning av introbild för {PageKey}", PageKey);
+                await Toast.Error("Fel vid uppladdning av bild");
+            }
+        }
+    }
+
+    private async Task ClearIntroImage()
+    {
+        IntroSection.ImageUrl = "";
+        IntroSection.ImageAltText = "";
+        await OnIntroSectionChanged.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private async Task SaveIntroSection()
+    {
+        try
+        {
+            // Synkronisera editor först
+            await SyncEditor();
+
+            if (OnSaveIntroSection.HasDelegate)
+            {
+                // Låt parent hantera sparning
+                await OnSaveIntroSection.InvokeAsync(IntroSection);
+            }
+            else
+            {
+                // Standard sparning direkt
+                await Cms.SaveIntroSectionAsync(PageKey, IntroSection);
+                await Toast.Success("Intro-sektion har sparats!");
+            }
+
+            await OnIntroSectionChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparande av intro-sektion för {PageKey}", PageKey);
+            await Toast.Error("Fel vid sparande av intro-sektion");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (isInitialized)
+        {
+            try
+            {
+                var editorExists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
+                if (editorExists)
+                {
+                    await JS.InvokeVoidAsync("eval", $"tinymce.get('{editorId}')?.destroy()");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Fel vid rensning av TinyMCE editor {EditorId}", editorId);
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 ﻿@using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Forms
 @inject IJSRuntime JS
-@inject ILogger<ActionPlanTableManager> Logger
+@inject ILogger<ActionPlanEditor> Logger
 
 <div class="card mb-4">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -151,9 +151,11 @@
 @code {
     [Parameter] public ActionPlanTableViewModel? ActionPlan { get; set; }
     [Parameter] public bool IsAdminMode { get; set; } = false;
+    [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public bool IsFullEditor { get; set; } = false;
     [Parameter] public EventCallback OnChanged { get; set; }
 
-    private void AddNewItem()
+    private async Task AddNewItem()
     {
         if (ActionPlan == null)
         {
@@ -171,10 +173,10 @@
         };
 
         ActionPlan.Items.Add(newItem);
-        OnItemChanged();
+        await OnItemChanged();
     }
 
-    private void RemoveItem(int index)
+    private async Task RemoveItem(int index)
     {
         if (ActionPlan?.Items != null && index >= 0 && index < ActionPlan.Items.Count)
         {
@@ -184,11 +186,11 @@
             {
                 ActionPlan.Items[i].SortOrder = i;
             }
-            OnItemChanged();
+            await OnItemChanged();
         }
     }
 
-    private void MoveItem(int index, int direction)
+    private async Task MoveItem(int index, int direction)
     {
         if (ActionPlan?.Items == null || index < 0 || index >= ActionPlan.Items.Count)
             return;
@@ -207,7 +209,7 @@
             ActionPlan.Items[i].SortOrder = i;
         }
 
-        OnItemChanged();
+       await OnItemChanged();
     }
 
     private async Task OnItemChanged()

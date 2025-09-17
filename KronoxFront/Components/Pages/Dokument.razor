@@ -1,12 +1,14 @@
 @page "/dokument"
+@using KronoxFront.Components.Shared.Content
+@using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.UI
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Authorization
-@inject IServiceProvider ServiceProvider
-@inject CmsService CmsService
+@inject CmsService Cms
 @inject ILogger<Dokument> Logger
 @inject CategoryService CategoryService
 @inject DocumentService DocumentService
@@ -20,6 +22,7 @@
 </HeadContent>
 
 <PageTitle>@pageContent.Title</PageTitle>
+<h1 class="visually-hidden">@pageContent.Title</h1>
 
 @if (loading)
 {
@@ -31,324 +34,366 @@
 }
 else
 {
-        var heroBanner = pageContent.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        var heroBannerUrl = heroBanner != null ? heroBanner.Url : "images/hero/hero_top_klocka_blue-1300x394.jpg";
-        var heroBannerAlt = heroBanner != null ? heroBanner.AltText.Substring(5) : "Klocka bannerbild";
-
-    <PageHeroBanner ImageUrl="@heroBannerUrl" AltText="@heroBannerAlt" 
-                    IsAdmin="@isAdmin" PageKey="dokument" />
-
-    @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+    @* Dynamisk rendering baserat på sektionskonfiguration *@
+    @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
     {
-        <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
-    }
+        @switch (section.Type)
+        {
+            case SectionType.Banner:
+                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                                IsAdmin="@isAdmin" PageKey="dokument" />
+                break;
 
-    <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+            case SectionType.Intro:
+                @if (!string.IsNullOrEmpty(introSection.BreadcrumbTitle))
+                {
+                    <PageBreadcrumb Title="@introSection.BreadcrumbTitle" />
+                }
+                <IntroSection Model="@introSection" OnImageClick="@ShowImage" />
+                break;
 
-    @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
-    {
-        <NavigationButtons Buttons="@introSection.NavigationButtons" />
-    }
+            case SectionType.NavigationButtons:
+                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                {
+                    <NavigationButtons Buttons="@introSection.NavigationButtons" />
+                }
+                break;
 
-    <div class="wrapper-div py-3">
-        @* ---------- Huvudsektion med dokument ---------------------------------- *@
-        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-            <div style="max-width:800px; margin: 0 auto;">
-                <div class="container mt-4">
-
-                    @if (isLoading)
-                    {
-                        <div class="d-flex justify-content-center my-5">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Laddar...</span>
-                            </div>
-                        </div>
-                    }
-                    else if (loadError)
-                    {
-                        <div class="alert alert-danger text-center">
-                            Ett fel uppstod vid laddning av dokument. Vänligen försök igen senare.
-                        </div>
-                    }
-                    else if (!accessibleDocuments.Any())
-                    {
-                        <div class="alert alert-info text-center">
-                            Inga dokument finns tillgängliga för din behörighetsnivå.
-                        </div>
-                    }
-                    else
-                    {
-                        @* ---------- Filter- och Söksektion ------------------------- *@
-                        <div class="card mb-4 border-0 bg-light">
-                            <div class="card-body">
-                                @* Desktop layout - 3 kolumner *@
-                                <div class="row g-3 d-none d-lg-flex">
-                                    @* Sökfält *@
-                                    <div class="col-lg-5">
-                                        <label class="form-label fw-semibold">
-                                            <i class="fas fa-search me-1"></i>Sök dokument
-                                        </label>
-                                        <input type="text" class="form-control" 
-                                               placeholder="Sök efter filnamn eller innehåll..." 
-                                               @bind="searchQuery" 
-                                               @bind:after="ApplyFilters"
-                                               @onkeypress="OnSearchKeyPress" />
-                                    </div>
-
-                                    @* Kategorifilter *@
-                                    <div class="col-lg-4">
-                                        <label class="form-label fw-semibold">
-                                            <i class="fas fa-filter me-1"></i>Filtrera per kategori
-                                        </label>
-                                        <select class="form-select" @bind="selectedCategoryFilter" @bind:after="ApplyFilters">
-                                            <option value="0">Alla kategorier</option>
-                                            @foreach (var category in accessibleCategories)
-                                            {
-                                                <option value="@category.Id">@category.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-
-                                    @* Sorteringsalternativ *@
-                                    <div class="col-lg-3">
-                                        <label class="form-label fw-semibold">
-                                            <i class="fas fa-sort me-1"></i>Sortera
-                                        </label>
-                                        <select class="form-select" @bind="sortOption" @bind:after="ApplyFilters">
-                                            <option value="newest">Nyast först</option>
-                                            <option value="oldest">Äldst först</option>
-                                            <option value="name">Namn A-Ö</option>
-                                            <option value="name-desc">Namn Ö-A</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                @* Tablet layout - 2 rader med 2 kolumner *@
-                                <div class="row g-3 d-none d-md-flex d-lg-none">
-                                    @* Första raden *@
-                                    <div class="col-md-8">
-                                        <label class="form-label fw-semibold">
-                                            <i class="fas fa-search me-1"></i>Sök dokument
-                                        </label>
-                                        <input type="text" class="form-control" 
-                                               placeholder="Sök efter filnamn eller innehåll..." 
-                                               @bind="searchQuery" 
-                                               @bind:after="ApplyFilters"
-                                               @onkeypress="OnSearchKeyPress" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-semibold">
-                                            <i class="fas fa-sort me-1"></i>Sortera
-                                        </label>
-                                        <select class="form-select" @bind="sortOption" @bind:after="ApplyFilters">
-                                            <option value="newest">Nyast först</option>
-                                            <option value="oldest">Äldst först</option>
-                                            <option value="name">Namn A-Ö</option>
-                                            <option value="name-desc">Namn Ö-A</option>
-                                        </select>
-                                    </div>
-                                    @* Andra raden *@
-                                    <div class="col-md-12">
-                                        <label class="form-label fw-semibold">
-                                            <i class="fas fa-filter me-1"></i>Filtrera per kategori
-                                        </label>
-                                        <select class="form-select" @bind="selectedCategoryFilter" @bind:after="ApplyFilters">
-                                            <option value="0">Alla kategorier</option>
-                                            @foreach (var category in accessibleCategories)
-                                            {
-                                                <option value="@category.Id">@category.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-
-                                @* Mobil layout - staplade kolumner *@
-                                <div class="row g-3 d-flex d-md-none">
-                                    @* Sökfält *@
-                                    <div class="col-12">
-                                        <label class="form-label fw-semibold">
-                                            <i class="fas fa-search me-1"></i>Sök dokument
-                                        </label>
-                                        <input type="text" class="form-control" 
-                                               placeholder="Sök efter filnamn..." 
-                                               @bind="searchQuery" 
-                                               @bind:after="ApplyFilters"
-                                               @onkeypress="OnSearchKeyPress" />
-                                    </div>
-
-                                    @* Filter och sortering på samma rad på mobil *@
-                                    <div class="col-6">
-                                        <label class="form-label fw-semibold small">
-                                            <i class="fas fa-filter me-1"></i>Kategori
-                                        </label>
-                                        <select class="form-select form-select-sm" @bind="selectedCategoryFilter" @bind:after="ApplyFilters">
-                                            <option value="0">Alla</option>
-                                            @foreach (var category in accessibleCategories)
-                                            {
-                                                <option value="@category.Id">@category.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-
-                                    <div class="col-6">
-                                        <label class="form-label fw-semibold small">
-                                            <i class="fas fa-sort me-1"></i>Sortera
-                                        </label>
-                                        <select class="form-select form-select-sm" @bind="sortOption" @bind:after="ApplyFilters">
-                                            <option value="newest">Nyast</option>
-                                            <option value="oldest">Äldst</option>
-                                            <option value="name">A-Ö</option>
-                                            <option value="name-desc">Ö-A</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                @* Resultaträknare och rensa-knapp (samma för alla breakpoints) *@
-                                <div class="row mt-3">
-                                    <div class="col-8">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            <span class="d-none d-sm-inline">Visar </span>@filteredDocuments.Count<span class="d-none d-sm-inline"> av @accessibleDocuments.Count dokument</span>
-                                            @if (!string.IsNullOrEmpty(searchQuery) || selectedCategoryFilter > 0)
-                                            {
-                                                <text> <span class="d-none d-sm-inline">(filtrerat)</span><span class="d-sm-none">*</span></text>
-                                            }
-                                        </small>
-                                    </div>
-                                    <div class="col-4 text-end">
-                                        @if (!string.IsNullOrEmpty(searchQuery) || selectedCategoryFilter > 0)
-                                        {
-                                            <button class="btn btn-sm btn-outline-secondary" @onclick="ClearFilters">
-                                                <i class="fas fa-times me-1 d-none d-sm-inline"></i><span class="d-none d-sm-inline">Rensa</span><span class="d-sm-none"><i class="fas fa-times"></i></span>
-                                            </button>
-                                        }
-                                    </div>
-                                </div>
-
-                                @* Arkivfilter för admin *@
-                                @if (isAdmin)
+            case SectionType.DocumentSection:
+                <div class="wrapper-div py-3">
+                    @* ---------- Huvudsektion med dokument ---------------------------------- *@
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <div class="container mt-4">
+                                @if (isLoading)
                                 {
-                                    <div class="row mt-2">
-                                        <div class="col-12">
-                                            <div class="form-check form-switch">
-                                                <input type="checkbox" class="form-check-input" id="showArchived" 
-                                                       @bind="showArchived" @bind:after="ApplyFilters" />
-                                                <label class="form-check-label" for="showArchived">
-                                                    Visa arkiverade dokument
-                                                </label>
-                                            </div>
+                                    <div class="d-flex justify-content-center my-5">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Laddar...</span>
                                         </div>
                                     </div>
                                 }
-                            </div>
-                        </div>
-
-                        @* ---------- Dokumentlista grupperad per kategori -------- *@
-                        @if (!filteredDocuments.Any())
-                        {
-                            <div class="alert alert-warning text-center">
-                                <i class="fas fa-search me-2"></i>
-                                Inga dokument matchade dina sökkriterier. Prova att ändra filtren ovan.
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="document-categories mb-5">
-                                @foreach (var category in accessibleCategories.Where(c =>
-                                                    filteredDocuments.Any(doc => doc.MainCategoryId == c.Id)))
+                                else if (loadError)
                                 {
-                                    var categoryDocuments = filteredDocuments
-                                        .Where(d => d.MainCategoryId == category.Id)
-                                        .ToList();
+                                    <div class="alert alert-danger text-center">
+                                        Ett fel uppstod vid laddning av dokument. Vänligen försök igen senare.
+                                    </div>
+                                }
+                                else if (!accessibleDocuments.Any())
+                                {
+                                    <div class="alert alert-info text-center">
+                                        Inga dokument finns tillgängliga för din behörighetsnivå.
+                                    </div>
+                                }
+                                else
+                                {
+                                    @* ---------- Filter- och Söksektion ------------------------- *@
+                                    <div class="card mb-4 border-0 bg-light">
+                                        <div class="card-body">
+                                            @* Desktop layout - 3 kolumner *@
+                                            <div class="row g-3 d-none d-lg-flex">
+                                                @* Sökfält *@
+                                                <div class="col-lg-5">
+                                                    <label class="form-label fw-semibold">
+                                                        <i class="fas fa-search me-1"></i>Sök dokument
+                                                    </label>
+                                                    <input type="text" class="form-control" 
+                                                           placeholder="Sök efter filnamn eller innehåll..." 
+                                                           @bind="searchQuery" 
+                                                           @bind:after="ApplyFilters"
+                                                           @onkeypress="OnSearchKeyPress" />
+                                                </div>
 
-                                    <div class="document-category mb-5">
-                                        <h2 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark h3">
-                                            @category.Name
-                                            @if (isAdmin && category.AllowedRoles?.Any() == true)
+                                                @* Kategorifilter *@
+                                                <div class="col-lg-4">
+                                                    <label class="form-label fw-semibold">
+                                                        <i class="fas fa-filter me-1"></i>Filtrera per kategori
+                                                    </label>
+                                                    <select class="form-select" @bind="selectedCategoryFilter" @bind:after="ApplyFilters">
+                                                        <option value="0">Alla kategorier</option>
+                                                        @foreach (var category in accessibleCategories)
+                                                        {
+                                                            <option value="@category.Id">@category.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+
+                                                @* Sorteringsalternativ *@
+                                                <div class="col-lg-3">
+                                                    <label class="form-label fw-semibold">
+                                                        <i class="fas fa-sort me-1"></i>Sortera
+                                                    </label>
+                                                    <select class="form-select" @bind="sortOption" @bind:after="ApplyFilters">
+                                                        <option value="newest">Nyast först</option>
+                                                        <option value="oldest">Äldst först</option>
+                                                        <option value="name">Namn A-Ö</option>
+                                                        <option value="name-desc">Namn Ö-A</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            @* Tablet layout - 2 rader med 2 kolumner *@
+                                            <div class="row g-3 d-none d-md-flex d-lg-none">
+                                                @* Första raden *@
+                                                <div class="col-md-8">
+                                                    <label class="form-label fw-semibold">
+                                                        <i class="fas fa-search me-1"></i>Sök dokument
+                                                    </label>
+                                                    <input type="text" class="form-control" 
+                                                           placeholder="Sök efter filnamn eller innehåll..." 
+                                                           @bind="searchQuery" 
+                                                           @bind:after="ApplyFilters"
+                                                           @onkeypress="OnSearchKeyPress" />
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">
+                                                        <i class="fas fa-sort me-1"></i>Sortera
+                                                    </label>
+                                                    <select class="form-select" @bind="sortOption" @bind:after="ApplyFilters">
+                                                        <option value="newest">Nyast först</option>
+                                                        <option value="oldest">Äldst först</option>
+                                                        <option value="name">Namn A-Ö</option>
+                                                        <option value="name-desc">Namn Ö-A</option>
+                                                    </select>
+                                                </div>
+                                                @* Andra raden *@
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-semibold">
+                                                        <i class="fas fa-filter me-1"></i>Filtrera per kategori
+                                                    </label>
+                                                    <select class="form-select" @bind="selectedCategoryFilter" @bind:after="ApplyFilters">
+                                                        <option value="0">Alla kategorier</option>
+                                                        @foreach (var category in accessibleCategories)
+                                                        {
+                                                            <option value="@category.Id">@category.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            @* Mobil layout - staplade kolumner *@
+                                            <div class="row g-3 d-flex d-md-none">
+                                                @* Sökfält *@
+                                                <div class="col-12">
+                                                    <label class="form-label fw-semibold">
+                                                        <i class="fas fa-search me-1"></i>Sök dokument
+                                                    </label>
+                                                    <input type="text" class="form-control" 
+                                                           placeholder="Sök efter filnamn..." 
+                                                           @bind="searchQuery" 
+                                                           @bind:after="ApplyFilters"
+                                                           @onkeypress="OnSearchKeyPress" />
+                                                </div>
+
+                                                @* Filter och sortering på samma rad på mobil *@
+                                                <div class="col-6">
+                                                    <label class="form-label fw-semibold small">
+                                                        <i class="fas fa-filter me-1"></i>Kategori
+                                                    </label>
+                                                    <select class="form-select form-select-sm" @bind="selectedCategoryFilter" @bind:after="ApplyFilters">
+                                                        <option value="0">Alla</option>
+                                                        @foreach (var category in accessibleCategories)
+                                                        {
+                                                            <option value="@category.Id">@category.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-6">
+                                                    <label class="form-label fw-semibold small">
+                                                        <i class="fas fa-sort me-1"></i>Sortera
+                                                    </label>
+                                                    <select class="form-select form-select-sm" @bind="sortOption" @bind:after="ApplyFilters">
+                                                        <option value="newest">Nyast</option>
+                                                        <option value="oldest">Äldst</option>
+                                                        <option value="name">A-Ö</option>
+                                                        <option value="name-desc">Ö-A</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            @* Resultaträknare och rensa-knapp (samma för alla breakpoints) *@
+                                            <div class="row mt-3">
+                                                <div class="col-8">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        <span class="d-none d-sm-inline">Visar </span>@filteredDocuments.Count<span class="d-none d-sm-inline"> av @accessibleDocuments.Count dokument</span>
+                                                        @if (!string.IsNullOrEmpty(searchQuery) || selectedCategoryFilter > 0)
+                                                        {
+                                                            <text> <span class="d-none d-sm-inline">(filtrerat)</span><span class="d-sm-none">*</span></text>
+                                                        }
+                                                    </small>
+                                                </div>
+                                                <div class="col-4 text-end">
+                                                    @if (!string.IsNullOrEmpty(searchQuery) || selectedCategoryFilter > 0)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-secondary" @onclick="ClearFilters">
+                                                            <i class="fas fa-times me-1 d-none d-sm-inline"></i><span class="d-none d-sm-inline">Rensa</span><span class="d-sm-none"><i class="fas fa-times"></i></span>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            @* Arkivfilter för admin *@
+                                            @if (isAdmin)
                                             {
-                                                <small class="text-muted fs-6">
-                                                    (Tillgänglig för: @string.Join(", ", category.AllowedRoles))
-                                                </small>
-                                            }
-                                        </h2>
-                                        <div class="document-list">
-                                            @foreach (var doc in categoryDocuments)
-                                            {
-                                                <div class="document-item py-3 border-bottom @(doc.IsArchived ? "opacity-50" : "")"
-                                                     style="@(IsDocumentHighlighted(doc) ? "background-color: #fff3cd;" : "")">
-                                                    <div class="text-decoration-none text-dark d-flex align-items-center">
-                                                        <div class="document-icon text-center flex-shrink-0 me-3">
-                                                            <i class="@GetFileIcon(doc.FileName) fa-2x"></i>
-                                                        </div>
-                                                        <div class="document-details flex-grow-1">
-                                                            <div class="fw-semibold">
-                                                                @HighlightSearchText(doc.FileName)
-                                                                @if (doc.IsArchived)
-                                                                {
-                                                                    <span class="badge bg-secondary ms-2">Arkiverad</span>
-                                                                }
-                                                            </div>
-                                                            <small class="text-muted">
-                                                                <i class="fas fa-calendar me-1"></i>@doc.UploadedAt.ToString("yyyy-MM-dd")
-                                                                <i class="fas fa-hdd ms-2 me-1"></i>@FormatFileSize(doc.FileSize)
-                                                            </small>
-                                                        </div>
-                                                        <div class="ms-auto d-flex gap-1">
-                                                            <button class="btn btn-sm btn-outline-info"
-                                                                    title="Visa dokument"
-                                                                    @onclick="() => ViewDocument(doc.Id, doc.FileName)">
-                                                                <i class="fas fa-eye"></i>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-primary"
-                                                                    title="Ladda ner dokument"
-                                                                    @onclick="() => DownloadDocument(doc.Id)">
-                                                                <i class="fas fa-download"></i>
-                                                            </button>
-                                                            @if (isAdmin)
-                                                            {
-                                                                @if (doc.IsArchived)
-                                                                {
-                                                                    <button class="btn btn-sm btn-success"
-                                                                            title="Återställ dokument"
-                                                                            @onclick="() => UnarchiveDocument(doc.Id)">
-                                                                        <i class="fas fa-undo"></i>
-                                                                    </button>
-                                                                }
-                                                                else
-                                                                {
-                                                                    <button class="btn btn-sm btn-warning"
-                                                                            title="Arkivera dokument"
-                                                                            @onclick="() => ArchiveDocument(doc.Id)">
-                                                                        <i class="fas fa-archive"></i>
-                                                                    </button>
-                                                                }
-                                                            }
+                                                <div class="row mt-2">
+                                                    <div class="col-12">
+                                                        <div class="form-check form-switch">
+                                                            <input type="checkbox" class="form-check-input" id="showArchived" 
+                                                                   @bind="showArchived" @bind:after="ApplyFilters" />
+                                                            <label class="form-check-label" for="showArchived">
+                                                                Visa arkiverade dokument
+                                                            </label>
                                                         </div>
                                                     </div>
                                                 </div>
                                             }
                                         </div>
                                     </div>
+
+                                    @* ---------- Dokumentlista grupperad per kategori -------- *@
+                                    @if (!filteredDocuments.Any())
+                                    {
+                                        <div class="alert alert-warning text-center">
+                                            <i class="fas fa-search me-2"></i>
+                                            Inga dokument matchade dina sökkriterier. Prova att ändra filtren ovan.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="document-categories mb-5">
+                                            @foreach (var category in accessibleCategories.Where(c =>
+                                                                filteredDocuments.Any(doc => doc.MainCategoryId == c.Id)))
+                                            {
+                                                var categoryDocuments = filteredDocuments
+                                                    .Where(d => d.MainCategoryId == category.Id)
+                                                    .ToList();
+
+                                                <div class="document-category mb-5">
+                                                    <h2 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark h3">
+                                                        @category.Name
+                                                        @if (isAdmin && category.AllowedRoles?.Any() == true)
+                                                        {
+                                                            <small class="text-muted fs-6">
+                                                                (Tillgänglig för: @string.Join(", ", category.AllowedRoles))
+                                                            </small>
+                                                        }
+                                                    </h2>
+                                                    <div class="document-list">
+                                                        @foreach (var doc in categoryDocuments)
+                                                        {
+                                                            <div class="document-item py-3 border-bottom @(doc.IsArchived ? "opacity-50" : "") @(IsDocumentHighlighted(doc) ? "document-highlighted" : "")">
+                                                                <div class="text-decoration-none text-dark d-flex align-items-center">
+                                                                    <div class="document-icon text-center flex-shrink-0 me-3">
+                                                                        <i class="@GetFileIcon(doc.FileName) fa-2x"></i>
+                                                                    </div>
+                                                                    <div class="document-details flex-grow-1">
+                                                                        <div class="fw-semibold">
+                                                                            @HighlightSearchText(doc.FileName)
+                                                                            @if (doc.IsArchived)
+                                                                            {
+                                                                                <span class="badge bg-secondary ms-2">Arkiverad</span>
+                                                                            }
+                                                                        </div>
+                                                                        <small class="text-muted">
+                                                                            <i class="fas fa-calendar me-1"></i>@doc.UploadedAt.ToString("yyyy-MM-dd")
+                                                                            <i class="fas fa-hdd ms-2 me-1"></i>@FormatFileSize(doc.FileSize)
+                                                                        </small>
+                                                                    </div>
+                                                                    <div class="ms-auto d-flex gap-1">
+                                                                        <button class="btn btn-sm btn-outline-info"
+                                                                                title="Visa dokument"
+                                                                                @onclick="() => ViewDocument(doc.Id, doc.FileName)">
+                                                                            <i class="fas fa-eye"></i>
+                                                                        </button>
+                                                                        <button class="btn btn-sm btn-primary"
+                                                                                title="Ladda ner dokument"
+                                                                                @onclick="() => DownloadDocument(doc.Id)">
+                                                                            <i class="fas fa-download"></i>
+                                                                        </button>
+                                                                        @if (isAdmin)
+                                                                        {
+                                                                            @if (doc.IsArchived)
+                                                                            {
+                                                                                <button class="btn btn-sm btn-success"
+                                                                                        title="Återställ dokument"
+                                                                                        @onclick="() => UnarchiveDocument(doc.Id)">
+                                                                                    <i class="fas fa-undo"></i>
+                                                                                </button>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <button class="btn btn-sm btn-warning"
+                                                                                        title="Arkivera dokument"
+                                                                                        @onclick="() => ArchiveDocument(doc.Id)">
+                                                                                    <i class="fas fa-archive"></i>
+                                                                                </button>
+                                                                            }
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
                                 }
                             </div>
-                        }
-                    }
+                        </div>
+                    </section>
                 </div>
-            </div>
-        </section>
+                break;
 
-        @* ---------- Feature Sections ---------------------------------------- *@
-        @if (featureSections.Count > 0)
-        {
-            <section class="container mt-4 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                <div style="max-width:800px; margin: 0 auto;">
-                    <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin"
-                                     PageKey="dokument" OnImageClick="@ShowImage" />
+            case SectionType.FeatureSections:
+                @if (featureSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin"
+                                                 PageKey="dokument" OnImageClick="@ShowImage" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.FaqSections:
+                @if (faqSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FaqAccordion FaqSections="@faqSections" />
+                            </div>
+                        </section>
+                    </div>
+                }
+                break;
+
+            case SectionType.MemberLogos:
+                <div class="wrapper-div py-3">
+                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
                 </div>
-            </section>
+                break;
+
+            case SectionType.NewsSection:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <div style="max-width:800px; margin: 0 auto;">
+                            <h2 class="text-center mb-4">Senaste nyheterna</h2>
+                            <NewsSection PageKey="dokument" />
+                        </div>
+                    </section>
+                </div>
+                break;
         }
-    </div>
+    }
 
+    <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
 
@@ -360,6 +405,16 @@ else
                 OnDownload="DownloadDocument" />
 
 @code {
+    private PageContentViewModel pageContent = new();
+    private bool loading = true;
+    private bool isAdmin = false;
+    private string? activeImage;
+    private IntroSectionViewModel introSection = new();
+    private List<FeatureSectionViewModel> featureSections = new();
+    private List<FaqSectionViewModel> faqSections = new();
+    private List<SectionConfigItem> sectionConfigurations = new();
+
+    // Dokumentspecifika variabler
     private List<DocumentViewModel> accessibleDocuments = new();
     private List<DocumentViewModel> filteredDocuments = new();
     private List<MainCategoryDto> accessibleCategories = new();
@@ -372,14 +427,6 @@ else
     private int selectedDocumentId = 0;
     private string selectedDocumentName = "";
 
-    // CMS-innehåll
-    private PageContentViewModel pageContent = new();
-    private bool loading = true;
-    private bool isAdmin = false;
-    private IntroSectionViewModel introSection = new();
-    private List<FeatureSectionViewModel> featureSections = new();
-    private string? activeImage;
-
     // Variabler för filter och sök
     private string searchQuery = "";
     private int selectedCategoryFilter = 0;
@@ -387,22 +434,44 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+        
+        // Hämta användarroller
+        userRoles = authState.User.Claims
+            .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+            .Select(c => c.Value)
+            .ToList();
+
+        loading = true;
+
         try
         {
-            // Hämta användarroller
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            userRoles = authState.User.Claims
-                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
-                .Select(c => c.Value)
-                .ToList();
+            pageContent = await Cms.GetPageContentAsync("dokument") ?? new PageContentViewModel
+            {
+                PageKey = "dokument",
+                Title = "Dokument",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
 
-            isAdmin = userRoles.Contains("Admin");
+            introSection = await Cms.GetIntroSectionAsync("dokument");
+            featureSections = await Cms.GetFeatureSectionsAsync("dokument");
+            faqSections = await Cms.GetFaqSectionsAsync("dokument");
+            
+            sectionConfigurations = await Cms.GetPageSectionConfigAsync("dokument");
+            
+            if (!sectionConfigurations.Any())
+            {
+                sectionConfigurations = GetDefaultSectionConfig();
+                await Cms.SavePageSectionConfigAsync("dokument", sectionConfigurations);
+                Logger.LogInformation("Skapad standardkonfiguration för dokument-sidan");
+            }
 
-            // Hämta CMS-innehåll
-            await LoadCmsContent();
-
-            // Hämta tillgänglig data
             await LoadAccessibleData();
+            
+            Logger.LogInformation("Dokument sida laddad framgångsrikt med {SectionCount} sektioner", sectionConfigurations.Count);
         }
         catch (Exception ex)
         {
@@ -417,27 +486,41 @@ else
         }
     }
 
-    private async Task LoadCmsContent()
+    private List<SectionConfigItem> GetDefaultSectionConfig()
     {
-        try
+        return new List<SectionConfigItem>
         {
-            pageContent = await CmsService.GetPageContentAsync("dokument") ?? new PageContentViewModel
-            {
-                PageKey = "dokument",
-                Title = "Dokument",
-                HtmlContent = "",
-                LastModified = DateTime.Now,
-                Images = new List<PageImageViewModel>()
-            };
-
-            introSection = await CmsService.GetIntroSectionAsync("dokument");
-            featureSections = await CmsService.GetFeatureSectionsAsync("dokument");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid laddning av CMS-innehåll för dokument-sidan");
-        }
+            new() { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
+            new() { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
+            new() { Type = SectionType.NavigationButtons, IsEnabled = false, SortOrder = 2 },
+            new() { Type = SectionType.DocumentSection, IsEnabled = true, SortOrder = 3 },
+            new() { Type = SectionType.FeatureSections, IsEnabled = false, SortOrder = 4 },
+            new() { Type = SectionType.FaqSections, IsEnabled = false, SortOrder = 5 },
+            new() { Type = SectionType.MemberLogos, IsEnabled = false, SortOrder = 6 },
+            new() { Type = SectionType.NewsSection, IsEnabled = false, SortOrder = 7 },
+            new() { Type = SectionType.ActionPlanTable, IsEnabled = false, SortOrder = 8 },
+            new() { Type = SectionType.DevelopmentSuggestionForm, IsEnabled = false, SortOrder = 9 }
+        };
     }
+
+    private string GetHeroBannerUrl()
+    {
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.Url ?? "/images/hero/hero_top_klocka_blue-1300x394.jpg";
+    }
+
+    private string GetHeroBannerAlt()
+    {
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.AltText?.Substring(5) ?? "Dokument bannerbild";
+    }
+
+    private void ShowImage(string imageUrl)
+    {
+        activeImage = imageUrl;
+    }
+
+    private void CloseModal() => activeImage = null;
 
     private async Task LoadAccessibleData()
     {
@@ -510,7 +593,7 @@ else
     }
 
     // Hantera Enter-tangent i sökfält
-    private async Task OnSearchKeyPress(KeyboardEventArgs e)
+    private void OnSearchKeyPress(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
@@ -646,11 +729,4 @@ else
             _ => "fas fa-file"
         };
     }
-
-    private void ShowImage(string imageUrl)
-    {
-        activeImage = imageUrl;
-    }
-
-    private void CloseModal() => activeImage = null;
 }

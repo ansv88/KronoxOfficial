@@ -4,11 +4,12 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using KronoxFront.Components.Shared
+@using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Content
+@using KronoxFront.Components.Shared.UI
+@using KronoxFront.Components.Shared.Forms
 @attribute [Authorize]
-@inject NewsService NewsService
-@inject DocumentService DocumentService
 @inject CmsService Cms
-@inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 @inject ILogger<Medlemsnytt> Logger
@@ -56,255 +57,21 @@ else
                 break;
 
             case SectionType.NewsSection:
-                @* Nyhetslista *@
                 <div class="wrapper-div py-3">
                     <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                         <div style="max-width:800px; margin: 0 auto;">
-                            
-                            @* Filtersektion längst upp *@
-                            <div class="row mb-4 align-items-center">
-                                <div class="col-md-6">
-                                    <h2 class="h4 mb-0">
-                                        <i class="fa-solid fa-newspaper me-2 text-primary"></i>
-                                        Medlemsnytt
-                                    </h2>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="d-flex gap-2 flex-wrap">
-                                        <select class="form-select form-select-sm" @onchange="OnSortChanged" style="max-width: 200px;">
-                                            <option value="newest" selected="@(sortOrder == "newest")">Senaste först</option>
-                                            <option value="oldest" selected="@(sortOrder == "oldest")">Äldsta först</option>
-                                            <option value="title" selected="@(sortOrder == "title")">Titel A-Ö</option>
-                                        </select>
-                                        
-                                        @if (availableYears.Count > 1)
-                                        {
-                                            <select class="form-select form-select-sm" @onchange="OnYearChanged" style="max-width: 120px;">
-                                                <option value="">Alla år</option>
-                                                @foreach (var year in availableYears.OrderByDescending(y => y))
-                                                {
-                                                    <option value="@year" selected="@(selectedYear == year)">@year</option>
-                                                }
-                                            </select>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-
-                            @if (isLoadingNews)
-                            {
-                                <div class="text-center py-5">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Laddar nyheter...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Hämtar senaste nyheterna...</p>
-                                </div>
-                            }
-                            else if (hasNewsError)
-                            {
-                                <div class="alert alert-warning" role="alert">
-                                    <h4 class="alert-heading">Kunde inte ladda nyheter</h4>
-                                    <p>Det uppstod ett problem när vi försökte hämta de senaste nyheterna. Vänligen försök igen senare.</p>
-                                    <button class="btn btn-outline-primary" @onclick="LoadNews">
-                                        <i class="fa-solid fa-refresh me-1"></i> Försök igen
-                                    </button>
-                                </div>
-                            }
-                            else if (!filteredNews.Any())
-                            {
-                                <div class="text-center py-5">
-                                    <i class="fa-solid fa-newspaper fa-3x text-muted mb-3"></i>
-                                    <h3 class="text-muted">Inga nyheter att visa</h3>
-                                    <p class="text-muted">
-                                        @if (selectedYear.HasValue)
-                                        {
-                                            <span>Det finns inga nyheter för @selectedYear.</span>
-                                        }
-                                        else if (includeArchived)
-                                        {
-                                            <span>Det finns inga nyheter att visa.</span>
-                                        }
-                                        else
-                                        {
-                                            <span>Det finns för närvarande inga publicerade nyheter.</span>
-                                        }
-                                    </p>
-                                </div>
-                            }
-                            else
-                            {
-                                @* Nyhetsrutor *@
-                                <div class="row">
-                                    @foreach (var newsItem in GetSortedNews())
-                                    {
-                                        <div class="col-12 mb-4">
-                                            <div class="card h-100 shadow-sm border-0">
-                                                <div class="card-body">
-                                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                                        <h3 class="card-title h5 mb-0 text-primary">@newsItem.Title</h3>
-                                                        <div class="d-flex gap-1 flex-shrink-0 ms-2">
-                                                            @if (newsItem.IsScheduled)
-                                                            {
-                                                                <span class="badge bg-info">
-                                                                    <i class="fa-solid fa-clock me-1"></i> Schemalagd
-                                                                </span>
-                                                            }
-                                                            @if (newsItem.IsArchived)
-                                                            {
-                                                                <span class="badge bg-secondary">
-                                                                    <i class="fa-solid fa-archive me-1"></i> Arkiverad
-                                                                </span>
-                                                            }
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="text-muted small mb-3">
-                                                        <i class="fa-solid fa-calendar me-1"></i>
-                                                        Publicerad: @FormatSwedishDateTime(newsItem.PublishedDate)
-                                                    </div>
-                                                    
-                                                    <div class="card-text">
-                                                        @if (expandedItems.Contains(newsItem.Id))
-                                                        {
-                                                            @((MarkupString)newsItem.Content)
-                        
-                                                            @* Visa bifogade dokument *@
-                                                            @if (newsDocuments.ContainsKey(newsItem.Id) && newsDocuments[newsItem.Id].Any())
-                                                            {
-                                                                <div class="mt-3 pt-3 border-top">
-                                                                    <h6 class="text-muted mb-2">
-                                                                        <i class="fa-solid fa-paperclip me-1"></i>
-                                                                        Bifogade dokument:
-                                                                    </h6>
-                                                                    <div class="list-group list-group-flush">
-                                                                        @foreach (var doc in newsDocuments[newsItem.Id].OrderBy(d => d.SortOrder))
-                                                                        {
-                                                                            <div class="list-group-item list-group-item-action p-2 border-0 d-flex justify-content-between align-items-center">
-                                                                                <div class="d-flex align-items-center">
-                                                                                    <i class="@GetFileIcon(doc.FileName) me-2"></i>
-                                                                                    <div>
-                                                                                        <div class="fw-medium">@doc.DisplayName</div>
-                                                                                        <small class="text-muted">@doc.FormattedFileSize</small>
-                                                                                    </div>
-                                                                                </div>
-                                                                                <button class="btn btn-sm btn-outline-primary" 
-                                                                                        @onclick="() => OpenDocumentViewer(doc.Id, doc.DisplayName)">
-                                                                                    <i class="fa-solid fa-eye me-1"></i> Visa
-                                                                                </button>
-                                                                            </div>
-                                                                        }
-                                                                    </div>
-                                                                </div>
-                                                            }
-                                                            
-                                                            <div class="mt-3">
-                                                                <button class="btn btn-outline-primary btn-sm" @onclick="() => CollapseItem(newsItem.Id)">
-                                                                    <i class="fa-solid fa-chevron-up me-1"></i> Visa mindre
-                                                                </button>
-                                                            </div>
-                                                        }
-                                                        else
-                                                        {
-                                                            @* Visa första 300 tecken som preview *@
-                                                            @if (GetPlainTextPreview(newsItem.Content).Length > 300)
-                                                            {
-                                                                <p>@(GetPlainTextPreview(newsItem.Content).Substring(0, 300))...</p>
-                                                                <button class="btn btn-primary btn-sm" @onclick="() => ExpandItem(newsItem.Id)">
-                                                                    <i class="fa-solid fa-chevron-down me-1"></i> Läs mer
-                                                                </button>
-                                                            }
-                                                            else
-                                                            {
-                                                                @((MarkupString)newsItem.Content)
-                                                            }
-                                                            
-                                                            @* Visa bifogade dokument även i kollapsad vy *@
-                                                            @if (newsDocuments.ContainsKey(newsItem.Id) && newsDocuments[newsItem.Id].Any())
-                                                            {
-                                                                <div class="mt-3 pt-3 border-top">
-                                                                    <h6 class="text-muted mb-2">
-                                                                        <i class="fa-solid fa-paperclip me-1"></i>
-                                                                        Bifogade dokument:
-                                                                    </h6>
-                                                                    <div class="list-group list-group-flush">
-                                                                        @foreach (var doc in newsDocuments[newsItem.Id].OrderBy(d => d.SortOrder))
-                                                                        {
-                                                                            <div class="list-group-item list-group-item-action p-2 border-0 d-flex justify-content-between align-items-center">
-                                                                                <div class="d-flex align-items-center">
-                                                                                    <i class="@GetFileIcon(doc.FileName) me-2"></i>
-                                                                                    <div>
-                                                                                        <div class="fw-medium">@doc.DisplayName</div>
-                                                                                        <small class="text-muted">@doc.FormattedFileSize</small>
-                                                                                    </div>
-                                                                                </div>
-                                                                                <button class="btn btn-sm btn-outline-primary" 
-                                                                                        @onclick="() => OpenDocumentViewer(doc.Id, doc.DisplayName)">
-                                                                                    <i class="fa-solid fa-eye me-1"></i> Visa
-                                                                                </button>
-                                                                            </div>
-                                                                        }
-                                                                    </div>
-                                                                </div>
-                                                            }
-                                                        }
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                                
-                                @* Paginering *@
-                                @if (newsList.TotalPages > 1)
-                                {
-                                    <nav aria-label="Sidnavigering för nyheter" class="mt-4">
-                                        <ul class="pagination justify-content-center">
-                                            <li class="page-item @(newsList.HasPreviousPage ? "" : "disabled")">
-                                                <button class="page-link" @onclick="() => ChangePage(newsList.Page - 1)" disabled="@(!newsList.HasPreviousPage)">
-                                                    <i class="fa-solid fa-chevron-left"></i> Föregående
-                                                </button>
-                                            </li>
-                                            
-                                            @for (int i = Math.Max(1, newsList.Page - 2); i <= Math.Min(newsList.TotalPages, newsList.Page + 2); i++)
-                                            {
-                                                <li class="page-item @(i == newsList.Page ? "active" : "")">
-                                                    <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
-                                                </li>
-                                            }
-                                            
-                                            <li class="page-item @(newsList.HasNextPage ? "" : "disabled")">
-                                                <button class="page-link" @onclick="() => ChangePage(newsList.Page + 1)" disabled="@(!newsList.HasNextPage)">
-                                                    Nästa <i class="fa-solid fa-chevron-right"></i>
-                                                </button>
-                                            </li>
-                                        </ul>
-                                    </nav>
-                                }
-                            }
-                            
-                            @* Arkiverade nyheter *@
-                            <div class="mt-4 pt-3 border-top text-center">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" id="includeArchived" 
-                                           @bind="includeArchived" @bind:after="HandleArchiveToggle">
-                                    <label class="form-check-label" for="includeArchived">
-                                        <i class="fa-solid fa-archive me-1"></i>
-                                        Visa arkiverade nyheter
-                                    </label>
-                                </div>
-                                @if (includeArchived && filteredNews.Count(n => n.IsArchived) > 0)
-                                {
-                                    <small class="text-muted d-block mt-1">
-                                        Visar @filteredNews.Count(n => n.IsArchived) arkiverade nyheter
-                                    </small>
-                                }
-                            </div>
+                            <NewsSection PageKey="medlemsnytt" 
+                                         Title="Medlemsnytt"
+                                         MaxItems="10"
+                                         ShowFilters="true"
+                                         ShowPagination="true"
+                                         ShowArchiveToggle="true"
+                                         ShowAllNewsLink="false" />
                         </div>
                     </section>
                 </div>
                 break;
 
-            @* Feature-sektioner *@
             case SectionType.FeatureSections:
                 @if (featureSections.Any())
                 {
@@ -319,7 +86,6 @@ else
                 }
                 break;
 
-            @* FAQ-sektioner *@
             case SectionType.FaqSections:
                 @if (faqSections.Any())
                 {
@@ -376,45 +142,20 @@ else
         }
     }
 
-    <DocumentViewer IsVisible="@showDocumentViewer" 
-                    DocumentId="@currentDocumentId" 
-                    DocumentTitle="@currentDocumentTitle"
-                    OnClose="@CloseDocumentViewer"
-                    OnDownload="@DownloadDocument" />
-
+    <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
 
 @code {
-    private NewsListViewModel newsList = new();
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
     private List<SectionConfigItem> sectionConfigurations = new();
+    private ActionPlanTableViewModel actionPlan = new();
     
     private bool loading = true;
-    private bool isLoadingNews = true;
-    private bool hasNewsError = false;
-    private bool includeArchived = false;
-    private int currentPage = 1;
-    private const int pageSize = 10;
-    private HashSet<int> expandedItems = new();
     private bool isAdmin = false;
     private string? activeImage;
-
-    // Filtreringsvariabler
-    private string sortOrder = "newest";
-    private int? selectedYear = null;
-    private List<int> availableYears = new();
-    private List<NewsItemViewModel> filteredNews = new();
-
-    // Dokumentvariabler
-    private bool showDocumentViewer = false;
-    private int currentDocumentId = 0;
-    private string currentDocumentTitle = "";
-    private Dictionary<int, List<NewsDocumentViewModel>> newsDocuments = new();
-
-    private ActionPlanTableViewModel actionPlan = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -425,7 +166,6 @@ else
         try
         {
             await LoadPageContent();
-            await LoadNews();
         }
         catch (Exception ex)
         {
@@ -481,7 +221,15 @@ else
             // Ladda handlingsplan om aktiverad
             if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
             {
-                actionPlan = await Cms.GetActionPlanAsync("medlemsnytt");
+                try
+                {
+                    actionPlan = await Cms.GetActionPlanAsync("medlemsnytt");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte hämta handlingsplan för medlemsnytt - fortsätter utan");
+                    actionPlan = new ActionPlanTableViewModel();
+                }
             }
 
         }
@@ -507,128 +255,6 @@ else
         }
     }
 
-    private async Task LoadNews()
-    {
-        isLoadingNews = true;
-        hasNewsError = false;
-        
-        try
-        {
-            newsList = await NewsService.GetMemberNewsAsync(includeArchived, currentPage, pageSize);
-            
-            // Ladda dokument för alla nyheter
-            await LoadNewsDocuments();
-            
-            // Uppdatera tillgängliga år och filtrerade nyheter
-            UpdateAvailableYears();
-            FilterNews();
-            
-            Logger.LogInformation("Laddat {Count} nyheter för sida {Page}", newsList.Posts.Count, currentPage);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid laddning av nyheter");
-            hasNewsError = true;
-        }
-        finally
-        {
-            isLoadingNews = false;
-        }
-    }
-
-    private async Task LoadNewsDocuments()
-    {
-        newsDocuments.Clear();
-        
-        foreach (var news in newsList.Posts)
-        {
-            try
-            {
-                var documents = await NewsService.GetNewsDocumentsAsync(news.Id);
-                if (documents.Any())
-                {
-                    newsDocuments[news.Id] = documents;
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Kunde inte ladda dokument för nyhet {NewsId}", news.Id);
-            }
-        }
-    }
-
-    // Förhindra onödig re-rendering när arkiverade nyheter togglas
-    private async Task HandleArchiveToggle()
-    {
-        // Bara ladda om nyheter, inte hela sidan
-        await LoadNews();
-    }
-
-    private void UpdateAvailableYears()
-    {
-        availableYears = newsList.Posts
-            .Select(n => n.PublishedDate.Year)
-            .Distinct()
-            .OrderByDescending(y => y)
-            .ToList();
-    }
-
-    private void FilterNews()
-    {
-        filteredNews = newsList.Posts.Where(n => 
-            !selectedYear.HasValue || n.PublishedDate.Year == selectedYear.Value
-        ).ToList();
-    }
-
-    private List<NewsItemViewModel> GetSortedNews()
-    {
-        return sortOrder switch
-        {
-            "oldest" => filteredNews.OrderBy(n => n.PublishedDate).ToList(),
-            "title" => filteredNews.OrderBy(n => n.Title).ToList(),
-            _ => filteredNews.OrderByDescending(n => n.PublishedDate).ToList() // "newest" (default)
-        };
-    }
-
-    private async Task OnSortChanged(ChangeEventArgs e)
-    {
-        sortOrder = e.Value?.ToString() ?? "newest";
-        StateHasChanged(); // Trigga re-render för ny sortering
-    }
-
-    private async Task OnYearChanged(ChangeEventArgs e)
-    {
-        selectedYear = string.IsNullOrEmpty(e.Value?.ToString()) ? null : int.Parse(e.Value.ToString()!);
-        FilterNews();
-        StateHasChanged(); // Trigga re-render för ny filtrering
-    }
-
-    private async Task ChangePage(int page)
-    {
-        if (page >= 1 && page <= newsList.TotalPages && page != currentPage)
-        {
-            currentPage = page;
-            await LoadNews();
-        }
-    }
-
-    private void ExpandItem(int itemId)
-    {
-        expandedItems.Add(itemId);
-    }
-
-    private void CollapseItem(int itemId)
-    {
-        expandedItems.Remove(itemId);
-    }
-
-    private string GetPlainTextPreview(string htmlContent)
-    {
-        // Enkel HTML-stripping för preview
-        var plainText = System.Text.RegularExpressions.Regex.Replace(htmlContent, "<.*?>", "");
-        return System.Net.WebUtility.HtmlDecode(plainText);
-    }
-
     private string GetHeroBannerUrl()
     {
         // Kan senare hämtas från CMS om admins laddar upp en specifik bannerbild för medlemsnytt
@@ -646,67 +272,4 @@ else
     }
 
     private void CloseModal() => activeImage = null;
-
-    // Formatering för svensk tid
-    private string FormatSwedishDateTime(DateTime dateTime)
-    {
-        var swedishTime = TimeZoneInfo.ConvertTimeFromUtc(dateTime,
-            TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"));
-        return swedishTime.ToString("dd MMMM yyyy, HH:mm");
-    }
-
-    private void OpenDocumentViewer(int documentId, string title)
-    {
-        currentDocumentId = documentId;
-        currentDocumentTitle = title;
-        showDocumentViewer = true;
-    }
-
-    private void CloseDocumentViewer()
-    {
-        showDocumentViewer = false;
-        currentDocumentId = 0;
-        currentDocumentTitle = "";
-    }
-
-    private async Task DownloadDocument(int documentId)
-    {
-        try
-        {
-            var result = await DocumentService.DownloadDocumentAsync(documentId);
-            if (result.HasValue)
-            {
-                var (stream, fileName) = result.Value;
-                var streamRef = new DotNetStreamReference(stream: stream);
-                await JS.InvokeVoidAsync("downloadFileFromStream", streamRef, fileName);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid nedladdning av dokument {DocumentId}", documentId);
-        }
-    }
-
-    private string GetFileIcon(string fileName)
-    {
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        return extension switch
-        {
-            ".pdf" => "fa-solid fa-file-pdf text-danger",
-            ".doc" or ".docx" => "fa-solid fa-file-word text-primary",
-            ".xls" or ".xlsx" => "fa-solid fa-file-excel text-success", 
-            ".ppt" or ".pptx" => "fa-solid fa-file-powerpoint text-warning",
-            ".txt" => "fa-solid fa-file-lines text-secondary",
-            ".zip" or ".rar" or ".7z" => "fa-solid fa-file-zipper text-info",
-            ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" => "fa-solid fa-file-image text-purple",
-            ".mp4" or ".avi" or ".mov" or ".wmv" => "fa-solid fa-file-video text-danger",
-            ".mp3" or ".wav" or ".flac" => "fa-solid fa-file-audio text-success",
-            ".html" or ".htm" => "fa-solid fa-file-code text-warning",
-            ".css" => "fa-solid fa-file-code text-info",
-            ".js" => "fa-solid fa-file-code text-warning",
-            ".json" => "fa-solid fa-file-code text-secondary",
-            ".xml" => "fa-solid fa-file-code text-muted",
-            _ => "fa-solid fa-file text-muted"
-        };
-    }
 }

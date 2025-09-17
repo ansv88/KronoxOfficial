@@ -24,26 +24,27 @@ public class ApiAuthHandler : DelegatingHandler
     {
         var context = _httpContextAccessor.HttpContext;
 
-        if (context == null)
+        // Lägg alltid till API-nyckel först (även om HttpContext saknas)
+        var apiKey = _configuration["ApiSettings:ApiKey"];
+        if (!string.IsNullOrEmpty(apiKey))
         {
-            _logger.LogWarning("HttpContext saknas vid anrop till {Url}", request.RequestUri);
+            if (!request.Headers.Contains("X-API-Key"))
+            {
+                request.Headers.Add("X-API-Key", apiKey);
+            }
         }
         else
         {
-            // Lägg till API-nyckel från konfiguration om den inte redan finns
-            var apiKey = _configuration["ApiSettings:ApiKey"];
-            if (!string.IsNullOrEmpty(apiKey))
-            {
-                if (!request.Headers.Contains("X-API-Key"))
-                {
-                    request.Headers.Add("X-API-Key", apiKey);
-                }
-            }
-            else
-            {
-                _logger.LogWarning("Ingen API-nyckel hittades i konfigurationen");
-            }
+            _logger.LogWarning("Ingen API-nyckel hittades i konfigurationen");
+        }
 
+        if (context == null)
+        {
+            _logger.LogWarning("HttpContext saknas vid anrop till {Url}", request.RequestUri);
+            // Även om HttpContext saknas, fortsätt med API-nyckeln
+        }
+        else
+        {
             // Vidarebefordra autentisering via cookie om den finns och inte redan är satt
             if (context.Request.Cookies.TryGetValue("KronoxAuth", out var authCookie))
             {

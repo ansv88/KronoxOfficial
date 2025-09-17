@@ -643,7 +643,7 @@
                 await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await Toast.Error("Fel vid sparning av navigationsinställningar");
         }

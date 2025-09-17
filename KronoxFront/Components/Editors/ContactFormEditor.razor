@@ -1,0 +1,809 @@
+@using KronoxFront.ViewModels
+@using KronoxFront.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject CmsService Cms
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject ILogger<ContactFormEditor> Logger
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h3 class="h5 mb-0">
+            <i class="fa-solid fa-envelope me-2"></i>
+            Kontaktformulär
+        </h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-3">
+            <i class="fa-solid fa-info-circle me-2"></i>
+            <strong>Status:</strong> Kontaktformuläret är aktiverat och kommer att visas på sidan.
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h5 class="h6 mb-3">Formulärinställningar</h5>
+                <p class="text-muted mb-3">
+                    Kontaktformuläret skickar meddelanden till den e-postadress som är konfigurerad i systemet.
+                    Meddelanden innehåller automatiskt avsändarens kontaktinformation.
+                </p>
+
+                <div class="bg-light p-3 rounded">
+                    <small class="text-muted">
+                        <strong>Nuvarande konfiguration:</strong><br />
+                        Support-email kommer från appsettings.json<br />
+                        SMTP-inställningar konfigureras separat
+                    </small>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <h5 class="h6 mb-3">Kontaktuppgifter på sidan</h5>
+                <p class="text-muted mb-3">
+                    Kontaktuppgifterna som visas i högerspalten hanteras dynamiskt via databasen.
+                    Du kan redigera postadress och kontaktpersoner nedan.
+                </p>
+
+                <div class="bg-light p-3 rounded">
+                    <small class="text-muted">
+                        <strong>Kan redigeras:</strong><br />
+                        • Postadress och organisationsnamn<br />
+                        • Kontaktpersoner med titlar<br />
+                        • E-post och telefonnummer<br />
+                        • Sorteringsordning
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <a href="/kontaktaoss" class="btn btn-outline-primary me-2" target="_blank">
+                <i class="fa-solid fa-external-link-alt me-1"></i>
+                Testa formuläret
+            </a>
+            <button type="button" class="btn btn-outline-secondary" @onclick="ShowContactFormInfo">
+                <i class="fa-solid fa-cog me-1"></i>
+                Teknisk information
+            </button>
+        </div>
+
+        @* ============== KONTAKTINFORMATION HANTERING ============== *@
+        <hr class="my-4" />
+
+        <!-- Postadress -->
+        <div class="mb-4">
+            <h5 class="h6 mb-3">
+                <i class="fa-solid fa-map-marker-alt me-2"></i>
+                Postadress
+            </h5>
+            <EditForm Model="ContactInfo.PostalAddress" OnValidSubmit="SavePostalAddress">
+                <DataAnnotationsValidator />
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Organisationsnamn</label>
+                            <InputText class="form-control"
+                                       @bind-Value="ContactInfo.PostalAddress.OrganizationName"
+                                       placeholder="T.ex. KronoX" />
+                            <ValidationMessage For="() => ContactInfo.PostalAddress.OrganizationName" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Adressrad 1</label>
+                            <InputText class="form-control"
+                                       @bind-Value="ContactInfo.PostalAddress.AddressLine1"
+                                       placeholder="T.ex. Högskolan i Borås" />
+                            <ValidationMessage For="() => ContactInfo.PostalAddress.AddressLine1" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Adressrad 2 (valfri)</label>
+                            <InputText class="form-control"
+                                       @bind-Value="ContactInfo.PostalAddress.AddressLine2"
+                                       placeholder="T.ex. C/O eller avdelning" />
+                            <ValidationMessage For="() => ContactInfo.PostalAddress.AddressLine2" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Postnummer</label>
+                            <InputText class="form-control"
+                                       @bind-Value="ContactInfo.PostalAddress.PostalCode"
+                                       placeholder="T.ex. 501 90" />
+                            <ValidationMessage For="() => ContactInfo.PostalAddress.PostalCode" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ort</label>
+                            <InputText class="form-control"
+                                       @bind-Value="ContactInfo.PostalAddress.City"
+                                       placeholder="T.ex. Borås" />
+                            <ValidationMessage For="() => ContactInfo.PostalAddress.City" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Land (valfri)</label>
+                            <InputText class="form-control"
+                                       @bind-Value="ContactInfo.PostalAddress.Country"
+                                       placeholder="T.ex. Sverige" />
+                            <ValidationMessage For="() => ContactInfo.PostalAddress.Country" />
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" disabled="@IsSaving">
+                    <i class="fa-solid fa-save me-1"></i>
+                    Spara postadress
+                </button>
+            </EditForm>
+        </div>
+
+        <!-- Kontaktpersoner -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="h6 mb-0">
+                    <i class="fa-solid fa-users me-2"></i>
+                    Kontaktpersoner (@ContactInfo.ContactPersons.Count)
+                </h5>
+                <button type="button" class="btn btn-success btn-sm" @onclick="AddNewContactPerson">
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Lägg till person
+                </button>
+            </div>
+
+            @if (ContactInfo.ContactPersons.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Namn</th>
+                                <th>Titel</th>
+                                <th>E-post</th>
+                                <th>Telefon</th>
+                                <th>Ordning</th>
+                                <th>Status</th>
+                                <th>Åtgärder</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var person in ContactInfo.ContactPersons.OrderBy(p => p.SortOrder))
+                            {
+                                <tr class="@(person.IsActive ? "" : "table-secondary")">
+                                    <td>
+                                        <strong>@person.Name</strong>
+                                    </td>
+                                    <td>@person.Title</td>
+                                    <td>
+                                        <small class="text-muted">@person.Email</small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">@person.Phone</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">@person.SortOrder</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(person.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(person.IsActive ? "Aktiv" : "Inaktiv")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary"
+                                                    @onclick="() => EditContactPerson(person)">
+                                                <i class="fa-solid fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning"
+                                                    @onclick="() => ToggleContactPersonActive(person.Id)">
+                                                <i class="fa-solid @(person.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger"
+                                                    @onclick="() => DeleteContactPerson(person.Id)">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle me-2"></i>
+                    Inga kontaktpersoner har lagts till än. Klicka på "Lägg till person" för att börja.
+                </div>
+            }
+        </div>
+
+        <!-- E-postlistor (Medlemsinformation) -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="h6 mb-0">
+                    <i class="fa-solid fa-envelope me-2"></i>
+                    E-postlistor - Medlemsinformation (@ContactInfo.EmailLists.Count)
+                </h5>
+                <button type="button" class="btn btn-success btn-sm" @onclick="AddNewEmailList">
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Lägg till e-postlista
+                </button>
+            </div>
+
+            <div class="alert alert-info mb-3">
+                <i class="fa-solid fa-info-circle me-2"></i>
+                <small>Dessa e-postlistor visas endast för inloggade medlemmar på kontaktsidan.</small>
+            </div>
+
+            @if (ContactInfo.EmailLists.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Namn</th>
+                                <th>Beskrivning</th>
+                                <th>E-postadress</th>
+                                <th>Ordning</th>
+                                <th>Status</th>
+                                <th>Åtgärder</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var emailList in ContactInfo.EmailLists.OrderBy(el => el.SortOrder))
+                            {
+                                <tr class="@(emailList.IsActive ? "" : "table-secondary")">
+                                    <td>
+                                        <strong>@emailList.Name</strong>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">@emailList.Description</small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">@emailList.EmailAddress</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">@emailList.SortOrder</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(emailList.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(emailList.IsActive ? "Aktiv" : "Inaktiv")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary"
+                                                    @onclick="() => EditEmailList(emailList)">
+                                                <i class="fa-solid fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning"
+                                                    @onclick="() => ToggleEmailListActive(emailList.Id)">
+                                                <i class="fa-solid @(emailList.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger"
+                                                    @onclick="() => DeleteEmailList(emailList.Id)">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle me-2"></i>
+                    Inga e-postlistor har lagts till än. Klicka på "Lägg till e-postlista" för att börja.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal för redigering av kontaktperson -->
+@if (showContactPersonModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(isEditingContactPerson ? "Redigera kontaktperson" : "Lägg till kontaktperson")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseContactPersonModal"></button>
+                </div>
+                <EditForm Model="currentContactPerson" OnValidSubmit="SaveContactPerson">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Namn *</label>
+                            <InputText class="form-control" @bind-Value="currentContactPerson.Name" />
+                            <ValidationMessage For="() => currentContactPerson.Name" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Titel *</label>
+                            <InputText class="form-control" @bind-Value="currentContactPerson.Title"
+                                       placeholder="T.ex. Konsortiechef, Systemutvecklare" />
+                            <ValidationMessage For="() => currentContactPerson.Title" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">E-post *</label>
+                            <InputText class="form-control" type="email" @bind-Value="currentContactPerson.Email" />
+                            <ValidationMessage For="() => currentContactPerson.Email" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Telefon</label>
+                            <InputText class="form-control" @bind-Value="currentContactPerson.Phone"
+                                       placeholder="T.ex. 033 – 435 43 64" />
+                            <ValidationMessage For="() => currentContactPerson.Phone" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sorteringsordning</label>
+                            <InputNumber class="form-control" @bind-Value="currentContactPerson.SortOrder" />
+                            <ValidationMessage For="() => currentContactPerson.SortOrder" />
+                            <div class="form-text">Lägre nummer visas först</div>
+                        </div>
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="currentContactPerson.IsActive" />
+                            <label class="form-check-label">Aktiv (visas på sidan)</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseContactPersonModal">Avbryt</button>
+                        <button type="submit" class="btn btn-primary" disabled="@IsSaving">
+                            <i class="fa-solid fa-save me-1"></i>
+                            @(isEditingContactPerson ? "Uppdatera" : "Lägg till")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal för redigering av e-postlista -->
+@if (showEmailListModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(isEditingEmailList ? "Redigera e-postlista" : "Lägg till e-postlista")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseEmailListModal"></button>
+                </div>
+                <EditForm Model="currentEmailList" OnValidSubmit="SaveEmailList">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Namn *</label>
+                            <InputText class="form-control" @bind-Value="currentEmailList.Name"
+                                       placeholder="T.ex. Styrelsen" />
+                            <ValidationMessage For="() => currentEmailList.Name" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Beskrivning *</label>
+                            <InputText class="form-control" @bind-Value="currentEmailList.Description"
+                                       placeholder="T.ex. Kontakta styrelsen direkt" />
+                            <ValidationMessage For="() => currentEmailList.Description" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">E-postadress *</label>
+                            <InputText class="form-control" type="email" @bind-Value="currentEmailList.EmailAddress"
+                                       placeholder="T.ex. styrelsen@kronox.se" />
+                            <ValidationMessage For="() => currentEmailList.EmailAddress" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sorteringsordning</label>
+                            <InputNumber class="form-control" @bind-Value="currentEmailList.SortOrder" />
+                            <ValidationMessage For="() => currentEmailList.SortOrder" />
+                            <div class="form-text">Lägre nummer visas först</div>
+                        </div>
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="currentEmailList.IsActive" />
+                            <label class="form-check-label">Aktiv (visas på sidan)</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseEmailListModal">Avbryt</button>
+                        <button type="submit" class="btn btn-primary" disabled="@IsSaving">
+                            <i class="fa-solid fa-save me-1"></i>
+                            @(isEditingEmailList ? "Uppdatera" : "Lägg till")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Info-modal för kontaktformulär -->
+@if (showContactFormInfoModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="contactFormInfoTitle">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contactFormInfoTitle">
+                        <i class="fa-solid fa-cog me-2"></i>
+                        Teknisk information - Kontaktformulär
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseContactFormInfo" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>E-postkonfiguration</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>API Controller:</strong> ContactController.cs</li>
+                                <li><strong>E-postservice:</strong> MailKitEmailService.cs</li>
+                                <li><strong>Konfiguration:</strong> appsettings.json</li>
+                            </ul>
+
+                            <h6 class="mt-3">SMTP-inställningar</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Utveckling:</strong> smtp4dev (localhost:2525)</li>
+                                <li><strong>Produktion:</strong> Konfigurera i appsettings</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Formulärvalidering</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Frontend:</strong> ContactFormViewModel.cs</li>
+                                <li><strong>Backend:</strong> ContactFormDto.cs</li>
+                                <li><strong>Validation:</strong> DataAnnotations</li>
+                            </ul>
+
+                            <h6 class="mt-3">Säkerhet</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>CSRF:</strong> Automatisk i Blazor</li>
+                                <li><strong>Rate limiting:</strong> Kan konfigureras</li>
+                                <li><strong>Validering:</strong> På både klient och server</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3">
+                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                        <strong>Utvecklingsläge:</strong> E-post fångas av smtp4dev istället för att skickas riktigt.
+                        Kontrollera smtp4dev på http://localhost:3000 för att se testmeddelanden.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseContactFormInfo">
+                        Stäng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public ContactPageInfoViewModel ContactInfo { get; set; } = new();
+    [Parameter] public bool IsSaving { get; set; }
+    [Parameter] public EventCallback OnContactInfoChanged { get; set; }
+
+    // Modal states
+    private bool showContactFormInfoModal = false;
+    private bool showContactPersonModal = false;
+    private bool isEditingContactPerson = false;
+    private ContactPagePersonViewModel currentContactPerson = new();
+    private bool showEmailListModal = false;
+    private bool isEditingEmailList = false;
+    private EmailListViewModel currentEmailList = new();
+
+    // ----------------- POSTADRESS METODER -----------------
+    
+    private async Task SavePostalAddress()
+    {
+        try
+        {
+            var success = await Cms.SavePostalAddressAsync(ContactInfo.PostalAddress);
+            if (success)
+            {
+                await Toast.Success("Postadress sparad!");
+                await OnContactInfoChanged.InvokeAsync();
+            }
+            else
+            {
+                await Toast.Error("Fel vid sparning av postadress");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av postadress");
+            await Toast.Error("Ett oväntat fel inträffade");
+        }
+    }
+
+    // ----------------- KONTAKTPERSON METODER -----------------
+    
+    private void AddNewContactPerson()
+    {
+        currentContactPerson = new ContactPagePersonViewModel
+        {
+            SortOrder = ContactInfo.ContactPersons.Any() ? ContactInfo.ContactPersons.Max(p => p.SortOrder) + 10 : 10,
+            IsActive = true
+        };
+        isEditingContactPerson = false;
+        showContactPersonModal = true;
+    }
+
+    private void EditContactPerson(ContactPagePersonViewModel person)
+    {
+        currentContactPerson = new ContactPagePersonViewModel
+        {
+            Id = person.Id,
+            Name = person.Name,
+            Title = person.Title,
+            Email = person.Email,
+            Phone = person.Phone,
+            SortOrder = person.SortOrder,
+            IsActive = person.IsActive
+        };
+        isEditingContactPerson = true;
+        showContactPersonModal = true;
+    }
+
+    private async Task SaveContactPerson()
+    {
+        try
+        {
+            if (isEditingContactPerson)
+            {
+                var success = await Cms.UpdateContactPersonAsync(currentContactPerson);
+                if (success)
+                {
+                    // Uppdatera den lokala listan
+                    var existingPerson = ContactInfo.ContactPersons.FirstOrDefault(p => p.Id == currentContactPerson.Id);
+                    if (existingPerson != null)
+                    {
+                        existingPerson.Name = currentContactPerson.Name;
+                        existingPerson.Title = currentContactPerson.Title;
+                        existingPerson.Email = currentContactPerson.Email;
+                        existingPerson.Phone = currentContactPerson.Phone;
+                        existingPerson.SortOrder = currentContactPerson.SortOrder;
+                        existingPerson.IsActive = currentContactPerson.IsActive;
+                    }
+                    await Toast.Success("Kontaktperson uppdaterad!");
+                    CloseContactPersonModal();
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+                else
+                {
+                    await Toast.Error("Fel vid uppdatering av kontaktperson");
+                }
+            }
+            else
+            {
+                var newPerson = await Cms.CreateContactPersonAsync(currentContactPerson);
+                if (newPerson != null)
+                {
+                    ContactInfo.ContactPersons.Add(newPerson);
+                    await Toast.Success("Kontaktperson tillagd!");
+                    CloseContactPersonModal();
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+                else
+                {
+                    await Toast.Error("Fel vid skapande av kontaktperson");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av kontaktperson");
+            await Toast.Error("Ett oväntat fel inträffade");
+        }
+    }
+
+    private async Task ToggleContactPersonActive(int personId)
+    {
+        try
+        {
+            var success = await Cms.ToggleContactPersonActiveAsync(personId);
+            if (success)
+            {
+                var person = ContactInfo.ContactPersons.FirstOrDefault(p => p.Id == personId);
+                if (person != null)
+                {
+                    person.IsActive = !person.IsActive;
+                    await Toast.Success($"Kontaktperson {(person.IsActive ? "aktiverad" : "inaktiverad")}!");
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+            }
+            else
+            {
+                await Toast.Error("Fel vid ändring av aktivstatus");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid ändring av aktivstatus för kontaktperson");
+            await Toast.Error("Ett oväntat fel inträffade");
+        }
+    }
+
+    private async Task DeleteContactPerson(int personId)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Är du säker på att du vill ta bort denna kontaktperson?"))
+        {
+            try
+            {
+                var success = await Cms.DeleteContactPersonAsync(personId);
+                if (success)
+                {
+                    ContactInfo.ContactPersons.RemoveAll(p => p.Id == personId);
+                    await Toast.Success("Kontaktperson borttagen!");
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+                else
+                {
+                    await Toast.Error("Fel vid borttagning av kontaktperson");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid borttagning av kontaktperson");
+                await Toast.Error("Ett oväntat fel inträffade");
+            }
+        }
+    }
+
+    private void CloseContactPersonModal()
+    {
+        showContactPersonModal = false;
+        currentContactPerson = new();
+    }
+
+    // ----------------- E-POSTLISTA METODER -----------------
+
+    private void AddNewEmailList()
+    {
+        currentEmailList = new EmailListViewModel
+        {
+            SortOrder = ContactInfo.EmailLists.Any() ? ContactInfo.EmailLists.Max(el => el.SortOrder) + 10 : 10,
+            IsActive = true
+        };
+        isEditingEmailList = false;
+        showEmailListModal = true;
+    }
+
+    private void EditEmailList(EmailListViewModel emailList)
+    {
+        currentEmailList = new EmailListViewModel
+        {
+            Id = emailList.Id,
+            Name = emailList.Name,
+            Description = emailList.Description,
+            EmailAddress = emailList.EmailAddress,
+            SortOrder = emailList.SortOrder,
+            IsActive = emailList.IsActive
+        };
+        isEditingEmailList = true;
+        showEmailListModal = true;
+    }
+
+    private async Task SaveEmailList()
+    {
+        try
+        {
+            if (isEditingEmailList)
+            {
+                var success = await Cms.UpdateEmailListAsync(currentEmailList);
+                if (success)
+                {
+                    var existingEmailList = ContactInfo.EmailLists.FirstOrDefault(el => el.Id == currentEmailList.Id);
+                    if (existingEmailList != null)
+                    {
+                        existingEmailList.Name = currentEmailList.Name;
+                        existingEmailList.Description = currentEmailList.Description;
+                        existingEmailList.EmailAddress = currentEmailList.EmailAddress;
+                        existingEmailList.SortOrder = currentEmailList.SortOrder;
+                        existingEmailList.IsActive = currentEmailList.IsActive;
+                    }
+                    await Toast.Success("E-postlista uppdaterad!");
+                    CloseEmailListModal();
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+                else
+                {
+                    await Toast.Error("Fel vid uppdatering av e-postlista");
+                }
+            }
+            else
+            {
+                var newEmailList = await Cms.CreateEmailListAsync(currentEmailList);
+                if (newEmailList != null)
+                {
+                    ContactInfo.EmailLists.Add(newEmailList);
+                    await Toast.Success("E-postlista tillagd!");
+                    CloseEmailListModal();
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+                else
+                {
+                    await Toast.Error("Fel vid skapande av e-postlista");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av e-postlista");
+            await Toast.Error("Ett oväntat fel inträffade");
+        }
+    }
+
+    private async Task ToggleEmailListActive(int emailListId)
+    {
+        try
+        {
+            var success = await Cms.ToggleEmailListActiveAsync(emailListId);
+            if (success)
+            {
+                var emailList = ContactInfo.EmailLists.FirstOrDefault(el => el.Id == emailListId);
+                if (emailList != null)
+                {
+                    emailList.IsActive = !emailList.IsActive;
+                    await Toast.Success($"E-postlista {(emailList.IsActive ? "aktiverad" : "inaktiverad")}!");
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+            }
+            else
+            {
+                await Toast.Error("Fel vid ändring av aktivstatus");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid ändring av aktivstatus för e-postlista");
+            await Toast.Error("Ett oväntat fel inträffade");
+        }
+    }
+
+    private async Task DeleteEmailList(int emailListId)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Är du säker på att du vill ta bort denna e-postlista?"))
+        {
+            try
+            {
+                var success = await Cms.DeleteEmailListAsync(emailListId);
+                if (success)
+                {
+                    ContactInfo.EmailLists.RemoveAll(el => el.Id == emailListId);
+                    await Toast.Success("E-postlista borttagen!");
+                    await OnContactInfoChanged.InvokeAsync();
+                }
+                else
+                {
+                    await Toast.Error("Fel vid borttagning av e-postlista");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Fel vid borttagning av e-postlista");
+                await Toast.Error("Ett oväntat fel inträffade");
+            }
+        }
+    }
+
+    private void CloseEmailListModal()
+    {
+        showEmailListModal = false;
+        currentEmailList = new();
+    }
+
+    // ----------------- INFO MODAL -----------------
+    
+    private void ShowContactFormInfo()
+    {
+        showContactFormInfoModal = true;
+    }
+
+    private void CloseContactFormInfo()
+    {
+        showContactFormInfoModal = false;
+    }
+}
