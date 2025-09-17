@@ -1,0 +1,236 @@
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService Toast
+@inject ILogger<ContactFormSection> Logger
+
+<!-- Kontaktformulär och kontaktuppgifter -->
+<div class="wrapper-div py-5">
+    <section class="container my-5">
+        <div class="row bg-white rounded-3 shadow" style="max-width: 1000px; margin: 0 auto;">
+            <!-- Vänsterspalt: Kontaktformulär -->
+            <div class="col-md-6 p-4">
+                <h3 class="h4 mb-4">@FormTitle</h3>
+                
+                <EditForm Model="@contactForm" OnValidSubmit="@HandleFormSubmit">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="mb-3">
+                        <label for="contactName" class="form-label fw-medium">Namn*</label>
+                        <InputText id="contactName" 
+                                   class="form-control form-control contact-form-field border-secondary" 
+                                   @bind-Value="contactForm.Name" 
+                                   placeholder="Ange ditt fullständiga namn" />
+                        <ValidationMessage For="@(() => contactForm.Name)" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="contactEmail" class="form-label fw-medium">E-post*</label>
+                        <InputText id="contactEmail" 
+                                   type="email" 
+                                   class="form-control form-control contact-form-field border-secondary" 
+                                   @bind-Value="contactForm.Email" 
+                                   placeholder="din.epost@exempel.se" />
+                        <ValidationMessage For="@(() => contactForm.Email)" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="contactSubject" class="form-label fw-medium">Ämne*</label>
+                        <InputText id="contactSubject" 
+                                   class="form-control form-control contact-form-field border-secondary" 
+                                   @bind-Value="contactForm.Subject" 
+                                   placeholder="Vad handlar ditt meddelande om?" />
+                        <ValidationMessage For="@(() => contactForm.Subject)" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="contactMessage" class="form-label fw-medium">Meddelande*</label>
+                        <InputTextArea id="contactMessage" 
+                                       class="form-control contact-form-field border-secondary" 
+                                       rows="6" 
+                                       @bind-Value="contactForm.Message" 
+                                       placeholder="Skriv ditt meddelande här..." />
+                        <ValidationMessage For="@(() => contactForm.Message)" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="d-flex justify-content-center mt-4">
+                        <button type="submit" 
+                                class="btn btn-dark btn-md px-4 py-2 shadow-sm" 
+                                disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <text>@LoadingText</text>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-paper-plane me-2"></i>
+                                <text>@ButtonText</text>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Högerspalt: Kontaktuppgifter -->
+            <div class="col-md-6 p-4 bg-white rounded-end">
+                <h3 class="h5 mb-4 fw-bold">Postadress</h3>
+                
+                <div class="mb-4 p-3 bg-light rounded border-start border-3 border-primary">
+                    <strong>@ContactInfo.PostalAddress.OrganizationName</strong><br />
+                    @ContactInfo.PostalAddress.AddressLine1<br />
+                    @if (!string.IsNullOrEmpty(ContactInfo.PostalAddress.AddressLine2))
+                    {
+                        @ContactInfo.PostalAddress.AddressLine2<br />
+                    }
+                    @ContactInfo.PostalAddress.PostalCode @ContactInfo.PostalAddress.City
+                    @if (!string.IsNullOrEmpty(ContactInfo.PostalAddress.Country))
+                    {
+                        <br />@ContactInfo.PostalAddress.Country
+                    }
+                </div>
+
+                <h3 class="h5 mb-3 fw-bold">@ContactPersonsTitle</h3>
+                
+                @foreach (var person in ContactInfo.ContactPersons.Where(p => p.IsActive).OrderBy(p => p.SortOrder))
+                {
+                    <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
+                        <div class="mb-2">
+                            <strong class="text-dark">@person.Name</strong>
+                            <span class="ms-2">@person.Title</span><br />
+                            <small class="text-muted">
+                                <i class="fa-solid fa-envelope me-1"></i>@person.Email
+                            </small><br />
+                            @if (!string.IsNullOrEmpty(person.Phone))
+                            {
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-phone me-1"></i>@person.Phone
+                                </small>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* ===== MEDLEMSINFORMATION (endast för inloggade medlemmar) ===== *@
+                @if (ShowMemberInfo && ContactInfo.EmailLists.Any())
+                {
+                    <hr class="my-4" />
+                    
+                    <h3 class="h5 mb-3 fw-bold">
+                        <i class="fa-solid fa-users me-2"></i>
+                        E-postlistor
+                    </h3>
+                    
+                    <div class="alert alert-info mb-3">
+                        <i class="fa-solid fa-info-circle me-2"></i>
+                        <small><strong>Medlemsinformation:</strong> Denna information är endast synlig för inloggade medlemmar.</small>
+                    </div>
+
+                    @foreach (var emailList in ContactInfo.EmailLists.Where(el => el.IsActive).OrderBy(el => el.SortOrder))
+                    {
+                        <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
+                            <div class="mb-2">
+                                <strong class="text-dark">@emailList.Name:</strong><br />
+                                @if (!string.IsNullOrEmpty(emailList.Description))
+                                {
+                                    <small class="text-muted d-block mb-1">@emailList.Description</small>
+                                }
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-envelope me-1"></i>
+                                    <a href="mailto:@emailList.EmailAddress" class="text-decoration-none">@emailList.EmailAddress</a>
+                                </small>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    [Parameter] public ContactPageInfoViewModel ContactInfo { get; set; } = new();
+    [Parameter] public bool ShowMemberInfo { get; set; } = false;
+    [Parameter] public string FormTitle { get; set; } = "Fyll i formuläret för att kontakta oss";
+    [Parameter] public string ButtonText { get; set; } = "Skicka meddelande";
+    [Parameter] public string LoadingText { get; set; } = "Skickar...";
+    [Parameter] public string ContactPersonsTitle { get; set; } = "Systemförvaltargruppen";
+    [Parameter] public EventCallback<ContactFormViewModel> OnFormSubmitted { get; set; }
+    [Parameter] public EventCallback OnFormSuccess { get; set; }
+    [Parameter] public EventCallback<string> OnFormError { get; set; }
+
+    private ContactFormViewModel contactForm = new();
+    private bool isSubmitting = false;
+
+    private async Task HandleFormSubmit()
+    {
+        isSubmitting = true;
+
+        try
+        {
+            // Om parent-komponenten vill hantera submit själv
+            if (OnFormSubmitted.HasDelegate)
+            {
+                await OnFormSubmitted.InvokeAsync(contactForm);
+                
+                // Rensa formuläret efter framgångsrik submit
+                contactForm = new ContactFormViewModel();
+                
+                if (OnFormSuccess.HasDelegate)
+                {
+                    await OnFormSuccess.InvokeAsync();
+                }
+                
+                return;
+            }
+
+            // Annars använd standard HTTP-hantering
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.PostAsJsonAsync("api/contact/send", contactForm);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success("Ditt meddelande har skickats! Vi återkommer så snart som möjligt.");
+                
+                // Rensa formuläret
+                contactForm = new ContactFormViewModel();
+                
+                if (OnFormSuccess.HasDelegate)
+                {
+                    await OnFormSuccess.InvokeAsync();
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Logger.LogWarning("Kontaktformulär misslyckades: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                
+                var errorMessage = "Ett fel uppstod vid skickning av meddelandet. Försök igen senare.";
+                await Toast.Error(errorMessage);
+                
+                if (OnFormError.HasDelegate)
+                {
+                    await OnFormError.InvokeAsync(errorMessage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid skickning av kontaktmeddelande");
+            
+            var errorMessage = "Ett oväntat fel uppstod. Försök igen senare.";
+            await Toast.Error(errorMessage);
+            
+            if (OnFormError.HasDelegate)
+            {
+                await OnFormError.InvokeAsync(errorMessage);
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

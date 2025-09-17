@@ -203,58 +203,48 @@
 
                         case SectionType.DocumentSection:
                             <div class="card mb-4">
-                                <div class="card-header bg-info text-white">
-                                    <h3 class="h5 mb-0">
-                                        <i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering för styrelsen
-                                    </h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info d-flex align-items-center" role="alert">
-                                        <i class="fa-solid fa-info-circle fa-2x me-3"></i>
-                                        <div>
-                                            <h5 class="alert-heading">Styrelsespecifika dokument</h5>
-                                            <p class="mb-2">Dokumenten på denna sida visas endast för användare med behörighet "Admin" eller "Styrelse".</p>
-                                            <p class="mb-0">
-                                                För att ladda upp nya dokument eller ändra behörigheter, 
-                                                använd den dedikerade dokumenthanteringsmodulen.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="text-center">
-                                        <a href="/admin/documents/manage" class="btn btn-primary btn-lg">
-                                            <i class="fa-solid fa-upload me-2"></i>
-                                            Gå till Dokumenthantering
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            break;
-
-                        case SectionType.MemberLogos:
-                            <div class="card mb-4">
                                 <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">Medlemslogotyper</h3>
+                                    <h3 class="h5 mb-0">Dokumentsektion - Förhandsvisning</h3>
                                 </div>
                                 <div class="card-body">
                                     <div class="alert alert-info mb-3">
                                         <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Status:</strong> Medlemslogotyper visas automatiskt på denna sida när sektionen är aktiverad.
+                                        <strong>Status:</strong> Dokumentsektionen visas automatiskt när den är aktiverad.
                                     </div>
+
+                                    @* Förhandsvisning av DocumentSection *@
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="text-muted mb-2">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Förhandsvisning (som styrelsemedlemmarna ser):
+                                        </h6>
+                                        <DocumentSection PageKey="forstyrelsen"
+                                                         Title="Styrelsedokument"
+                                                         ShowFilters="true"
+                                                         ShowCategoryHeaders="true"
+                                                         ShowAllDocumentsLink="true"
+                                                         MaxDocumentsPerCategory="5" />
+                                    </div>
+
                                     <p class="text-muted mb-3">
-                                        Sektionen "Våra medlemmar" kommer att visas på sidan med alla aktiva medlemslogotyper.
-                                        För att hantera vilka logotyper som ska visas, deras ordning och beskrivningar, använd hanteringssidan nedan.
+                                        Visar dokument baserat på användarens roller. Styrelsemedlemmar ser endast dokument för sina roller.
+                                        Dokumenten filtreras automatiskt baserat på kategoriers rollbehörigheter.
                                     </p>
+
                                     <div class="d-flex gap-2">
-                                        <a href="/admin/memberlogos" class="btn btn-primary">
+                                        <a href="/admin/documents/manage" class="btn btn-primary">
                                             <i class="fa-solid fa-cog me-1"></i>
-                                            Hantera medlemslogotyper
+                                            Hantera dokument
+                                        </a>
+                                        <a href="/dokument" class="btn btn-outline-secondary">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Visa fullständig dokumentsida
                                         </a>
                                     </div>
                                 </div>
                             </div>
                             break;
-
+ 
                         case SectionType.NewsSection:
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
@@ -264,6 +254,15 @@
                                     <div class="alert alert-info mb-3">
                                         <i class="fa-solid fa-info-circle me-2"></i>
                                         <strong>Status:</strong> Nyhetssektionen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Styrelsemedlemmar ser nyheter som är relevanta för deras roller och behörigheter.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/news" class="btn btn-primary">
+                                            <i class="fa-solid fa-newspaper me-1"></i>
+                                            Hantera nyheter
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -292,6 +291,30 @@
                                     <div class="alert alert-info mb-3">
                                         <i class="fa-solid fa-info-circle me-2"></i>
                                         <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt när det är aktiverat.
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.MemberLogos:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Medlemslogotyper</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Medlemslogotyper visas automatiskt på denna sida när sektionen är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Sektionen "Våra medlemmar" kommer att visas på sidan med alla aktiva medlemslogotyper.
+                                        För att hantera vilka logotyper som ska visas, deras ordning och beskrivningar, använd hanteringssidan nedan.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/memberlogos" class="btn btn-primary">
+                                            <i class="fa-solid fa-cog me-1"></i>
+                                            Hantera medlemslogotyper
+                                        </a>
                                     </div>
                                 </div>
                             </div>

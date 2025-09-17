@@ -391,3 +391,57 @@ html {
         color: white;
      }
 }
+
+/* Bootstrap-förbättringar för DocumentSection */
+
+/* Förbättra Bootstrap card hover-effekter */
+.document-item-compact.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transition: all 0.15s ease-in-out;
+}
+
+/* Säkerställ att dokumentikoner har rätt storlek */
+.document-icon {
+    min-width: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsiva förbättringar */
+@media (max-width: 576px) {
+    .document-item-compact .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    .document-icon {
+        min-width: 2.5rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.775rem;
+    }
+}
+
+/* Smooth transitions för interaktiva element */
+.btn-outline-primary:hover,
+.btn-primary,
+.btn-outline-info:hover,
+.btn-info {
+    transition: all 0.15s ease-in-out;
+}
+
+/* Förbättra mark-elementet för sökresultat */
+mark.bg-warning {
+    background-color: rgba(255, 193, 7, 0.3) !important;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+
+/* Förbättra kategorirubriker */
+.text-muted.border-bottom {
+    font-weight: 600;
+    letter-spacing: 0.025em;
+}

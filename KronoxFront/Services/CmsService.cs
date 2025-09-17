@@ -181,6 +181,10 @@ public class CmsService
                 var result = json.ToImageViewModel();
 
                 _logger.LogInformation("Sidbild {FileName} uppladdad för {PageKey} med URL {Url}", fileName, pageKey, result?.Url);
+
+                // Invalidera page cache efter bilduppladdning
+                _cache.InvalidatePageCache(pageKey);
+
                 return result;
             }
             else

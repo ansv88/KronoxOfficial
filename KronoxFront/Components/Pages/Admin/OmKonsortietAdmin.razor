@@ -256,22 +256,41 @@
                         case SectionType.DocumentSection:
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">
-                                        <i class="fa-solid fa-file-alt me-2"></i>Dokumentsektion
-                                    </h3>
+                                    <h3 class="h5 mb-0">Dokumentsektion - Förhandsvisning</h3>
                                 </div>
                                 <div class="card-body">
                                     <div class="alert alert-info mb-3">
                                         <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Status:</strong> Dokumentsektionen visas automatiskt på denna sida när den är aktiverad.
+                                        <strong>Status:</strong> Dokumentsektionen visas automatiskt när den är aktiverad.
                                     </div>
+
+                                    @* Förhandsvisning av DocumentSection *@
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="text-muted mb-2">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Förhandsvisning (som användarna ser):
+                                        </h6>
+                                        <DocumentSection PageKey="omkonsortiet"
+                                                         Title="Konsortiedokument"
+                                                         ShowFilters="false"
+                                                         ShowCategoryHeaders="true"
+                                                         ShowAllDocumentsLink="true"
+                                                         MaxDocumentsPerCategory="3" />
+                                    </div>
+
                                     <p class="text-muted mb-3">
-                                        Dokumentsektionen visar en länk till dokumentsidan eller listar dokument direkt.
+                                        Visar dokument baserat på användarens roller. Användare ser endast dokument för sina roller.
+                                        Dokumenten filtreras automatiskt baserat på kategoriers rollbehörigheter.
                                     </p>
+
                                     <div class="d-flex gap-2">
                                         <a href="/admin/documents/manage" class="btn btn-primary">
                                             <i class="fa-solid fa-cog me-1"></i>
                                             Hantera dokument
+                                        </a>
+                                        <a href="/dokument" class="btn btn-outline-secondary">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Visa fullständig dokumentsida
                                         </a>
                                     </div>
                                 </div>

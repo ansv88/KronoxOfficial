@@ -1,0 +1,400 @@
+@using KronoxFront.DTOs
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
+@inject DocumentService DocumentService
+@inject CategoryService CategoryService
+@inject ILogger<DocumentSection> Logger
+@inject IJSRuntime JSRuntime
+@inject IToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
+
+@if (IsLoading)
+{
+    <div class="d-flex justify-content-center my-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Laddar dokument...</span>
+        </div>
+    </div>
+}
+else if (HasError)
+{
+    <div class="alert alert-warning text-center" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Kunde inte ladda dokument just nu.
+    </div>
+}
+else if (!FilteredDocuments.Any())
+{
+    <div class="alert alert-info text-center" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        Inga dokument finns tillgängliga för din behörighetsnivå.
+    </div>
+}
+else
+{
+    @if (ShowTitle)
+    {
+        <div class="mb-4">
+            <h2 class="h4 text-primary mb-3">
+                <i class="fas fa-file-alt me-2"></i>
+                @Title
+            </h2>
+        </div>
+    }
+
+    @* Bootstrap-baserad filtrering *@
+    @if (ShowFilters && (AccessibleCategories.Count > 1 || AllowSearch))
+    {
+        <div class="card border-0 bg-light mb-4">
+            <div class="card-body py-3">
+                <div class="row g-3 align-items-end">
+                    @if (AllowSearch)
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">
+                                <i class="fas fa-search me-1"></i>Sök dokument
+                            </label>
+                            <input type="text" 
+                                   class="form-control form-control-sm" 
+                                   placeholder="Sök filnamn..." 
+                                   @bind="searchQuery" 
+                                   @bind:after="ApplyFilters" />
+                        </div>
+                    }
+                    
+                    @if (ShowCategoryFilter && AccessibleCategories.Count > 1)
+                    {
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">
+                                <i class="fas fa-filter me-1"></i>Kategori
+                            </label>
+                            <select class="form-select form-select-sm" 
+                                    @bind="selectedCategoryId" 
+                                    @bind:after="ApplyFilters">
+                                <option value="0">Alla (@AllDocuments.Count)</option>
+                                @foreach (var category in AccessibleCategories.Where(c => AllDocuments.Any(d => d.MainCategoryId == c.Id)))
+                                {
+                                    var count = AllDocuments.Count(d => d.MainCategoryId == category.Id);
+                                    <option value="@category.Id">@category.Name (@count)</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold small">
+                            <i class="fas fa-sort me-1"></i>Sortera
+                        </label>
+                        <select class="form-select form-select-sm" 
+                                @bind="sortOption" 
+                                @bind:after="ApplyFilters">
+                            <option value="newest">Nyast</option>
+                            <option value="oldest">Äldst</option>
+                            <option value="name">A-Ö</option>
+                        </select>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(searchQuery) || selectedCategoryId > 0)
+                {
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="ClearFilters">
+                            <i class="fas fa-times me-1"></i>Rensa filter
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @* FÖRENKLAD Bootstrap dokumentlista *@
+    <div class="row g-3">
+        @foreach (var category in AccessibleCategories.Where(c => FilteredDocuments.Any(d => d.MainCategoryId == c.Id)))
+        {
+            var categoryDocs = FilteredDocuments
+                .Where(d => d.MainCategoryId == category.Id)
+                .Take(MaxDocumentsPerCategory)
+                .ToList();
+                
+            @if (ShowCategoryHeaders && (selectedCategoryId == 0 || AccessibleCategories.Count > 1))
+            {
+                <div class="col-12">
+                    <h5 class="text-muted border-bottom pb-2 mb-3 mt-3">
+                        <i class="fas fa-folder me-2"></i>@category.Name
+                        @if (FilteredDocuments.Count(d => d.MainCategoryId == category.Id) > MaxDocumentsPerCategory)
+                        {
+                            <small class="text-muted ms-2">(visar @MaxDocumentsPerCategory av @FilteredDocuments.Count(d => d.MainCategoryId == category.Id))</small>
+                        }
+                    </h5>
+                </div>
+            }
+
+            @foreach (var doc in categoryDocs)
+            {
+                <div class="col-12">
+                    <div class="card border shadow-sm document-item-compact @(doc.IsArchived ? "bg-light opacity-75" : "bg-white")">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3 text-center flex-shrink-0 document-icon">
+                                    <i class="@GetFileIcon(doc.FileName) fa-lg"></i>
+                                </div>
+                                
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-1 fw-semibold">
+                                        @HighlightSearchText(doc.FileName)
+                                        @if (doc.IsArchived)
+                                        {
+                                            <span class="badge bg-secondary ms-2">Arkiverad</span>
+                                        }
+                                    </h6>
+                                    <div class="card-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>@doc.UploadedAt.ToString("yyyy-MM-dd")
+                                            <i class="fas fa-hdd ms-3 me-1"></i>@FormatFileSize(doc.FileSize)
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div class="ms-auto">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-info" 
+                                                title="Visa dokument"
+                                                @onclick="() => ViewDocument(doc.Id, doc.FileName)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-primary" 
+                                                title="Ladda ner"
+                                                @onclick="() => DownloadDocument(doc.Id)">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    @if (ShowAllDocumentsLink)
+    {
+        <div class="text-center mt-4">
+            <a href="/dokument" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-right me-2"></i>
+                Visa alla dokument (@AllDocuments.Count)
+            </a>
+        </div>
+    }
+}
+
+<!-- Document Viewer Modal -->
+<DocumentViewer IsVisible="@isViewerOpen"
+                DocumentId="@selectedDocumentId"
+                DocumentTitle="@selectedDocumentName"
+                OnClose="CloseDocumentViewer"
+                OnDownload="DownloadDocument" />
+
+@code {
+    // Parametrar för konfiguration
+    [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public bool ShowTitle { get; set; } = true;
+    [Parameter] public string Title { get; set; } = "Dokument";
+    [Parameter] public bool ShowFilters { get; set; } = true;
+    [Parameter] public bool ShowCategoryFilter { get; set; } = true;
+    [Parameter] public bool ShowCategoryHeaders { get; set; } = true;
+    [Parameter] public bool ShowAllDocumentsLink { get; set; } = true;
+    [Parameter] public bool AllowSearch { get; set; } = true;
+    [Parameter] public int MaxDocumentsPerCategory { get; set; } = 5;
+    [Parameter] public List<int> CategoryFilter { get; set; } = new();
+
+    // Data
+    private List<DocumentViewModel> AllDocuments = new();
+    private List<DocumentViewModel> FilteredDocuments = new();
+    private List<MainCategoryDto> AccessibleCategories = new();
+    private bool IsLoading = true;
+    private bool HasError = false;
+    private bool IsAdmin = false;
+    private bool isViewerOpen = false;
+    private int selectedDocumentId = 0;
+    private string selectedDocumentName = "";
+
+    // Filter variabler
+    private string searchQuery = "";
+    private int selectedCategoryId = 0;
+    private string sortOption = "newest";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Kontrollera användarroller
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            IsAdmin = authState.User.IsInRole("Admin");
+
+            await LoadDocuments();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av dokument för DocumentSection");
+            HasError = true;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadDocuments()
+    {
+        try
+        {
+            // Hämta tillgängliga kategorier
+            AccessibleCategories = await CategoryService.GetAccessibleMainCategoriesAsync();
+
+            // Hämta dokument baserat på användarens roller
+            AllDocuments = await DocumentService.GetAccessibleDocumentsAsync();
+
+            // Tillämpa filter
+            ApplyFilters();
+
+            Logger.LogInformation("DocumentSection: Laddat {DocumentCount} dokument för sida {PageKey}", 
+                AllDocuments.Count, PageKey);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid hämtning av dokument för DocumentSection");
+            HasError = true;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        var documents = AllDocuments.AsEnumerable();
+
+        // Arkivfilter (visa inte arkiverade för vanliga användare)
+        if (!IsAdmin)
+        {
+            documents = documents.Where(d => !d.IsArchived);
+        }
+
+        // Kategorifilter från parameter
+        if (CategoryFilter.Any())
+        {
+            documents = documents.Where(d => CategoryFilter.Contains(d.MainCategoryId));
+        }
+
+        // Vald kategorifilter från UI
+        if (selectedCategoryId > 0)
+        {
+            documents = documents.Where(d => d.MainCategoryId == selectedCategoryId);
+        }
+
+        // Textfilter
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var query = searchQuery.ToLowerInvariant();
+            documents = documents.Where(d => 
+                d.FileName.ToLowerInvariant().Contains(query));
+        }
+
+        // Sortering
+        documents = sortOption switch
+        {
+            "oldest" => documents.OrderBy(d => d.UploadedAt),
+            "name" => documents.OrderBy(d => d.FileName),
+            _ => documents.OrderByDescending(d => d.UploadedAt)
+        };
+
+        FilteredDocuments = documents.ToList();
+        StateHasChanged();
+    }
+
+    private void FilterByCategory(int categoryId)
+    {
+        selectedCategoryId = categoryId;
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        searchQuery = "";
+        selectedCategoryId = 0;
+        sortOption = "newest";
+        ApplyFilters();
+    }
+
+    private void ViewDocument(int id, string fileName)
+    {
+        selectedDocumentId = id;
+        selectedDocumentName = fileName;
+        isViewerOpen = true;
+    }
+
+    private void CloseDocumentViewer()
+    {
+        isViewerOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task DownloadDocument(int id)
+    {
+        try
+        {
+            var result = await DocumentService.DownloadDocumentAsync(id);
+            if (result.HasValue)
+            {
+                var (stream, fileName) = result.Value;
+                var streamRef = new DotNetStreamReference(stream: stream);
+                await JSRuntime.InvokeVoidAsync("downloadFileFromStream", streamRef, fileName);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid nedladdning av dokument {DocumentId}", id);
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    private string GetFileIcon(string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".pdf" => "fas fa-file-pdf text-danger",
+            ".doc" or ".docx" => "fas fa-file-word text-primary",
+            ".xls" or ".xlsx" => "fas fa-file-excel text-success",
+            ".ppt" or ".pptx" => "fas fa-file-powerpoint text-warning",
+            ".txt" => "fas fa-file-alt text-secondary",
+            ".zip" or ".rar" or ".7z" => "fas fa-file-archive text-info",
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" => "fas fa-file-image text-purple",
+            _ => "fas fa-file text-muted"
+        };
+    }
+
+    private MarkupString HighlightSearchText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+            return new MarkupString(text);
+
+        var highlighted = text.Replace(searchQuery, 
+            $"<mark class='bg-warning bg-opacity-50'>{searchQuery}</mark>", 
+            StringComparison.OrdinalIgnoreCase);
+        
+        return new MarkupString(highlighted);
+    }
+}

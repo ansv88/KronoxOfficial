@@ -84,9 +84,14 @@ else
 
             case SectionType.DocumentSection:
                 <div class="wrapper-div py-3">
-                    <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                         <div style="max-width:800px; margin: 0 auto;">
-                            <DocumentSection PageKey="forstyrelsen" ShowTitle="true" />
+                            <DocumentSection PageKey="forstyrelsen" 
+                                             Title="Styrelsedokument"
+                                             ShowFilters="true" 
+                                             ShowCategoryHeaders="true"
+                                             ShowAllDocumentsLink="true"
+                                             MaxDocumentsPerCategory="10" />
                         </div>
                     </section>
                 </div>

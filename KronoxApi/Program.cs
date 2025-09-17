@@ -172,6 +172,20 @@ public class Program
                         TokensPerPeriod = 60, // 60 tokens per minut
                         AutoReplenishment = true
                     }));
+
+            // Upload policy för filuppladdningar
+            options.AddPolicy("Upload", httpContext =>
+                RateLimitPartition.GetTokenBucketLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "localhost",
+                    factory: _ => new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = 10,      // Max 10 uppladdningar i bufferten
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 3,       // Max 3 i kön
+                        ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                        TokensPerPeriod = 5,  // 5 nya tokens per minut
+                        AutoReplenishment = true
+                    }));
         });
 
         // Konfiguration av extra loggning för säkerhet

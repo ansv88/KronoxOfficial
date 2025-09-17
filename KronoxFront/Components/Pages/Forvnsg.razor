@@ -84,17 +84,11 @@ else
 
             case SectionType.DocumentSection:
                 <div class="wrapper-div py-3">
-                    <section class="container mt-2 my-5 bg-white rounded-3" style="max-width:1000px">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                         <div style="max-width:800px; margin: 0 auto;">
                             <DocumentSection PageKey="forvnsg" ShowTitle="true" />
                         </div>
                     </section>
-                </div>
-                break;
-
-            case SectionType.MemberLogos:
-                <div class="wrapper-div py-3">
-                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
                 </div>
                 break;
 
@@ -126,6 +120,12 @@ else
                             <DevelopmentSuggestionForm />
                         </div>
                     </section>
+                </div>
+                break;
+
+            case SectionType.MemberLogos:
+                <div class="wrapper-div py-3">
+                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
                 </div>
                 break;
         }

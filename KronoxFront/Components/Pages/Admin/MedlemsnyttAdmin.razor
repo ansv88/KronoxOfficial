@@ -215,6 +215,92 @@
                                         OnFaqImageUpload="OnFaqImageUploaded" />
                             break;
 
+                        case SectionType.ActionPlanTable:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Handlingsplantabell</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Handlingsplantabellen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted">
+                                        Handlingsplanen visar planerade utvecklingsaktiviteter och deras status.
+                                    </p>
+                                    <a href="/admin/actionplan" class="btn btn-primary">
+                                        <i class="fa-solid fa-list me-1"></i>
+                                        Hantera handlingsplan
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DevelopmentSuggestionForm:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Utvecklingsförslagformulär</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt när det är aktiverat.
+                                    </div>
+                                    <p class="text-muted">
+                                        Formuläret låter medlemmar skicka utvecklingsförslag direkt till systemgruppen.
+                                    </p>
+                                    <a href="/admin/suggestions" class="btn btn-primary">
+                                        <i class="fa-solid fa-list me-1"></i>
+                                        Visa inskickade förslag
+                                    </a>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DocumentSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Dokumentsektion - Förhandsvisning</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Dokumentsektionen visas automatiskt när den är aktiverad.
+                                    </div>
+
+                                    @* Förhandsvisning av DocumentSection *@
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="text-muted mb-2">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Förhandsvisning (som medlemmarna ser):
+                                        </h6>
+                                        <DocumentSection PageKey="medlemsnytt"
+                                                         Title="Medlemsdokument"
+                                                         ShowFilters="true"
+                                                         ShowCategoryHeaders="true"
+                                                         ShowAllDocumentsLink="true"
+                                                         MaxDocumentsPerCategory="5" />
+                                    </div>
+
+                                    <p class="text-muted mb-3">
+                                        Visar dokument baserat på användarens roller. Medlemmar ser endast dokument för sina roller.
+                                        Dokumenten filtreras automatiskt baserat på kategoriers rollbehörigheter.
+                                    </p>
+
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/documents/manage" class="btn btn-primary">
+                                            <i class="fa-solid fa-cog me-1"></i>
+                                            Hantera dokument
+                                        </a>
+                                        <a href="/dokument" class="btn btn-outline-secondary">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Visa fullständig dokumentsida
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
                         case SectionType.MemberLogos:
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
@@ -234,56 +320,6 @@
                                             <i class="fa-solid fa-cog me-1"></i>
                                             Hantera medlemslogotyper
                                         </a>
-                                    </div>
-                                </div>
-                            </div>
-                            break;
-
-                        case SectionType.DocumentSection:
-                            <div class="card mb-4">
-                                <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">Dokumentsektion</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info mb-3">
-                                        <i class="fa-solid fa-file me-2"></i>
-                                        <strong>Status:</strong> Dokumentsektionen visar en länk till dokumentsidan.
-                                    </div>
-                                    <p class="text-muted mb-3">
-                                        Dokumentsektionen visar en länk till dokumentsidan där användare kan hitta
-                                        relevanta dokument och filer.
-                                    </p>
-                                    <a href="/admin/dokument" class="btn btn-primary">
-                                        <i class="fa-solid fa-file me-1"></i>
-                                        Hantera dokument
-                                    </a>
-                                </div>
-                            </div>
-                            break;
-
-                        case SectionType.ActionPlanTable:
-                            <div class="card mb-4">
-                                <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">Handlingsplantabell</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info mb-3">
-                                        <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Status:</strong> Handlingsplantabellen visas automatiskt på denna sida när den är aktiverad.
-                                    </div>
-                                </div>
-                            </div>
-                            break;
-
-                        case SectionType.DevelopmentSuggestionForm:
-                            <div class="card mb-4">
-                                <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">Utvecklingsförslagformulär</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info mb-3">
-                                        <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt när det är aktiverat.
                                     </div>
                                 </div>
                             </div>

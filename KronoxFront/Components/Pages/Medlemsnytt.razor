@@ -343,14 +343,12 @@ else
                 <div class="wrapper-div py-3">
                     <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                         <div style="max-width:800px; margin: 0 auto;">
-                            <h2 class="text-center mb-4">Dokument</h2>
-                            <div class="text-center">
-                                <p class="text-muted mb-3">Här hittar du viktiga dokument för medlemmar.</p>
-                                <a href="/dokument" class="btn btn-primary">
-                                    <i class="fa-solid fa-file-alt me-2"></i>
-                                    Visa alla dokument
-                                </a>
-                            </div>
+                            <DocumentSection PageKey="medlemsnytt" 
+                                             Title="Medlemsdokument"
+                                             ShowFilters="true"
+                                             ShowCategoryHeaders="true"
+                                             ShowAllDocumentsLink="true"
+                                             MaxDocumentsPerCategory="5" />
                         </div>
                     </section>
                 </div>
@@ -480,6 +478,7 @@ else
                 };
             }
 
+            // Ladda handlingsplan om aktiverad
             if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
             {
                 actionPlan = await Cms.GetActionPlanAsync("medlemsnytt");

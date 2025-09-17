@@ -211,6 +211,73 @@
                                         OnFaqImageUpload="OnFaqImageUploaded" />
                             break;
 
+                        case SectionType.NewsSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Nyhetssektion</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Nyhetssektionen visas automatiskt på denna sida när den är aktiverad.
+                                    </div>
+                                    <p class="text-muted mb-3">
+                                        Alla publicerade nyheter som användaren har behörighet att se visas automatiskt på sidan.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/news" class="btn btn-primary">
+                                            <i class="fa-solid fa-newspaper me-1"></i>
+                                            Hantera nyheter
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case SectionType.DocumentSection:
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h3 class="h5 mb-0">Dokumentsektion - Förhandsvisning</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <strong>Status:</strong> Dokumentsektionen visas automatiskt när den är aktiverad.
+                                    </div>
+
+                                    @* Förhandsvisning av DocumentSection *@
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="text-muted mb-2">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Förhandsvisning (som användarna ser):
+                                        </h6>
+                                        <DocumentSection PageKey="forvaltning"
+                                                         Title="Förvaltningsdokument"
+                                                         ShowFilters="false"
+                                                         ShowCategoryHeaders="true"
+                                                         ShowAllDocumentsLink="true"
+                                                         MaxDocumentsPerCategory="3" />
+                                    </div>
+
+                                    <p class="text-muted mb-3">
+                                        Visar dokument baserat på användarens roller. Förvaltningsanvändare ser endast dokument för sina roller.
+                                        Dokumenten filtreras automatiskt baserat på kategoriers rollbehörigheter.
+                                    </p>
+
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/documents/manage" class="btn btn-primary">
+                                            <i class="fa-solid fa-cog me-1"></i>
+                                            Hantera dokument
+                                        </a>
+                                        <a href="/dokument" class="btn btn-outline-secondary">
+                                            <i class="fa-solid fa-eye me-1"></i>
+                                            Visa fullständig dokumentsida
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
                         case SectionType.MemberLogos:
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
@@ -230,34 +297,6 @@
                                             <i class="fa-solid fa-cog me-1"></i>
                                             Hantera medlemslogotyper
                                         </a>
-                                    </div>
-                                </div>
-                            </div>
-                            break;
-
-                        case SectionType.NewsSection:
-                            <div class="card mb-4">
-                                <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">Nyhetssektion</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info mb-3">
-                                        <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Status:</strong> Nyhetssektionen visas automatiskt på denna sida när den är aktiverad.
-                                    </div>
-                                </div>
-                            </div>
-                            break;
-
-                        case SectionType.DocumentSection:
-                            <div class="card mb-4">
-                                <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">Dokumentsektion</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info mb-3">
-                                        <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Status:</strong> Dokumentsektionen visar en länk till dokumentsidan.
                                     </div>
                                 </div>
                             </div>
