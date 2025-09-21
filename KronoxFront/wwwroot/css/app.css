@@ -449,3 +449,20 @@ mark.bg-warning {
 .document-highlighted {
     background-color: #fff3cd;
 }
+
+/* Nyhetsvisningar */
+.list-group-item {
+    border: 1px solid rgba(0,0,0,.125);
+    transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+}
+
+.badge {
+    font-weight: normal;
+    padding: 0.35em 0.65em;
+}

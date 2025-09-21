@@ -1,0 +1,670 @@
+@page "/admin/actionplan"
+@using KronoxFront.Components.Layout
+@using KronoxFront.ViewModels
+@using KronoxFront.DTOs
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Forms
+@using KronoxFront.Services
+@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ILogger<ActionPlanAdmin> Logger
+@inject IToastService Toast
+
+<HeadContent>
+    <meta name="description" content="Administrera handlingsplan för KronoX. Lägg till, redigera och hantera åtgärder med detaljerade beskrivningar." />
+</HeadContent>
+
+<PageTitle>KronoX - Handlingsplan</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    <i class="fa-solid fa-clipboard-list me-2"></i>
+                    Hantera handlingsplan
+                </h1>
+                <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Lägg till åtgärd
+                </button>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Laddar handlingsplan...</span>
+                    </div>
+                </div>
+            }
+            else if (hasError)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">Fel vid laddning</h4>
+                    <p>Det uppstod ett problem när handlingsplanen skulle hämtas. Försök ladda om sidan.</p>
+                    <button class="btn btn-outline-danger" @onclick="LoadActionPlan">
+                        <i class="fa-solid fa-refresh me-1"></i> Försök igen
+                    </button>
+                </div>
+            }
+            else if (actionPlan == null || !actionPlan.Items.Any())
+            {
+                <div class="alert alert-info">
+                    <h4 class="alert-heading">Ingen handlingsplan finns</h4>
+                    <p>Det finns ingen handlingsplan att visa. Klicka på knappen ovan för att lägga till åtgärder.</p>
+                </div>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="fa-solid fa-list-check me-2"></i>
+                            Handlingsplan (@actionPlan.Items.Count åtgärder)
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <colgroup>
+                                    <col style="width: 6rem;">
+                                    <col style="width: 10rem;">
+                                    <col> 
+                                    <col style="width: 9rem;">
+                                    <col style="width: 6rem;">
+                                    <col style="width: 12rem;">
+                                </colgroup>
+
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="text-center">Prioritering</th>
+                                        <th>Modul/del</th>
+                                        <th>Aktivitet</th>
+                                        <th class="text-center">Planerad leverans</th>
+                                        <th class="text-center">Avklarad</th>
+                                        <th>Åtgärder</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (actionPlan?.Items != null)
+                                    {
+                                        var sortedItems = actionPlan.Items.OrderBy(i => i.SortOrder).ToList();
+                                        for (int i = 0; i < sortedItems.Count; i++)
+                                        {
+                                            var item = sortedItems[i];
+                                            var index = i;
+                                            
+                                            <tr>
+                                                <td class="text-center">@item.Priority</td>
+                                                <td>@item.Module</td>
+                                                <td>
+                                                    <div class="d-flex align-items-start">
+                                                        <div class="flex-grow-1 text-break">@item.Activity</div>
+                                                        @if (!string.IsNullOrWhiteSpace(item.DetailedDescription))
+                                                        {
+                                                            <button type="button" class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline" 
+                                                                    @onclick="@(() => ToggleDescription(item.Id))" 
+                                                                    title="Visa/dölj detaljerad beskrivning">
+                                                                <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td class="text-center">@item.PlannedDelivery</td>
+                                                <td class="text-center">
+                                                    @if (!string.IsNullOrWhiteSpace(item.Completed))
+                                                    {
+                                                        <span class="badge bg-success">@item.Completed</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button type="button" class="btn btn-outline-primary"
+                                                                @onclick="@(() => OpenEditModal(item))"
+                                                                title="Redigera åtgärd">
+                                                            <i class="fa-solid fa-edit"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-secondary"
+                                                                @onclick="@(() => MoveItemUp(item.Id))"
+                                                                disabled="@(index == 0)"
+                                                                title="Flytta upp">
+                                                            <i class="fa-solid fa-arrow-up"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-secondary"
+                                                                @onclick="@(() => MoveItemDown(item.Id))"
+                                                                disabled="@(index == sortedItems.Count - 1)"
+                                                                title="Flytta ner">
+                                                            <i class="fa-solid fa-arrow-down"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger"
+                                                                @onclick="@(() => OpenDeleteModal(item))"
+                                                                title="Ta bort åtgärd">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            @if (expandedDescriptions.Contains(item.Id) && !string.IsNullOrWhiteSpace(item.DetailedDescription))
+                                            {
+                                                <tr class="table-light">
+                                                    <td colspan="6">
+                                                        <div class="p-3">
+                                                            <small class="text-muted fw-bold">Detaljerad beskrivning:</small>
+                                                            <div class="mt-2">@((MarkupString)item.DetailedDescription)</div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@* Modal för skapa/redigera åtgärd *@
+@if (showEditModal && editingItem != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(editingItem.Id == 0 ? "Skapa ny åtgärd" : "Redigera åtgärd")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
+                </div>
+                <EditForm Model="editModel" OnValidSubmit="SaveEditedItem">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Prioritering</label>
+                                    <InputNumber class="form-control" @bind-Value="editModel.Priority" min="1" max="99" />
+                                    <ValidationMessage For="() => editModel.Priority" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Modul/del *</label>
+                                    <InputText class="form-control" @bind-Value="editModel.Module" placeholder="Ex: Modul 1" />
+                                    <ValidationMessage For="() => editModel.Module" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Planerad leverans</label>
+                                    <InputText class="form-control" @bind-Value="editModel.PlannedDelivery" placeholder="Q2 2024" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status när avklarad</label>
+                                    <InputText class="form-control" @bind-Value="editModel.Completed" placeholder="Q1 2024 eller lämna tom" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Aktivitet (kort beskrivning) *</label>
+                            <InputText class="form-control" @bind-Value="editModel.Activity" placeholder="Kort sammanfattning" />
+                            <ValidationMessage For="() => editModel.Activity" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Utförlig beskrivning</label>
+                            <textarea id="@_detailsEditorId"
+                                      class="form-control tinymce-editor"
+                                      rows="8"
+                                      @bind="editModel.DetailedDescription"
+                                      @bind:event="oninput"
+                                      placeholder="Skriv en utförlig beskrivning av åtgärden här...">
+                            </textarea>
+                            <div class="form-text">Använd denna ruta för detaljerade beskrivningar av åtgärden.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">
+                            Avbryt
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled="@isSavingItem">
+                            @if (isSavingItem)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            @(editingItem.Id == 0 ? "Skapa" : "Uppdatera")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@* Modal för bekräfta borttagning *@
+@if (showDeleteModal && deletingItem != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Bekräfta borttagning</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Är du säker på att du vill ta bort åtgärden "<strong>@deletingItem.Activity</strong>"?</p>
+                    <p class="text-danger">
+                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                        Denna åtgärd kan inte ångras.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">
+                        Avbryt
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Ta bort
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ActionPlanTableViewModel? actionPlan;
+    private bool isLoading = true;
+    private bool hasError = false;
+    private bool isSaving = false;
+    private bool hasChanges = false;
+    private string pageKey = "forvaltning";
+    private HashSet<int> expandedDescriptions = new();
+
+    // TinyMCE för detaljerad beskrivning
+    private string _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
+    private bool _detailsEditorInitialized = false;
+
+    // Edit modal
+    private bool showEditModal = false;
+    private bool isSavingItem = false;
+    private ActionPlanItem? editingItem;
+    private CreateActionPlanItemDto editModel = new();
+
+    // Delete modal
+    private bool showDeleteModal = false;
+    private bool isDeleting = false;
+    private ActionPlanItem? deletingItem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadActionPlan();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (showEditModal && editingItem != null && !_detailsEditorInitialized)
+        {
+            await InitializeDetailsEditorAsync();
+        }
+    }
+
+    private async Task InitializeDetailsEditorAsync()
+    {
+        try
+        {
+            // Liten delay för att säkerställa att DOM-raden finns
+            await Task.Delay(150);
+
+            var exists = await JS.InvokeAsync<bool>("elementExists", _detailsEditorId);
+            if (exists)
+            {
+                await JS.InvokeVoidAsync("initTinyMCE", _detailsEditorId);
+
+                // Verifiera att editor skapades, annars försök igen
+                var ready = await JS.InvokeAsync<bool>("tinymceExists", _detailsEditorId);
+                if (!ready)
+                {
+                    await Task.Delay(100);
+                    await JS.InvokeVoidAsync("initTinyMCE", _detailsEditorId);
+                }
+
+                _detailsEditorInitialized = true;
+                Logger.LogInformation("TinyMCE initialiserad för {EditorId}", _detailsEditorId);
+            }
+            else
+            {
+                Logger.LogWarning("Element {EditorId} hittades inte i DOM", _detailsEditorId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid init av TinyMCE {EditorId}", _detailsEditorId);
+        }
+    }
+
+    private async Task SyncDetailsEditorAsync()
+    {
+        try
+        {
+            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", _detailsEditorId);
+            if (editorExists)
+            {
+                var content = await JS.InvokeAsync<string>("eval",
+                    $"tinymce.get('{_detailsEditorId}') ? tinymce.get('{_detailsEditorId}').getContent() : ''");
+                if (content is not null)
+                {
+                    editModel.DetailedDescription = content;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte synka TinyMCE {EditorId}", _detailsEditorId);
+        }
+    }
+
+    private async Task DestroyDetailsEditorAsync()
+    {
+        try
+        {
+            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", _detailsEditorId);
+            if (editorExists)
+            {
+                await JS.InvokeVoidAsync("eval", $"tinymce.get('{_detailsEditorId}')?.destroy()");
+                Logger.LogInformation("TinyMCE förstörd för {EditorId}", _detailsEditorId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Fel vid destroy av TinyMCE {EditorId}", _detailsEditorId);
+        }
+        finally
+        {
+            _detailsEditorInitialized = false;
+        }
+    }
+
+    private async Task LoadActionPlan()
+    {
+        isLoading = true;
+        hasError = false;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.GetFromJsonAsync<ActionPlanTableDto>($"api/ActionPlan/{pageKey}");
+            
+            if (response != null)
+            {
+                actionPlan = new ActionPlanTableViewModel
+                {
+                    Id = response.Id,
+                    PageKey = response.PageKey,
+                    LastModified = response.LastModified,
+                    Items = response.Items.Select(i => new ActionPlanItem
+                    {
+                        Id = i.Id,
+                        Priority = i.Priority,
+                        Module = i.Module,
+                        Activity = i.Activity,
+                        DetailedDescription = i.DetailedDescription,
+                        PlannedDelivery = i.PlannedDelivery,
+                        Completed = i.Completed,
+                        SortOrder = i.SortOrder
+                    }).ToList()
+                };
+            }
+            else
+            {
+                actionPlan = new ActionPlanTableViewModel
+                {
+                    PageKey = pageKey,
+                    Items = new List<ActionPlanItem>()
+                };
+            }
+            
+            Logger.LogInformation("Laddat handlingsplan med {Count} åtgärder", actionPlan.Items.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av handlingsplan");
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OpenCreateModal()
+    {
+        try
+        {
+            if (actionPlan == null)
+            {
+                actionPlan = new ActionPlanTableViewModel
+                {
+                    PageKey = pageKey,
+                    Items = new List<ActionPlanItem>()
+                };
+            }
+
+            editingItem = new ActionPlanItem
+            {
+                Id = 0,
+                Priority = actionPlan.Items.Count + 1,
+                SortOrder = actionPlan.Items.Count,
+                Module = "",
+                Activity = "",
+                DetailedDescription = "",
+                PlannedDelivery = "",
+                Completed = ""
+            };
+
+            editModel = new CreateActionPlanItemDto
+            {
+                Priority = editingItem.Priority,
+                Module = editingItem.Module ?? "",
+                Activity = editingItem.Activity ?? "",
+                DetailedDescription = editingItem.DetailedDescription ?? "",
+                PlannedDelivery = editingItem.PlannedDelivery ?? "",
+                Completed = editingItem.Completed ?? ""
+            };
+
+            // Nytt editor-id varje öppning och säkerställ att ev. gammal editor tas bort
+            await DestroyDetailsEditorAsync();
+            _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
+            _detailsEditorInitialized = false;
+
+            showEditModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "OpenCreateModal failed");
+            _ = Toast.Error("Ett fel inträffade vid öppning av dialog.");
+        }
+    }
+
+    private async Task OpenEditModal(ActionPlanItem item)
+    {
+        try
+        {
+            editingItem = item;
+            editModel = new CreateActionPlanItemDto
+            {
+                Priority = item.Priority,
+                Module = item.Module ?? "",
+                Activity = item.Activity ?? "",
+                DetailedDescription = item.DetailedDescription ?? "",
+                PlannedDelivery = item.PlannedDelivery ?? "",
+                Completed = item.Completed ?? ""
+            };
+
+            // Nytt editor-id varje öppning och säkerställ att ev. gammal editor tas bort
+            await DestroyDetailsEditorAsync();
+            _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
+            _detailsEditorInitialized = false;
+
+            showEditModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "OpenEditModal failed");
+            _ = Toast.Error("Ett fel inträffade vid öppning av dialog.");
+        }
+    }
+
+    private async void CloseEditModal()
+    {
+        showEditModal = false;
+        await DestroyDetailsEditorAsync();
+        editingItem = null;
+        editModel = new CreateActionPlanItemDto();
+    }
+
+    private async Task SaveEditedItem()
+    {
+        if (editingItem == null || actionPlan == null) return;
+
+        isSavingItem = true;
+        try
+        {
+            // Synka TinyMCE-innehållet till model innan POST/PUT
+            await SyncDetailsEditorAsync();
+
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+
+            HttpResponseMessage response;
+            if (editingItem.Id == 0)
+            {
+                response = await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items", editModel);
+            }
+            else
+            {
+                response = await http.PutAsJsonAsync($"api/ActionPlan/{pageKey}/items/{editingItem.Id}", editModel);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success(editingItem.Id == 0 ? "Åtgärd har lagts till!" : "Åtgärd har uppdaterats!");
+                await LoadActionPlan();
+                CloseEditModal();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Logger.LogError("Fel vid sparning: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                await Toast.Error("Kunde inte spara åtgärden. Försök igen.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av åtgärd");
+            await Toast.Error("Ett fel inträffade vid sparning. Försök igen.");
+        }
+        finally
+        {
+            isSavingItem = false;
+        }
+    }
+
+    private async Task MoveItemUp(int itemId) => await MoveItem(itemId, -1);
+    private async Task MoveItemDown(int itemId) => await MoveItem(itemId, 1);
+
+    private async Task MoveItem(int itemId, int direction)
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var moveRequest = new { Direction = direction };
+            
+            var response = await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items/{itemId}/move", moveRequest);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadActionPlan();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte flytta åtgärden.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid flyttning av åtgärd");
+            await Toast.Error("Ett fel inträffade vid flyttning.");
+        }
+    }
+
+    private void ToggleDescription(int itemId)
+    {
+        if (expandedDescriptions.Contains(itemId))
+        {
+            expandedDescriptions.Remove(itemId);
+        }
+        else
+        {
+            expandedDescriptions.Add(itemId);
+        }
+    }
+
+    private void OpenDeleteModal(ActionPlanItem item)
+    {
+        deletingItem = item;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletingItem = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deletingItem == null || actionPlan?.Items == null) return;
+
+        isDeleting = true;
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.DeleteAsync($"api/ActionPlan/{pageKey}/items/{deletingItem.Id}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                await Toast.Success("Åtgärden har tagits bort.");
+                await LoadActionPlan();
+                CloseDeleteModal();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte ta bort åtgärden. Försök igen.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av åtgärd");
+            await Toast.Error("Ett fel inträffade vid borttagning. Försök igen.");
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+}

@@ -15,6 +15,8 @@
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Omkonsortiet> Logger
 
+@implements IDisposable
+
 <HeadContent>
     <meta name="description" content="Läs om KronoX-konsortiet - en sammanslutning av svenska högskolor och universitet för utveckling av schemaläggningssystem." />
 </HeadContent>
@@ -57,7 +59,7 @@ else
                 }
                 break;
 
-            case SectionType.FeatureSections:
+ @*            case SectionType.FeatureSections:
                 @if (featureSections.Any())
                 {
                     <div class="wrapper-div py-3">
@@ -109,6 +111,19 @@ else
                                         <div class="divider"></div>
                                     }
                                 }
+                            </div>
+                        </section>
+                    </div>
+                }
+                break; *@
+
+            case SectionType.FeatureSections:
+                @if (featureSections.Any())
+                {
+                    <div class="wrapper-div py-3">
+                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                            <div style="max-width:800px; margin: 0 auto;">
+                                <FeatureSections IsAdmin="@isAdmin" PageKey="omkonsortiet" OnImageClick="@ShowImage" />
                             </div>
                         </section>
                     </div>
@@ -234,6 +249,9 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        // Prenumerera på ändringar i autentisering så vi kan uppdatera privat innehåll dynamiskt
+        AuthState.AuthenticationStateChanged += AuthenticationStateChanged;
+
         var authState = await AuthState.GetAuthenticationStateAsync();
         isAdmin = authState.User.IsInRole("Admin");
         isLoggedIn = authState.User.Identity?.IsAuthenticated == true;
@@ -316,6 +334,51 @@ else
         finally
         {
             loading = false;
+        }
+    }
+
+    // Synchronous event handler that delegates to an async method
+    private void AuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        _ = HandleAuthenticationStateChangedAsync(stateTask);
+    }
+
+    // The actual async handler where awaits are allowed
+    private async Task HandleAuthenticationStateChangedAsync(Task<AuthenticationState> stateTask)
+    {
+        try
+        {
+            var authState = await stateTask;
+            var newIsLoggedIn = authState.User.Identity?.IsAuthenticated == true;
+            var newIsAdmin = authState.User.IsInRole("Admin");
+
+            // Om inloggningsstatus har ändrats, hämta privata feature-sektioner på nytt
+            if (newIsLoggedIn != isLoggedIn)
+            {
+                isLoggedIn = newIsLoggedIn;
+                isAdmin = newIsAdmin;
+
+                try
+                {
+                    featureSections = await Cms.GetFeatureSectionsAsync("omkonsortiet", includePrivate: isLoggedIn);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte uppdatera feature-sektioner efter auth-ändring");
+                }
+
+                // Ensure UI updates
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                // Uppdatera admin-flagga om endast rolländring skett
+                isAdmin = newIsAdmin;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel i AuthenticationStateChanged-hanteraren");
         }
     }
 
@@ -406,5 +469,18 @@ else
     {
         return title.Contains("medlemmar", StringComparison.OrdinalIgnoreCase) ||
                title.Contains("konsortiet", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Avprenumerera event när komponenten tas bort
+    public void Dispose()
+    {
+        try
+        {
+            AuthState.AuthenticationStateChanged -= AuthenticationStateChanged;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Fel vid avprenumeration av AuthenticationStateChanged");
+        }
     }
 }

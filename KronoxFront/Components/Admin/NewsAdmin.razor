@@ -235,7 +235,7 @@
                                                    class="form-control tinymce-editor"
                                                    @bind-Value="editModel.Content"
                                                    rows="12" />
-                                    <ValidationMessage For="() => editModel.Content" />
+                                    <ValidationMessage For="() => editModel.Content" />                                   
 
                                     @if (!string.IsNullOrEmpty(editModel.Content))
                                     {
@@ -243,6 +243,14 @@
                                             <small>Innehåll detekterat: @(editModel.Content.Length) tecken</small>
                                         </div>
                                     }
+
+                                    @* Förhandsgranskning av innehåll *@
+                                    <div class="mt-3">
+                                        <button type="button" class="btn btn-secondary btn-sm"
+                                                @onclick="() => OpenPreviewModal(editModel.Content)">
+                                            <i class="fa-solid fa-eye me-1"></i> Förhandsgranska
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -334,6 +342,7 @@
                                                             <small class="text-muted ms-2">(@doc.FormattedFileSize)</small>
                                                         </div>
                                                         
+
                                                         @* Säkerhetsstatus för dokumentet *@
                                                         @if (GetDocumentAccessInfo(doc.Id) is var accessInfo && accessInfo != null)
                                                         {
@@ -361,7 +370,7 @@
                                     }
 
                                     @* Dokumentväljare med säkerhetsinformation *@
-                                    @if (availableDocuments.Any() && editingNews?.Id > 0)
+                                    @if (availableDocuments.Any())
                                     {
                                         <div class="mb-3">
                                             <label class="form-label small">Välj dokument att bifoga:</label>
@@ -431,6 +440,16 @@
                                             <i class="fa-solid fa-plus me-1"></i> Bifoga valt dokument
                                         </button>
                                     }
+                                    
+                                    @if (editingNews?.Id == 0 && selectedNewsDocuments.Any())
+                                    {
+                                        <div class="alert alert-warning mt-3 mb-0">
+                                            <small>
+                                                <i class="fa-solid fa-info-circle me-1"></i>
+                                                <strong>OBS:</strong> Dokumenten kommer att kopplas till nyheten när den skapas.
+                                            </small>
+                                        </div>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -488,6 +507,43 @@
     </div>
 }
 
+@* Modal för förhandsgranskning av innehåll *@
+@if (showPreviewModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7);"
+         role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="previewModalTitle">Förhandsgranskning av nyhet</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePreviewModal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(previewContent))
+                    {
+                        <div class="preview-content">
+                            @((MarkupString)previewContent)
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-5">
+                            <i class="fa-solid fa-newspaper fa-3x mb-3"></i>
+                            <h5>Inga förhandsgranskapsdata</h5>
+                            <p>Förhandsgranskning är inte tillgänglig för denna nyhet.</p>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ClosePreviewModal">
+                        Stäng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<NewsItemViewModel> allNews = new();
     private List<NewsItemViewModel> filteredNews = new();
@@ -508,9 +564,15 @@
     private bool isDeleting = false;
     private NewsItemViewModel? deletingNews;
 
+    // Dokument
     private List<DocumentViewModel> availableDocuments = new();
     private List<NewsDocumentViewModel> selectedNewsDocuments = new();
     private int selectedDocumentId = 0;
+    private List<int> pendingDocumentIds = new(); // För nya nyheter
+
+    // Förhandsgranskning
+    private bool showPreviewModal = false;
+    private string previewContent = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -604,6 +666,9 @@
     private void OpenCreateModal()
     {
         editingNews = new NewsItemViewModel { Id = 0 };
+        pendingDocumentIds.Clear();
+        selectedNewsDocuments.Clear();
+        
         editModel = new CreateNewsViewModel
         {
             AvailableRoles = new List<RoleOption>
@@ -620,6 +685,8 @@
     private async Task OpenEditModal(NewsItemViewModel news)
     {
         editingNews = news;
+        pendingDocumentIds.Clear();
+        
         editModel = new CreateNewsViewModel
         {
             Title = news.Title,
@@ -661,6 +728,8 @@
         showEditModal = false;
         editingNews = null;
         editModel = new CreateNewsViewModel();
+        pendingDocumentIds.Clear();
+        selectedNewsDocuments.Clear();
     }
 
     private async Task HandleFormSubmit(EditContext context)
@@ -701,7 +770,6 @@
         isSaving = true;
         try
         {
-            // Uppdatera valda roller med intelligent hantering
             editModel.SelectedRoles = GetSelectedRoles();
 
             NewsItemViewModel? result;
@@ -711,6 +779,19 @@
                 if (result != null)
                 {
                     await Toast.Success("Nyheten har skapats!");
+                    
+                    // Koppla alla pending dokument till den nya nyheten
+                    if (pendingDocumentIds.Any())
+                    {
+                        foreach (var docId in pendingDocumentIds)
+                        {
+                            var doc = availableDocuments.FirstOrDefault(d => d.Id == docId);
+                            if (doc != null)
+                            {
+                                await NewsService.AttachDocumentToNewsAsync(result.Id, docId, doc.FileName);
+                            }
+                        }
+                    }
                 }
             }
             else
@@ -908,7 +989,7 @@
 
     private async Task AttachSelectedDocument()
     {
-        if (selectedDocumentId == 0 || editingNews?.Id == 0) return;
+        if (selectedDocumentId == 0) return;
         
         var selectedDoc = availableDocuments.FirstOrDefault(d => d.Id == selectedDocumentId);
         if (selectedDoc != null)
@@ -920,19 +1001,36 @@
 
     private async Task AttachDocument(int documentId, string displayName)
     {
-        if (editingNews?.Id == 0) return;
-
         try
         {
-            var success = await NewsService.AttachDocumentToNewsAsync(editingNews.Id, documentId, displayName);
-            if (success)
+            if (editingNews?.Id == 0)
             {
-                await LoadNewsDocuments(editingNews.Id);
-                await Toast.Success("Dokumentet har kopplats till nyheten!");
+                // För nya nyheter, lägg bara till i listan
+                var doc = availableDocuments.FirstOrDefault(d => d.Id == documentId);
+                if (doc != null && !pendingDocumentIds.Contains(documentId))
+                {
+                    pendingDocumentIds.Add(documentId);
+                    selectedNewsDocuments.Add(new NewsDocumentViewModel
+                    {
+                        Id = documentId,
+                        DisplayName = displayName,
+                        FileName = doc.FileName,
+                        FileSize = doc.FileSize,
+                        SortOrder = selectedNewsDocuments.Count
+                    });
+                    StateHasChanged();
+                    await Toast.Success("Dokument markerat för koppling!");
+                }
             }
             else
             {
-                await Toast.Error("Kunde inte koppla dokumentet till nyheten.");
+                // För befintliga nyheter, använd befintlig logik
+                var success = await NewsService.AttachDocumentToNewsAsync(editingNews.Id, documentId, displayName);
+                if (success)
+                {
+                    await LoadNewsDocuments(editingNews.Id);
+                    await Toast.Success("Dokumentet har kopplats till nyheten!");
+                }
             }
         }
         catch (Exception ex)
@@ -944,19 +1042,25 @@
 
     private async Task DetachDocument(int documentId)
     {
-        if (editingNews?.Id == 0) return;
-
         try
         {
-            var success = await NewsService.DetachDocumentFromNewsAsync(editingNews.Id, documentId);
-            if (success)
+            if (editingNews?.Id == 0)
             {
-                await LoadNewsDocuments(editingNews.Id);
-                await Toast.Success("Dokumentet har tagits bort från nyheten!");
+                // För nya nyheter, ta bara bort från listan
+                pendingDocumentIds.Remove(documentId);
+                selectedNewsDocuments.RemoveAll(d => d.Id == documentId);
+                StateHasChanged();
+                await Toast.Success("Dokument borttaget från listan!");
             }
             else
             {
-                await Toast.Error("Kunde inte ta bort dokumentet från nyheten.");
+                // För befintliga nyheter, använd befintlig logik
+                var success = await NewsService.DetachDocumentFromNewsAsync(editingNews.Id, documentId);
+                if (success)
+                {
+                    await LoadNewsDocuments(editingNews.Id);
+                    await Toast.Success("Dokumentet har tagits bort från nyheten!");
+                }
             }
         }
         catch (Exception ex)
@@ -964,6 +1068,18 @@
             Logger.LogError(ex, "Fel vid borttagning av dokumentkoppling");
             await Toast.Error("Ett fel inträffade.");
         }
+    }
+
+    private void OpenPreviewModal(string? content)
+    {
+        previewContent = content ?? "";
+        showPreviewModal = true;
+    }
+
+    private void ClosePreviewModal()
+    {
+        showPreviewModal = false;
+        previewContent = "";
     }
 
     // Hjälpklasser för dokumentsäkerhet

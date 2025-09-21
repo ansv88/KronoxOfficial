@@ -157,10 +157,8 @@
 
                 <form method="post" action="/auth/login">
                     <div class="modal-body">
-                        @if (!string.IsNullOrEmpty(returnUrl))
-                        {
-                            <input type="hidden" name="returnUrl" value="@returnUrl" />
-                        }
+                        <!-- Ta alltid användaren till medlemsnytt efter inloggning -->
+                        <input type="hidden" name="returnUrl" value="/medlemsnytt" />
 
                         @if (!string.IsNullOrEmpty(loginErrorMessage))
                         {
@@ -272,18 +270,18 @@
             loginErrorMessage = GetErrorMessage(errorValues.ToString());
         }
 
-        if (queryParams.TryGetValue("returnUrl", out var returnUrlValues))
-        {
-            returnUrl = System.Net.WebUtility.UrlDecode(returnUrlValues.ToString());
+        // if (queryParams.TryGetValue("returnUrl", out var returnUrlValues))
+        // {
+        //     returnUrl = System.Net.WebUtility.UrlDecode(returnUrlValues.ToString());
             
-            if (!returnUrl.StartsWith("/"))
-                returnUrl = "/" + returnUrl;
+        //     if (!returnUrl.StartsWith("/"))
+        //         returnUrl = "/" + returnUrl;
                 
-            if (uri.AbsolutePath == "/" || uri.AbsolutePath == "/home")
-            {
-                showLogin = true;
-            }
-        }
+        //     if (uri.AbsolutePath == "/" || uri.AbsolutePath == "/home")
+        //     {
+        //         showLogin = true;
+        //     }
+        // }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

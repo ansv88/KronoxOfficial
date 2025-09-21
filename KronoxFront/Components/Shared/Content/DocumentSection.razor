@@ -10,6 +10,7 @@
 @inject IJSRuntime JSRuntime
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
 
 @if (IsLoading)
 {
@@ -30,7 +31,14 @@ else if (!FilteredDocuments.Any())
 {
     <div class="alert alert-info text-center" role="alert">
         <i class="fas fa-info-circle me-2"></i>
-        Inga dokument finns tillgängliga för din behörighetsnivå.
+        @if (selectedCategoryId > 0)
+        {
+            <span>Inga dokument finns tillgängliga i denna kategori.</span>
+        }
+        else
+        {
+            <span>Inga dokument finns tillgängliga för din behörighetsnivå.</span>
+        }
     </div>
 }
 else
@@ -70,11 +78,15 @@ else
                         <div class="col-md-4">
                             <label class="form-label fw-semibold small">
                                 <i class="fas fa-filter me-1"></i>Kategori
+                                @if (initialCategoryId > 0 && !string.IsNullOrEmpty(PresetCategoryName))
+                                {
+                                    <span class="badge bg-primary ms-1">Förfiltrerad</span>
+                                }
                             </label>
                             <select class="form-select form-select-sm" 
                                     @bind="selectedCategoryId" 
                                     @bind:after="ApplyFilters">
-                                <option value="0">Alla (@AllDocuments.Count)</option>
+                                <option value="0">Alla dokument (@AllDocuments.Count)</option>
                                 @foreach (var category in AccessibleCategories.Where(c => AllDocuments.Any(d => d.MainCategoryId == c.Id)))
                                 {
                                     var count = AllDocuments.Count(d => d.MainCategoryId == category.Id);
@@ -98,7 +110,7 @@ else
                     </div>
                 </div>
 
-                @if (!string.IsNullOrEmpty(searchQuery) || selectedCategoryId > 0)
+                @if (!string.IsNullOrEmpty(searchQuery) || (selectedCategoryId != initialCategoryId))
                 {
                     <div class="mt-3">
                         <button class="btn btn-sm btn-outline-secondary" @onclick="ClearFilters">
@@ -185,7 +197,7 @@ else
         <div class="text-center mt-4">
             <a href="/dokument" class="btn btn-outline-primary">
                 <i class="fas fa-arrow-right me-2"></i>
-                Visa alla dokument (@AllDocuments.Count)
+                Visa alla dokument
             </a>
         </div>
     }
@@ -201,6 +213,7 @@ else
 @code {
     // Parametrar för konfiguration
     [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public string PresetCategoryName { get; set; } = "";
     [Parameter] public bool ShowTitle { get; set; } = true;
     [Parameter] public string Title { get; set; } = "Dokument";
     [Parameter] public bool ShowFilters { get; set; } = true;
@@ -221,6 +234,7 @@ else
     private bool isViewerOpen = false;
     private int selectedDocumentId = 0;
     private string selectedDocumentName = "";
+    private int initialCategoryId = 0;
 
     // Filter variabler
     private string searchQuery = "";
@@ -236,6 +250,9 @@ else
             IsAdmin = authState.User.IsInRole("Admin");
 
             await LoadDocuments();
+            
+            // Sätt förinställd kategori efter att dokument laddats
+            await SetPresetCategory();
         }
         catch (Exception ex)
         {
@@ -245,6 +262,96 @@ else
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private async Task SetPresetCategory()
+    {
+        // Om PresetCategoryName är satt, använd den
+        if (!string.IsNullOrEmpty(PresetCategoryName))
+        {
+            var category = AccessibleCategories.FirstOrDefault(c => 
+                c.Name.Equals(PresetCategoryName, StringComparison.OrdinalIgnoreCase));
+            
+            if (category != null)
+            {
+                selectedCategoryId = category.Id;
+                initialCategoryId = category.Id;
+                ApplyFilters();
+                return;
+            }
+        }
+        
+        // Hämta sidnamn från URL
+        var uri = new Uri(Navigation.Uri);
+        var pageName = uri.LocalPath.Trim('/').Split('/').LastOrDefault() ?? "";
+        
+        // Ta bort eventuell filextension
+        if (pageName.Contains('.'))
+        {
+            pageName = pageName.Substring(0, pageName.IndexOf('.'));
+        }
+        
+        // Försök matcha sidnamn mot kategorinamn
+        if (!string.IsNullOrEmpty(pageName))
+        {
+            // Exakt matchning först
+            var exactMatch = AccessibleCategories.FirstOrDefault(c => 
+                c.Name.Equals(pageName, StringComparison.OrdinalIgnoreCase));
+                
+            if (exactMatch != null)
+            {
+                selectedCategoryId = exactMatch.Id;
+                initialCategoryId = exactMatch.Id;
+                ApplyFilters();
+                return;
+            }
+            
+            // Specialfall för vanliga sidnamn
+            var pageNameMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "forstyrelsen", "Styrelsen" },
+                { "styrelsen", "Styrelsen" },
+                { "forvnsg", "VNSG" },
+                { "vnsg", "VNSG" },
+                { "formedlemmar", "Medlemmar" },
+                { "medlemmar", "Medlemmar" },
+                { "administration", "Administration" },
+                { "admin", "Administration" }
+            };
+
+            if (pageNameMappings.TryGetValue(pageName, out var categoryName))
+            {
+                var category = AccessibleCategories.FirstOrDefault(c => 
+                    c.Name.Equals(categoryName, StringComparison.OrdinalIgnoreCase));
+                
+                if (category != null)
+                {
+                    selectedCategoryId = category.Id;
+                    initialCategoryId = category.Id;
+                    ApplyFilters();
+                    return;
+                }
+            }
+            
+            // Delvis matchning - om sidnamnet innehåller kategorinamnet eller tvärtom
+            var partialMatch = AccessibleCategories.FirstOrDefault(c => 
+                pageName.Contains(c.Name, StringComparison.OrdinalIgnoreCase) ||
+                c.Name.Contains(pageName, StringComparison.OrdinalIgnoreCase));
+                
+            if (partialMatch != null)
+            {
+                selectedCategoryId = partialMatch.Id;
+                initialCategoryId = partialMatch.Id;
+                ApplyFilters();
+            }
+        }
+        
+        // Om ingen kategori matchades, sätt till 0 (visa alla)
+        if (selectedCategoryId == 0)
+        {
+            initialCategoryId = 0;
+            ApplyFilters();
         }
     }
 
@@ -287,7 +394,7 @@ else
             documents = documents.Where(d => CategoryFilter.Contains(d.MainCategoryId));
         }
 
-        // Vald kategorifilter från UI
+        // Vald kategorifilter från UI - bara om det är större än 0
         if (selectedCategoryId > 0)
         {
             documents = documents.Where(d => d.MainCategoryId == selectedCategoryId);
@@ -322,7 +429,7 @@ else
     private void ClearFilters()
     {
         searchQuery = "";
-        selectedCategoryId = 0;
+        selectedCategoryId = initialCategoryId;
         sortOption = "newest";
         ApplyFilters();
     }

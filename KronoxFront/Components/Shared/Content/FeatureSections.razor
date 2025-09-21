@@ -1,4 +1,10 @@
-﻿@using KronoxFront.ViewModels
+﻿@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components.Authorization
+@inject CmsService Cms
+@inject AuthenticationStateProvider AuthState
+@implements IDisposable
+@inject CacheService Cache
 
 @if (Sections.Count > 0)
 {
@@ -28,7 +34,7 @@
                     {
                         <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
                     }
-                    <div>@((MarkupString)featureItem.Content)</div>
+                    <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
                 </div>
             }
             else
@@ -38,7 +44,7 @@
                     {
                         <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
                     }
-                    <div>@((MarkupString)featureItem.Content)</div>
+                    <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
                 </div>
             }
         </div>
@@ -61,8 +67,107 @@ else
 }
 
 @code {
-    [Parameter] public List<FeatureSectionViewModel> Sections { get; set; } = new();
-    [Parameter] public bool IsAdmin { get; set; } = false;
     [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public bool IsAdmin { get; set; } = false;
     [Parameter] public EventCallback<string> OnImageClick { get; set; }
+
+    private List<FeatureSectionViewModel> Sections { get; set; } = new();
+    private bool isLoggedIn = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthState.AuthenticationStateChanged += AuthenticationStateChanged;
+        await LoadSectionsAsync();
+    }
+
+    private async Task LoadSectionsAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        isLoggedIn = authState.User.Identity?.IsAuthenticated == true;
+        Sections = await Cms.GetFeatureSectionsAsync(PageKey, includePrivate: isLoggedIn);
+        StateHasChanged();
+    }
+
+    private void AuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        _ = HandleAuthenticationStateChangedAsync(stateTask);
+    }
+
+    private async Task HandleAuthenticationStateChangedAsync(Task<AuthenticationState> stateTask)
+    {
+        try
+        {
+            var authState = await stateTask;
+            var newIsLoggedIn = authState.User.Identity?.IsAuthenticated == true;
+            if (newIsLoggedIn != isLoggedIn)
+            {
+                await LoadSectionsAsync();
+            }
+        }
+        catch
+        {
+            // Logga ev. fel
+        }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            AuthState.AuthenticationStateChanged -= AuthenticationStateChanged;
+        }
+        catch { }
+    }
+
+    private string GetEnhancedContent(FeatureSectionViewModel featureItem)
+    {
+        var content = featureItem.Content;
+
+        if (isLoggedIn && featureItem.HasPrivateContent)
+        {
+            if (!string.IsNullOrEmpty(featureItem.PrivateContent))
+            {
+                content += featureItem.PrivateContent;
+            }
+
+            if (featureItem.ContactPersons != null && featureItem.ContactPersons.Any())
+            {
+                if (!string.IsNullOrEmpty(featureItem.ContactHeading))
+                {
+                    content += $"<h4 class='mt-4 mb-3 fw-bold'>{featureItem.ContactHeading}</h4>";
+                }
+
+                foreach (var contact in featureItem.ContactPersons)
+                {
+                    if (string.IsNullOrEmpty(contact.Name)) continue;
+
+                    var contactInfo = $"<div class='contact-enhanced py-2 ps-3 mb-3 border-start border-primary border-3'>";
+
+                    contactInfo += $"<div class='fw-semibold mb-1'>{contact.Name}";
+                    if (!string.IsNullOrEmpty(contact.Organization))
+                    {
+                        contactInfo += $" <span class='text-muted'>({contact.Organization})</span>";
+                    }
+                    contactInfo += "</div>";
+
+                    if (!string.IsNullOrEmpty(contact.Email))
+                    {
+                        contactInfo += $"<div class='text-muted small ms-3 mb-1'>" +
+                                      $"<i class='fa-solid fa-envelope me-1'></i>" +
+                                      $"<a href='mailto:{contact.Email}' class='text-decoration-none'>{contact.Email}</a></div>";
+                    }
+
+                    if (!string.IsNullOrEmpty(contact.Phone))
+                    {
+                        contactInfo += $"<div class='text-muted small ms-3 mb-1'>" +
+                                      $"<i class='fa-solid fa-phone me-1'></i>{contact.Phone}</div>";
+                    }
+
+                    contactInfo += "</div>";
+                    content += contactInfo;
+                }
+            }
+        }
+        return content;
+    }
 }

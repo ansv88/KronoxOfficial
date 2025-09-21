@@ -14,6 +14,16 @@ public class PageAuthorizationMiddleware
         "", "home", "404", "error", "robots.txt", "notfound"
     };
 
+    // Lista över publika sidor som inte kräver inloggning
+    private static readonly HashSet<string> PublicPages = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "omkonsortiet",
+        "omsystemet",
+        "visioner",
+        "kontaktaoss",
+        "kontakt"
+    };
+
     public PageAuthorizationMiddleware(RequestDelegate next, IHttpClientFactory httpClientFactory, ILogger<PageAuthorizationMiddleware> logger)
     {
         _next = next;
@@ -27,6 +37,14 @@ public class PageAuthorizationMiddleware
         
         if (ShouldSkipPath(path))
         {
+            await _next(context);
+            return;
+        }
+
+        // Kontrollera om det är en publik sida
+        if (PublicPages.Contains(path))
+        {
+            // För publika sidor, tillåt alltid åtkomst
             await _next(context);
             return;
         }
@@ -102,6 +120,18 @@ public class PageAuthorizationMiddleware
                     _logger.LogInformation("API denied access to navigation for {Path} due to authorization", path);
                     context.Response.Redirect("/404");
                     return;
+                }
+                // Lägg till: För okända sidor som inte är publika, kräv autentisering
+                else if (navResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    // Om sidan inte finns i navigation config och inte är publik, kräv inloggning
+                    var user = context.User;
+                    if (!user?.Identity?.IsAuthenticated ?? true)
+                    {
+                        _logger.LogInformation("Anonymous user tried to access unknown page {Path}, redirecting to 404", path);
+                        context.Response.Redirect("/404");
+                        return;
+                    }
                 }
             }
             else

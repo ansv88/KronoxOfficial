@@ -163,8 +163,8 @@ public class Program
 
         // Proxy-endpoint för inloggning
         app.MapPost("/auth/login", async (HttpContext ctx,
-                                         IFormCollection form,
-                                         IHttpClientFactory http) =>
+                                 IFormCollection form,
+                                 IHttpClientFactory http) =>
         {
             try
             {
@@ -196,17 +196,25 @@ public class Program
                 }
 
                 var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user!.UserId),
-            new(ClaimTypes.Name,           user.UserName)
-        };
+                {
+                    new(ClaimTypes.NameIdentifier, user!.UserId),
+                    new(ClaimTypes.Name,           user.UserName)
+                };
                 claims.AddRange(user.Roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
                 await ctx.SignInAsync("KronoxAuth",
                     new ClaimsPrincipal(new ClaimsIdentity(claims, "KronoxAuth")));
 
-                // Skicka tillbaka till startsidan så att circuiten startar med cookien medskickad.
-                return Results.Redirect("/");
+                // Hämta returnUrl från formuläret
+                var returnUrl = form["returnUrl"].ToString();
+                
+                // Om ingen returnUrl finns eller om den inte är lokal, använd /medlemsnytt
+                if (string.IsNullOrEmpty(returnUrl) || !IsLocalUrl(ctx, returnUrl))
+                {
+                    returnUrl = "/medlemsnytt";
+                }
+
+                return Results.Redirect(returnUrl);
             }
             catch (Exception ex)
             {
@@ -323,6 +331,37 @@ public class Program
                 ".svg" => "image/svg+xml",
                 _ => "application/octet-stream"
             };
+        }
+
+        // Hjälpmetod för att validera lokala URL:er
+        static bool IsLocalUrl(HttpContext context, string url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+
+            // Måste börja med /
+            if (!url.StartsWith("/"))
+            {
+                return false;
+            }
+
+            // Får inte vara en absolut URI
+            if (Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            {
+                return false;
+            }
+
+            // Får inte innehålla dubbla slashar (förutom i query string)
+            var queryIndex = url.IndexOf('?');
+            var pathPart = queryIndex >= 0 ? url.Substring(0, queryIndex) : url;
+            if (pathPart.Contains("//"))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         app.Run();

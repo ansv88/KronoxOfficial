@@ -445,23 +445,27 @@ public class CmsService
         }
         else
         {
-            _logger.LogInformation("Fetching authenticated feature sections from API: {PageKey}", pageKey);
-            try
+            // Inloggat innehåll
+            return await _cache.GetOrSetAsync($"features_private_{pageKey}", async () =>
             {
-                var response = await _http.GetAsync($"api/featuresections/{pageKey}/authenticated");
-                if (response.IsSuccessStatusCode)
+                _logger.LogInformation("Fetching authenticated feature sections from API: {PageKey}", pageKey);
+                try
                 {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var sectionsWithPrivate = JsonSerializer.Deserialize<List<FeatureSectionWithPrivateDto>>(json, _jsonOptions) ?? new();
-                    return MapToViewModelsWithPrivate(sectionsWithPrivate);
+                    var response = await _http.GetAsync($"api/featuresections/{pageKey}/authenticated");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync();
+                        var sectionsWithPrivate = JsonSerializer.Deserialize<List<FeatureSectionWithPrivateDto>>(json, _jsonOptions) ?? new();
+                        return MapToViewModelsWithPrivate(sectionsWithPrivate);
+                    }
+                    return await GetFeatureSectionsFromMetadata(pageKey);
                 }
-                return await GetFeatureSectionsFromMetadata(pageKey);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching authenticated feature sections for {PageKey}", pageKey);
-                return await GetFeatureSectionsFromMetadata(pageKey);
-            }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error fetching authenticated feature sections for {PageKey}", pageKey);
+                    return await GetFeatureSectionsFromMetadata(pageKey);
+                }
+            }, TimeSpan.FromMinutes(8), $"features_{pageKey}") ?? new List<FeatureSectionViewModel>();
         }
     }
 
@@ -639,6 +643,7 @@ public class CmsService
                             Priority = i.Priority,
                             Module = i.Module,
                             Activity = i.Activity,
+                            DetailedDescription = i.DetailedDescription,
                             PlannedDelivery = i.PlannedDelivery,
                             Completed = i.Completed,
                             SortOrder = i.SortOrder
@@ -1683,7 +1688,6 @@ public class CmsService
                 });
                 break;
 
-            case "kontakt":
             case "kontaktaoss":
                 defaultSections.AddRange(new []
                 {

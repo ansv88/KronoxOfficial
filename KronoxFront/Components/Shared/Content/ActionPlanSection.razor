@@ -1,0 +1,155 @@
+@using KronoxFront.ViewModels
+
+@if (IsAdminContext)
+{
+    <div class="card mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h3 class="h5 mb-0">
+                <i class="fa-solid fa-list-check me-2"></i>
+                @(string.IsNullOrWhiteSpace(Title) ? "Handlingsplan" : Title)
+            </h3>
+
+            @if (ShowAdminButton)
+            {
+                <a href="@AdminButtonUrl" class="btn btn-outline-primary btn-sm">
+                    <i class="fa-solid fa-clipboard-list me-1"></i>
+                    Hantera handlingsplan
+                </a>
+            }
+        </div>
+        <div class="card-body">
+            @RenderActionPlanTable()
+
+            @if (ActionPlan?.LastModified != default)
+            {
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        <i class="fa-solid fa-clock me-1"></i>
+                        Senast uppdaterad: @ActionPlan.LastModified.ToString("yyyy-MM-dd HH:mm")
+                    </small>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="action-plan-container">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <h2 class="text-center mb-4">@Title</h2>
+        }
+
+        @RenderActionPlanTable()
+
+        @if (ActionPlan?.LastModified != default)
+        {
+            <div class="text-center mt-3">
+                <small class="text-muted">
+                    <i class="fa-solid fa-clock me-1"></i>
+                    Senast uppdaterad: @ActionPlan.LastModified.ToString("yyyy-MM-dd HH:mm")
+                </small>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public ActionPlanTableViewModel? ActionPlan { get; set; }
+    [Parameter] public string? Title { get; set; } = "Handlingsplan";
+    [Parameter] public bool ShowAdminButton { get; set; } = false;
+    [Parameter] public string AdminButtonUrl { get; set; } = "/admin/actionplan";
+    [Parameter] public bool IsAdminContext { get; set; } = false;
+
+    private HashSet<int> expandedDescriptions = new();
+
+    private RenderFragment RenderActionPlanTable() => __builder =>
+    {
+        if (ActionPlan?.Items?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <colgroup>
+                        <col style="width: 6rem;">
+                        <col style="width: 10rem;">
+                        <col>
+                        <col style="width: 9rem;">
+                        <col style="width: 6rem;">
+                    </colgroup>
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="text-center">Prioritering</th>
+                            <th>Modul/del</th>
+                            <th>Aktivitet</th>
+                            <th class="text-center">Planerad leverans</th>
+                            <th class="text-center">Avklarad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in ActionPlan.Items.OrderBy(i => i.SortOrder))
+                        {
+                            <tr>
+                                <td class="text-center"><span class="badge bg-secondary">@item.Priority</span></td>
+                                <td><strong>@item.Module</strong></td>
+                                <td>
+                                    <div class="d-flex align-items-start">
+                                        <div class="flex-grow-1 text-break">@item.Activity</div>
+                                        @if (!string.IsNullOrWhiteSpace(item.DetailedDescription))
+                                        {
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
+                                                    @onclick="() => ToggleDescription(item.Id)"
+                                                    title="Visa/dölj detaljerad beskrivning">
+                                                <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-center"><span class="text-muted">@item.PlannedDelivery</span></td>
+                                <td class="text-center">
+                                    @if (!string.IsNullOrEmpty(item.Completed))
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="fa-solid fa-check me-1"></i>@item.Completed
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Pågående</span>
+                                    }
+                                </td>
+                            </tr>
+
+                            @if (expandedDescriptions.Contains(item.Id) && !string.IsNullOrWhiteSpace(item.DetailedDescription))
+                            {
+                                <tr class="table-light">
+                                    <td colspan="5">
+                                        <div class="p-3">
+                                            <small class="text-muted fw-bold">Detaljerad beskrivning:</small>
+                                            <div class="mt-2">@((MarkupString)item.DetailedDescription)</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-muted py-4">
+                <i class="fa-solid fa-table fa-2x mb-2"></i>
+                <p>Ingen handlingsplan har lagts till än.</p>
+            </div>
+        }
+    };
+
+    private void ToggleDescription(int itemId)
+    {
+        if (expandedDescriptions.Contains(itemId))
+            expandedDescriptions.Remove(itemId);
+        else
+            expandedDescriptions.Add(itemId);
+    }
+}

@@ -269,6 +269,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Module).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Activity).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.DetailedDescription).HasColumnType("nvarchar(max)");
             entity.Property(e => e.PlannedDelivery).HasMaxLength(100);
             entity.Property(e => e.Completed).HasMaxLength(100);
             

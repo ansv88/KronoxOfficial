@@ -1,6 +1,7 @@
 ﻿@page "/admin/page/{PageKey}"
 @using KronoxFront.Components.Editors
 @using KronoxFront.Components.Shared.Admin
+@using KronoxFront.Components.Shared.Content
 @using KronoxFront.Components.Shared.Layout
 @using KronoxFront.Components.Shared.UI
 @using KronoxFront.ViewModels
@@ -11,6 +12,7 @@
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
+@implements IDisposable
 @inject CmsService Cms
 @inject IHttpClientFactory HttpClientFactory
 @inject IToastService Toast
@@ -65,16 +67,13 @@ else
                                 <i class="fa-solid fa-arrow-left me-1"></i>
                                 Tillbaka
                             </a>
-                            
+
                             <PageStatusText PageKey="@PageKey" />
-                            
+
                             <a href="@($"/{PageKey}")" class="btn btn-outline-secondary" target="_blank" title="Visar sparade ändringar">
                                 <i class="fa-solid fa-eye me-1"></i>
                                 Visa sparad sida
                             </a>
-
-                            @* Dynamiska knappar baserat på aktiverade sektioner *@
-                            @GetPageSpecificButtons()
 
                             <button type="button" class="btn btn-success" @onclick="SaveContent" disabled="@isSaving">
                                 @if (isSaving)
@@ -124,9 +123,9 @@ else
 
                 @* ---------- Section Configuration Manager ----------- *@
                 <PageSectionConfigurator PageKey="@PageKey"
-                                     AvailableSections="sectionConfigItems"
-                                     OnConfigurationChanged="OnSectionConfigurationChanged"
-                                     OnSave="SaveSectionConfiguration" />
+                                         AvailableSections="sectionConfigItems"
+                                         OnConfigurationChanged="OnSectionConfigurationChanged"
+                                         OnSave="SaveSectionConfiguration" />
 
                 @* ---------- Navigeringsinställningar ----------- *@
                 <NavigationSettings PageKey="@PageKey"
@@ -154,28 +153,27 @@ else
 
                         case SectionType.NavigationButtons:
                             <NavigationButtonManager ShowNavigationButtons="introSection.ShowNavigationButtons"
-                                                      NavigationButtons="introSection.NavigationButtons"
-                                                      ShowNavigationButtonsChanged="OnShowNavigationButtonsChanged"
-                                                      NavigationButtonsChanged="OnNavigationButtonsChanged" />
+                                                     NavigationButtons="introSection.NavigationButtons"
+                                                     ShowNavigationButtonsChanged="OnShowNavigationButtonsChanged"
+                                                     NavigationButtonsChanged="OnNavigationButtonsChanged" />
                             break;
 
                         case SectionType.FeatureSections:
                             <FeatureSectionEditor @ref="featureSectionEditorRef"
-                                                   Sections="featureSections"
-                                                   OnSectionsChanged="OnFeatureSectionsChanged"
-                                                   OnImageUpload="OnFeatureImageUploaded"
-                                                   OnImageDelete="OnFeatureImageDeleted" />
+                                                  OnSectionsChanged="OnFeatureSectionsChanged"
+                                                  OnImageUpload="OnFeatureImageUploaded"
+                                                  OnImageDelete="OnFeatureImageDeleted" />
                             break;
 
                         case SectionType.FaqSections:
                             <FaqEditor @ref="faqEditorRef"
-                                        FaqSections="faqSections"
-                                        OnFaqSectionsChanged="OnFaqSectionsChanged"
-                                        OnFaqImageUpload="OnFaqImageUploaded" />
+                                       FaqSections="faqSections"
+                                       OnFaqSectionsChanged="OnFaqSectionsChanged"
+                                       OnFaqImageUpload="OnFaqImageUploaded" />
                             break;
 
                         case SectionType.ContactForm:
-                            <ContactFormEditor ContactInfo="@contactInfo" 
+                            <ContactFormEditor ContactInfo="@contactInfo"
                                                IsSaving="@isSaving"
                                                OnContactInfoChanged="OnContactInfoChanged" />
                             break;
@@ -191,9 +189,11 @@ else
                             break;
 
                         case SectionType.ActionPlanTable:
-                            <ActionPlanEditor PageKey="@PageKey"
-                                              ActionPlan="@actionPlan"
-                                              IsFullEditor="false" />
+                            <ActionPlanSection ActionPlan="@actionPlan"
+                                               Title="Handlingsplan"
+                                               IsAdminContext="true"
+                                               ShowAdminButton="true"
+                                               AdminButtonUrl="/admin/actionplan" />
                             break;
 
                         case SectionType.DevelopmentSuggestionForm:
@@ -271,9 +271,10 @@ else
     private FaqEditor? faqEditorRef;
     private ActionPlanTableViewModel actionPlan = new();
     private ContactPageInfoViewModel contactInfo = new();
-    
+
     private bool isLoading = true;
     private bool isSaving = false;
+    private bool needsEditorInitialization = false;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -283,9 +284,15 @@ else
         {
             isLoading = true;
 
+            // Rensa tidigare data först
+            ClearPreviousPageData();
+
+            // Tvinga uppdatering av UI
+            StateHasChanged();
+
             // Ladda custom page data
             await LoadPageData();
-            
+
             // Ladda sektionskonfiguration
             sectionConfigItems = await Cms.GetPageSectionConfigAsync(PageKey);
 
@@ -310,7 +317,26 @@ else
         finally
         {
             isLoading = false;
+
+            needsEditorInitialization = true;
         }
+    }
+
+    private void ClearPreviousPageData()
+    {
+        // Rensa all data från föregående sida
+        customPage = null;
+        introSection = new();
+        featureSections = new();
+        sectionConfigItems = new();
+        faqSections = new();
+        actionPlan = new();
+        contactInfo = new();
+
+        // Rensa referenser till editorer
+        introSectionEditorRef = null;
+        featureSectionEditorRef = null;
+        faqEditorRef = null;
     }
 
     private async Task LoadPageData()
@@ -365,7 +391,7 @@ else
     private async Task LoadIntroSection()
     {
         introSection = await Cms.GetIntroSectionAsync(PageKey);
-        
+
         if (string.IsNullOrEmpty(introSection.Title) && customPage != null)
         {
             introSection.Title = customPage.DisplayName;
@@ -472,9 +498,16 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        // Kolla både firstRender OCH needsEditorInitialization
+        if (firstRender || needsEditorInitialization)
         {
+            // Återställ flaggan
+            needsEditorInitialization = false;
+
+            // Vänta lite för att säkerställa att DOM är redo
             await Task.Delay(500);
+
+            // Initiera editorer
             await InitializeEditors();
         }
     }
@@ -484,9 +517,11 @@ else
         try
         {
             Logger.LogInformation("=== Startar TinyMCE-initialisering för custom page {PageKey} ===", PageKey);
-            
+
+            // Extra rensning vid sidbyten
+            await JS.InvokeVoidAsync("eval", "if(typeof tinymce !== 'undefined') { tinymce.remove(); }");
             await Task.Delay(500);
-            
+
             // Global rensning
             await JS.InvokeVoidAsync("destroyAllEditors");
             await Task.Delay(300);
@@ -786,7 +821,7 @@ else
                     var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
                     customPage.DisplayName = newDisplayName;
                     var response = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", customPage.ToUpdateRequest());
-                    
+
                     if (response.IsSuccessStatusCode)
                     {
                         await Toast.Success("Sidans visningsnamn uppdaterat!");
@@ -817,59 +852,59 @@ else
         return $"Dokumentsektionen visar relevanta dokument för {customPage?.DisplayName ?? "denna sida"}.";
     }
 
-    private RenderFragment GetPageSpecificButtons()
-    {
-        var activeSections = sectionConfigItems.Where(s => s.IsEnabled).Select(s => s.Type).ToList();
-        var buttons = new List<RenderFragment>();
+    // private RenderFragment GetPageSpecificButtons()
+    // {
+    //     var activeSections = sectionConfigItems.Where(s => s.IsEnabled).Select(s => s.Type).ToList();
+    //     var buttons = new List<RenderFragment>();
 
-        if (activeSections.Contains(SectionType.NewsSection))
-        {
-            buttons.Add(@<a href="/admin/news" class="btn btn-outline-primary">
-                <i class="fa-solid fa-newspaper me-1"></i>
-                Hantera nyheter
-            </a>);
-        }
+    //     if (activeSections.Contains(SectionType.NewsSection))
+    //     {
+    //         buttons.Add(@<a href="/admin/news" class="btn btn-outline-primary">
+    //             <i class="fa-solid fa-newspaper me-1"></i>
+    //             Hantera nyheter
+    //         </a>);
+    //     }
 
-        if (activeSections.Contains(SectionType.DocumentSection))
-        {
-            buttons.Add(@<a href="/admin/documents/manage" class="btn btn-outline-primary">
-                <i class="fa-solid fa-file me-1"></i>
-                Hantera dokument
-            </a>);
-        }
+    //     if (activeSections.Contains(SectionType.DocumentSection))
+    //     {
+    //         buttons.Add(@<a href="/admin/documents/manage" class="btn btn-outline-primary">
+    //             <i class="fa-solid fa-file me-1"></i>
+    //             Hantera dokument
+    //         </a>);
+    //     }
 
-        if (activeSections.Contains(SectionType.DevelopmentSuggestionForm))
-        {
-            buttons.Add(@<a href="/admin/suggestions" class="btn btn-outline-primary">
-                <i class="fa-solid fa-lightbulb me-1"></i>
-                Visa förslag
-            </a>);
-        }
+    //     if (activeSections.Contains(SectionType.DevelopmentSuggestionForm))
+    //     {
+    //         buttons.Add(@<a href="/admin/suggestions" class="btn btn-outline-primary">
+    //             <i class="fa-solid fa-lightbulb me-1"></i>
+    //             Visa förslag
+    //         </a>);
+    //     }
 
-        if (activeSections.Contains(SectionType.MemberLogos))
-        {
-            buttons.Add(@<a href="/admin/memberlogos" class="btn btn-outline-primary">
-                <i class="fa-solid fa-users me-1"></i>
-                Hantera logotyper
-            </a>);
-        }
+    //     if (activeSections.Contains(SectionType.MemberLogos))
+    //     {
+    //         buttons.Add(@<a href="/admin/memberlogos" class="btn btn-outline-primary">
+    //             <i class="fa-solid fa-users me-1"></i>
+    //             Hantera logotyper
+    //         </a>);
+    //     }
 
-        if (activeSections.Contains(SectionType.ActionPlanTable))
-        {
-            buttons.Add(@<a href="/admin/actionplan" class="btn btn-outline-primary">
-                <i class="fa-solid fa-tasks me-1"></i>
-                Hantera handlingsplan
-            </a>);
-        }
+    //     if (activeSections.Contains(SectionType.ActionPlanTable))
+    //     {
+    //         buttons.Add(@<a href="/admin/actionplan" class="btn btn-outline-primary">
+    //             <i class="fa-solid fa-tasks me-1"></i>
+    //             Hantera handlingsplan
+    //         </a>);
+    //     }
 
-        return builder =>
-        {
-            foreach (var button in buttons)
-            {
-                builder.AddContent(0, button);
-            }
-        };
-    }
+    //     return builder =>
+    //     {
+    //         foreach (var button in buttons)
+    //         {
+    //             builder.AddContent(0, button);
+    //         }
+    //     };
+    // }
 
     private string GetNavigationTypeText(string navigationType)
     {
@@ -881,5 +916,19 @@ else
             "hidden" => "Dold",
             _ => navigationType
         };
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            // Rensa alla TinyMCE-editorer
+            _ = JS.InvokeVoidAsync("destroyAllEditors");
+            Logger.LogInformation("Disposed CustomPageAdmin för {PageKey}", PageKey);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Fel vid dispose av CustomPageAdmin");
+        }
     }
 }

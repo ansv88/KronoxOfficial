@@ -169,4 +169,24 @@ public class CacheService
         _cacheGroups.Clear();
         _logger.LogWarning("All cache cleared");
     }
+
+    // Invalidera cacher relaterade till specifik sida
+    public void InvalidateRelatedPageCaches(string pageKey)
+    {
+        // Invalidera själva sidans cache
+        InvalidatePageCache(pageKey);
+        
+        // Om det är kontaktaoss, rensa eventuella gamla kontakt-cacher
+        if (pageKey == "kontaktaoss")
+        {
+            InvalidatePageCache("kontakt"); // För säkerhets skull
+            InvalidateKey("content_kontakt");
+            InvalidateKey("intro-section-kontakt");
+            InvalidateKey("features_public_kontakt");
+            InvalidateKey("features_private_kontakt");
+            InvalidateKey("faq_kontakt");
+        }
+        
+        _logger.LogInformation("Invalidated caches for {PageKey} and related pages", pageKey);
+    }
 }
