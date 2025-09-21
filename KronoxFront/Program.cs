@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
+using System.Net.Http.Headers;
 
 namespace KronoxFront;
 
@@ -161,6 +162,37 @@ public class Program
             app.UseHsts();
         }
 
+        var redirects = app.Configuration.GetSection("Redirects")
+            .Get<Dictionary<string, string>>() ?? new();
+
+        app.MapGet("/go/{slug}", (HttpContext ctx, string slug, IWebHostEnvironment env, ILogger<Program> log) =>
+        {
+            if (!redirects.TryGetValue(slug, out var target) || string.IsNullOrWhiteSpace(target))
+            {
+                return Results.NotFound();
+            }
+
+            if (!Uri.TryCreate(target, UriKind.Absolute, out var uri))
+            {
+                log.LogWarning("Ogiltig redirect-URL för slug {Slug}", slug);
+                return Results.BadRequest("Invalid target");
+            }
+
+            // Tillåt endast https i prod
+            if (!env.IsDevelopment() && uri.Scheme != Uri.UriSchemeHttps)
+            {
+                log.LogWarning("Icke-HTTPS target blockerat för slug {Slug}", slug);
+                return Results.BadRequest("Insecure target");
+            }
+
+            // Minimera cache av själva redirectsvaret
+            ctx.Response.Headers.CacheControl = "no-store, no-cache, max-age=0";
+            ctx.Response.Headers.Pragma = "no-cache";
+
+            log.LogInformation("Redirect {Slug} -> {Target}", slug, target);
+            return Results.Redirect(uri.ToString(), permanent: false); // 302
+        });
+
         // Proxy-endpoint för inloggning
         app.MapPost("/auth/login", async (HttpContext ctx,
                                  IFormCollection form,
@@ -234,6 +266,42 @@ public class Program
         {
             await ctx.SignOutAsync("KronoxAuth");
             return Results.Redirect("/");        // 302
+        })
+        .DisableAntiforgery();
+
+        // Proxy-endpoint för TinyMCE-bilduppladdning
+        app.MapPost("/api/content/{pageKey}/images", async (HttpContext ctx, string pageKey, IHttpClientFactory http) =>
+        {
+            if (!ctx.Request.HasFormContentType)
+                return Results.BadRequest("Ingen form-data mottagen.");
+
+            var form = await ctx.Request.ReadFormAsync();
+
+            // Bygg om multipart-innehåll till API:t
+            using var content = new MultipartFormDataContent();
+
+            // altText (om fanns med i form-data)
+            if (form.TryGetValue("altText", out var altText) && !string.IsNullOrWhiteSpace(altText))
+            {
+                content.Add(new StringContent(altText!), "altText");
+            }
+
+            // fil(er)
+            foreach (var file in form.Files)
+            {
+                var stream = file.OpenReadStream();
+                var fileContent = new StreamContent(stream);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, "file", file.FileName);
+            }
+
+            var client = http.CreateClient("KronoxAPI");
+            var apiResponse = await client.PostAsync($"api/content/{pageKey}/images", content);
+
+            var body = await apiResponse.Content.ReadAsStringAsync();
+            var contentType = apiResponse.Content.Headers.ContentType?.ToString() ?? "application/json";
+
+            return Results.Text(body, contentType, System.Text.Encoding.UTF8, (int)apiResponse.StatusCode);
         })
         .DisableAntiforgery();
 

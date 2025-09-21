@@ -8,6 +8,7 @@
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.Services
+@using System.Text.RegularExpressions
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
@@ -16,6 +17,8 @@
 @inject IJSRuntime JS
 @inject ILogger<ActionPlanAdmin> Logger
 @inject IToastService Toast
+@inject CmsService Cms
+@implements IAsyncDisposable
 
 <HeadContent>
     <meta name="description" content="Administrera handlingsplan för KronoX. Lägg till, redigera och hantera åtgärder med detaljerade beskrivningar." />
@@ -26,15 +29,21 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
+
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3">
                     <i class="fa-solid fa-clipboard-list me-2"></i>
                     Hantera handlingsplan
                 </h1>
-                <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
-                    <i class="fa-solid fa-plus me-1"></i>
-                    Lägg till åtgärd
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CleanUnusedImagesAsync" title="Rensa bilder som inte längre används">
+                        <i class="fa-solid fa-broom me-1"></i> Rensa oanvända bilder
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
+                        <i class="fa-solid fa-plus me-1"></i>
+                        Lägg till åtgärd
+                    </button>
+                </div>
             </div>
 
             @if (isLoading)
@@ -77,7 +86,7 @@
                                 <colgroup>
                                     <col style="width: 6rem;">
                                     <col style="width: 10rem;">
-                                    <col> 
+                                    <col>
                                     <col style="width: 9rem;">
                                     <col style="width: 6rem;">
                                     <col style="width: 12rem;">
@@ -101,7 +110,7 @@
                                         {
                                             var item = sortedItems[i];
                                             var index = i;
-                                            
+
                                             <tr>
                                                 <td class="text-center">@item.Priority</td>
                                                 <td>@item.Module</td>
@@ -110,8 +119,8 @@
                                                         <div class="flex-grow-1 text-break">@item.Activity</div>
                                                         @if (!string.IsNullOrWhiteSpace(item.DetailedDescription))
                                                         {
-                                                            <button type="button" class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline" 
-                                                                    @onclick="@(() => ToggleDescription(item.Id))" 
+                                                            <button type="button" class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
+                                                                    @onclick="@(() => ToggleDescription(item.Id))"
                                                                     title="Visa/dölj detaljerad beskrivning">
                                                                 <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
                                                             </button>
@@ -152,6 +161,7 @@
                                                     </div>
                                                 </td>
                                             </tr>
+
                                             @if (expandedDescriptions.Contains(item.Id) && !string.IsNullOrWhiteSpace(item.DetailedDescription))
                                             {
                                                 <tr class="table-light">
@@ -175,7 +185,6 @@
     </div>
 </div>
 
-@* Modal för skapa/redigera åtgärd *@
 @if (showEditModal && editingItem != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -289,12 +298,10 @@
     private ActionPlanTableViewModel? actionPlan;
     private bool isLoading = true;
     private bool hasError = false;
-    private bool isSaving = false;
-    private bool hasChanges = false;
     private string pageKey = "forvaltning";
     private HashSet<int> expandedDescriptions = new();
 
-    // TinyMCE för detaljerad beskrivning
+    // TinyMCE
     private string _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
     private bool _detailsEditorInitialized = false;
 
@@ -320,13 +327,97 @@
         {
             await InitializeDetailsEditorAsync();
         }
+
+        try
+        {
+            await JS.InvokeVoidAsync("setCurrentPageKey", pageKey);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte sätta currentPageKey för TinyMCE");
+        }
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("clearCurrentPageKey"); } catch { }
+    }
+
+    private static readonly Regex ImgSrcRegex = new(@"<img[^>]+src\s*=\s*[""'](?<src>[^""']+)[""'][^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static string NormalizePath(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return "";
+        if (Uri.TryCreate(url, UriKind.Absolute, out var abs)) return abs.AbsolutePath.Trim();
+        if (Uri.TryCreate(url, UriKind.Relative, out var rel)) return "/" + rel.OriginalString.TrimStart('/');
+        return url.Trim();
+    }
+
+    private void ToggleDescription(int itemId)
+    {
+        if (expandedDescriptions.Contains(itemId))
+            expandedDescriptions.Remove(itemId);
+        else
+            expandedDescriptions.Add(itemId);
+    }
+
+    // Dataladdning
+    private async Task LoadActionPlan()
+    {
+        isLoading = true;
+        hasError = false;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.GetFromJsonAsync<ActionPlanTableDto>($"api/ActionPlan/{pageKey}");
+
+            if (response != null)
+            {
+                actionPlan = new ActionPlanTableViewModel
+                {
+                    Id = response.Id,
+                    PageKey = response.PageKey,
+                    LastModified = response.LastModified,
+                    Items = response.Items.Select(i => new ActionPlanItem
+                    {
+                        Id = i.Id,
+                        Priority = i.Priority,
+                        Module = i.Module,
+                        Activity = i.Activity,
+                        DetailedDescription = i.DetailedDescription,
+                        PlannedDelivery = i.PlannedDelivery,
+                        Completed = i.Completed,
+                        SortOrder = i.SortOrder
+                    }).ToList()
+                };
+            }
+            else
+            {
+                actionPlan = new ActionPlanTableViewModel
+                {
+                    PageKey = pageKey,
+                    Items = new List<ActionPlanItem>()
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av handlingsplan");
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Modalhanterare
     private async Task InitializeDetailsEditorAsync()
     {
         try
         {
-            // Liten delay för att säkerställa att DOM-raden finns
             await Task.Delay(150);
 
             var exists = await JS.InvokeAsync<bool>("elementExists", _detailsEditorId);
@@ -334,7 +425,6 @@
             {
                 await JS.InvokeVoidAsync("initTinyMCE", _detailsEditorId);
 
-                // Verifiera att editor skapades, annars försök igen
                 var ready = await JS.InvokeAsync<bool>("tinymceExists", _detailsEditorId);
                 if (!ready)
                 {
@@ -398,58 +488,6 @@
         }
     }
 
-    private async Task LoadActionPlan()
-    {
-        isLoading = true;
-        hasError = false;
-
-        try
-        {
-            var http = HttpClientFactory.CreateClient("KronoxAPI");
-            var response = await http.GetFromJsonAsync<ActionPlanTableDto>($"api/ActionPlan/{pageKey}");
-            
-            if (response != null)
-            {
-                actionPlan = new ActionPlanTableViewModel
-                {
-                    Id = response.Id,
-                    PageKey = response.PageKey,
-                    LastModified = response.LastModified,
-                    Items = response.Items.Select(i => new ActionPlanItem
-                    {
-                        Id = i.Id,
-                        Priority = i.Priority,
-                        Module = i.Module,
-                        Activity = i.Activity,
-                        DetailedDescription = i.DetailedDescription,
-                        PlannedDelivery = i.PlannedDelivery,
-                        Completed = i.Completed,
-                        SortOrder = i.SortOrder
-                    }).ToList()
-                };
-            }
-            else
-            {
-                actionPlan = new ActionPlanTableViewModel
-                {
-                    PageKey = pageKey,
-                    Items = new List<ActionPlanItem>()
-                };
-            }
-            
-            Logger.LogInformation("Laddat handlingsplan med {Count} åtgärder", actionPlan.Items.Count);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid laddning av handlingsplan");
-            hasError = true;
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
-
     private async Task OpenCreateModal()
     {
         try
@@ -485,7 +523,6 @@
                 Completed = editingItem.Completed ?? ""
             };
 
-            // Nytt editor-id varje öppning och säkerställ att ev. gammal editor tas bort
             await DestroyDetailsEditorAsync();
             _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
             _detailsEditorInitialized = false;
@@ -515,7 +552,6 @@
                 Completed = item.Completed ?? ""
             };
 
-            // Nytt editor-id varje öppning och säkerställ att ev. gammal editor tas bort
             await DestroyDetailsEditorAsync();
             _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
             _detailsEditorInitialized = false;
@@ -536,6 +572,7 @@
         await DestroyDetailsEditorAsync();
         editingItem = null;
         editModel = new CreateActionPlanItemDto();
+        StateHasChanged();
     }
 
     private async Task SaveEditedItem()
@@ -545,7 +582,6 @@
         isSavingItem = true;
         try
         {
-            // Synka TinyMCE-innehållet till model innan POST/PUT
             await SyncDetailsEditorAsync();
 
             var http = HttpClientFactory.CreateClient("KronoxAPI");
@@ -562,6 +598,8 @@
 
             if (response.IsSuccessStatusCode)
             {
+                Cms.InvalidateActionPlanCache(pageKey);
+
                 await Toast.Success(editingItem.Id == 0 ? "Åtgärd har lagts till!" : "Åtgärd har uppdaterats!");
                 await LoadActionPlan();
                 CloseEditModal();
@@ -593,11 +631,13 @@
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
             var moveRequest = new { Direction = direction };
-            
+
             var response = await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items/{itemId}/move", moveRequest);
-            
+
             if (response.IsSuccessStatusCode)
             {
+                Cms.InvalidateActionPlanCache(pageKey);
+
                 await LoadActionPlan();
             }
             else
@@ -609,18 +649,6 @@
         {
             Logger.LogError(ex, "Fel vid flyttning av åtgärd");
             await Toast.Error("Ett fel inträffade vid flyttning.");
-        }
-    }
-
-    private void ToggleDescription(int itemId)
-    {
-        if (expandedDescriptions.Contains(itemId))
-        {
-            expandedDescriptions.Remove(itemId);
-        }
-        else
-        {
-            expandedDescriptions.Add(itemId);
         }
     }
 
@@ -645,9 +673,11 @@
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
             var response = await http.DeleteAsync($"api/ActionPlan/{pageKey}/items/{deletingItem.Id}");
-            
+
             if (response.IsSuccessStatusCode)
             {
+                Cms.InvalidateActionPlanCache(pageKey);
+
                 await Toast.Success("Åtgärden har tagits bort.");
                 await LoadActionPlan();
                 CloseDeleteModal();
@@ -665,6 +695,50 @@
         finally
         {
             isDeleting = false;
+        }
+    }
+
+    private async Task CleanUnusedImagesAsync()
+    {
+        try
+        {
+            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", "Rensa alla oanvända bilder för denna sida?");
+            if (!ok) return;
+
+            var images = await Cms.GetPageImagesAsync(pageKey);
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (actionPlan?.Items != null)
+            {
+                foreach (var it in actionPlan.Items)
+                {
+                    var html = it.DetailedDescription ?? "";
+                    foreach (Match m in ImgSrcRegex.Matches(html))
+                    {
+                        var src = m.Groups["src"].Value;
+                        if (!string.IsNullOrWhiteSpace(src))
+                            used.Add(NormalizePath(src));
+                    }
+                }
+            }
+
+            int deleted = 0;
+            foreach (var img in images)
+            {
+                var path = NormalizePath(img.Url ?? "");
+                if (!used.Contains(path) && img.Id > 0)
+                {
+                    await Cms.DeletePageImageAsync(pageKey, img.Id);
+                    deleted++;
+                }
+            }
+
+            await Toast.Success(deleted == 0 ? "Inga oanvända bilder hittades." : $"Rensade {deleted} bild(er).");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid rensning av oanvända bilder");
+            await Toast.Error("Kunde inte rensa oanvända bilder.");
         }
     }
 }

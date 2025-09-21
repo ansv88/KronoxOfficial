@@ -1,4 +1,5 @@
 @using KronoxFront.ViewModels
+@using System.Text.RegularExpressions
 
 @if (IsAdminContext)
 {
@@ -126,7 +127,7 @@ else
                                     <td colspan="5">
                                         <div class="p-3">
                                             <small class="text-muted fw-bold">Detaljerad beskrivning:</small>
-                                            <div class="mt-2">@((MarkupString)item.DetailedDescription)</div>
+                                            <div class="mt-2 detailed-html">@((MarkupString)NormalizeHtml(item.DetailedDescription))</div>
                                         </div>
                                     </td>
                                 </tr>
@@ -151,5 +152,24 @@ else
             expandedDescriptions.Remove(itemId);
         else
             expandedDescriptions.Add(itemId);
+    }
+
+    // Normalisera TinyMCE-HTML för att säkra bildvisning
+    private static string NormalizeHtml(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+
+        var fixedHtml = html;
+
+        // data-mce-src -> src (både " och ')
+        fixedHtml = Regex.Replace(fixedHtml, @"\sdata-mce-src\s*=\s*""", " src=\"", RegexOptions.IgnoreCase);
+        fixedHtml = Regex.Replace(fixedHtml, @"\sdata-mce-src\s*=\s*'", " src='", RegexOptions.IgnoreCase);
+
+        // src="images/..." -> src="/images/..."
+        fixedHtml = Regex.Replace(fixedHtml, "src=\"(images/)", "src=\"/images/", RegexOptions.IgnoreCase);
+        // src='images/...' -> src='/images/...'
+        fixedHtml = Regex.Replace(fixedHtml, "src='(images/)", "src='/images/", RegexOptions.IgnoreCase);
+
+        return fixedHtml;
     }
 }

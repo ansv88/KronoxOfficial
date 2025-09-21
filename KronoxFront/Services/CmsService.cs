@@ -182,8 +182,9 @@ public class CmsService
 
                 _logger.LogInformation("Sidbild {FileName} uppladdad för {PageKey} med URL {Url}", fileName, pageKey, result?.Url);
 
-                // Invalidera page cache efter bilduppladdning
+                // Invalidera cache efter bilduppladdning
                 _cache.InvalidatePageCache(pageKey);
+                _cache.InvalidateGroup("actionplans");
 
                 return result;
             }
@@ -405,6 +406,8 @@ public class CmsService
             var resp = await _http.PutAsync($"api/content/{pageKey}", content);
             resp.EnsureSuccessStatusCode();
 
+            _cache.InvalidatePageCache(pageKey);
+
             _logger.LogInformation("Intro-sektion sparad för {PageKey}", pageKey);
         }
         catch (Exception ex)
@@ -424,7 +427,7 @@ public class CmsService
             return await _cache.GetOrSetAsync($"features_public_{pageKey}", async () =>
             {
                 _logger.LogInformation("Fetching public feature sections from API: {PageKey}", pageKey);
-                
+
                 try
                 {
                     var response = await _http.GetAsync($"api/featuresections/{pageKey}");
@@ -439,7 +442,7 @@ public class CmsService
                 {
                     _logger.LogError(ex, "Error fetching public feature sections for {PageKey}", pageKey);
                 }
-                
+
                 return await GetFeatureSectionsFromMetadata(pageKey);
             }, TimeSpan.FromMinutes(8), $"features_{pageKey}") ?? new List<FeatureSectionViewModel>();
         }
@@ -495,7 +498,7 @@ public class CmsService
             }).ToList();
 
             var response = await _http.PutAsJsonAsync($"api/featuresections/{pageKey}", dtos);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 throw new HttpRequestException($"Failed to save feature sections: {response.StatusCode}");
@@ -519,7 +522,7 @@ public class CmsService
         return await _cache.GetOrSetAsync($"faq_{pageKey}", async () =>
         {
             _logger.LogInformation("Fetching FAQ sections from API: {PageKey}", pageKey);
-            
+
             try
             {
                 var response = await _http.GetAsync($"api/faq/{pageKey}");
@@ -560,7 +563,7 @@ public class CmsService
 
     public async Task SaveFaqSectionsAsync(string pageKey, List<FaqSectionViewModel> faqSections)
     {
-        try 
+        try
         {
             var faqSectionDtos = faqSections.Select(fs => new FaqSectionDto
             {
@@ -583,11 +586,11 @@ public class CmsService
             }).ToList();
 
             var response = await _http.PutAsJsonAsync($"api/faq/page/{pageKey}", faqSectionDtos);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Kunde inte spara FAQ-sektioner: {StatusCode} - {Content}", 
+                _logger.LogError("Kunde inte spara FAQ-sektioner: {StatusCode} - {Content}",
                     response.StatusCode, errorContent);
                 throw new HttpRequestException($"Failed to save FAQ sections: {response.StatusCode}");
             }
@@ -623,7 +626,7 @@ public class CmsService
         return await _cache.GetActionPlanAsync(pageKey, async () =>
         {
             _logger.LogInformation("Fetching action plan from API: {PageKey}", pageKey);
-            
+
             try
             {
                 var response = await _http.GetAsync($"api/actionplan/{pageKey}");
@@ -631,7 +634,7 @@ public class CmsService
                 {
                     var json = await response.Content.ReadAsStringAsync();
                     var dto = JsonSerializer.Deserialize<ActionPlanTableDto>(json, _jsonOptions);
-                    
+
                     return new ActionPlanTableViewModel
                     {
                         Id = dto?.Id ?? 0,
@@ -682,7 +685,7 @@ public class CmsService
             };
 
             var response = await _http.PutAsJsonAsync($"api/actionplan/{pageKey}", dto);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 throw new HttpRequestException($"Failed to save action plan: {response.StatusCode}");
@@ -909,7 +912,7 @@ public class CmsService
         try
         {
             _logger.LogInformation("Hämtar sektionskonfiguration för {PageKey}", pageKey);
-            
+
             var pageContent = await GetPageContentAsync(pageKey);
             if (pageContent != null && !string.IsNullOrEmpty(pageContent.Metadata))
             {
@@ -917,7 +920,7 @@ public class CmsService
                 if (metadata.RootElement.TryGetProperty("sectionConfig", out var configElement))
                 {
                     var sections = new List<SectionConfigItem>();
-                    
+
                     foreach (var item in configElement.EnumerateArray())
                     {
                         SectionType sectionType;
@@ -964,10 +967,10 @@ public class CmsService
                             SortOrder = sortOrder
                         });
 
-                        _logger.LogInformation("Laddad sektion: {Type} (enabled: {IsEnabled}, order: {SortOrder})", 
+                        _logger.LogInformation("Laddad sektion: {Type} (enabled: {IsEnabled}, order: {SortOrder})",
                             sectionType, isEnabled, sortOrder);
                     }
-                    
+
                     if (sections.Any())
                     {
                         _logger.LogInformation("Sektionskonfiguration laddad: {Count} sektioner", sections.Count);
@@ -975,7 +978,7 @@ public class CmsService
                     }
                 }
             }
-            
+
             _logger.LogInformation("Ingen sektionskonfiguration hittades, använder fallback för {PageKey}", pageKey);
             return GetDefaultSectionConfig(pageKey);
         }
@@ -1022,7 +1025,7 @@ public class CmsService
             pageContent.LastModified = DateTime.Now;
 
             await SavePageContentAsync(pageKey, pageContent);
-            
+
             _logger.LogInformation("Sektionskonfiguration sparad för {PageKey}", pageKey);
             return true;
         }
@@ -1383,19 +1386,19 @@ public class CmsService
             var stream = file.OpenReadStream(maxAllowedSize: 10_000_000);
             var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(GetContentType(file.Name));
-            
+
             content.Add(fileContent, "file", file.Name);
             content.Add(new StringContent("Uppladdad bild"), "altText");
 
             var response = await _http.PostAsync($"api/content/{pageKey}/images", content);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var imageResult = json.ToImageViewModel();
                 return imageResult?.Url ?? "";
             }
-            
+
             throw new Exception("Bilduppladdning misslyckades");
         }
         catch (Exception ex)
@@ -1415,7 +1418,7 @@ public class CmsService
         var logos = await GetMemberLogosAsync();
         var membersDir = Path.Combine(_env.WebRootPath, "images", "members");
         Directory.CreateDirectory(membersDir);
-        
+
         foreach (var logo in logos)
         {
             var fileName = Path.GetFileName(logo.Url);
@@ -1530,7 +1533,7 @@ public class CmsService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fel vid fallback-hämtning från metadata för {PageKey}", pageKey);
-            
+
             return new List<FeatureSectionViewModel>
             {
                 new FeatureSectionViewModel
@@ -1661,11 +1664,11 @@ public class CmsService
     private List<SectionConfigItem> GetDefaultSectionConfig(string pageKey)
     {
         var defaultSections = new List<SectionConfigItem>();
-        
+
         switch (pageKey.ToLower())
         {
             case "home":
-                defaultSections.AddRange(new []
+                defaultSections.AddRange(new[]
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1676,9 +1679,9 @@ public class CmsService
                     new SectionConfigItem { Type = SectionType.DocumentSection, IsEnabled = false, SortOrder = 6 }
                 });
                 break;
-                
+
             case "dokument":
-                defaultSections.AddRange(new []
+                defaultSections.AddRange(new[]
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1689,7 +1692,7 @@ public class CmsService
                 break;
 
             case "kontaktaoss":
-                defaultSections.AddRange(new []
+                defaultSections.AddRange(new[]
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1702,7 +1705,7 @@ public class CmsService
                 break;
 
             case "forvaltning":
-                defaultSections.AddRange(new []
+                defaultSections.AddRange(new[]
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1716,7 +1719,7 @@ public class CmsService
                 break;
 
             default:
-                defaultSections.AddRange(new []
+                defaultSections.AddRange(new[]
                 {
                     new SectionConfigItem { Type = SectionType.Banner, IsEnabled = true, SortOrder = 0 },
                     new SectionConfigItem { Type = SectionType.Intro, IsEnabled = true, SortOrder = 1 },
@@ -1727,7 +1730,7 @@ public class CmsService
                 });
                 break;
         }
-        
+
         return defaultSections;
     }
 
@@ -1751,5 +1754,31 @@ public class CmsService
             ".txt" => "text/plain",
             _ => "application/octet-stream"
         };
+    }
+    public async Task<List<PageImageViewModel>> GetPageImagesAsync(string pageKey)
+    {
+        try
+        {
+            var resp = await _http.GetAsync($"api/content/{pageKey}/images");
+            if (!resp.IsSuccessStatusCode) return new List<PageImageViewModel>();
+            var json = await resp.Content.ReadAsStringAsync();
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var list = JsonSerializer.Deserialize<List<PageImageViewModel>>(json, options);
+            return list ?? new List<PageImageViewModel>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid hämtning av bilder för {PageKey}", pageKey);
+            return new List<PageImageViewModel>();
+        }
+    }
+
+    public void InvalidateActionPlanCache(string pageKey)
+    {
+        // Rensa alla actionplan-cacher + sidrelaterad cache för säkerhets skull
+        _cache.InvalidateGroup("actionplans");
+        _cache.InvalidatePageCache(pageKey);
+        // Rensa nyckeln om den skulle vara satt utan grupp
+        _cache.InvalidateKey($"actionplan_{pageKey}");
     }
 }

@@ -404,3 +404,11 @@ window.scrollToNavigationSettings = function () {
     console.warn('Navigation settings card not found');
     return false;
 };
+
+window.setCurrentPageKey = function (key) {
+    window.currentPageKey = key || 'home';
+};
+
+window.clearCurrentPageKey = function () {
+    window.currentPageKey = null;
+};

@@ -1,4 +1,5 @@
 @using KronoxFront.ViewModels
+@inject IConfiguration Configuration
 
 <div class="card mb-4">
     <div class="card-header bg-light">
@@ -13,12 +14,21 @@
 
         @if (ShowNavigationButtons)
         {
+            @if (HasAnyInvalidMaskedUrl)
+            {
+                <div class="alert alert-warning" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                    En eller flera knappar använder en maskerad länk via <code>/go/&lt;slug&gt;</code> som saknas i Redirects-konfigurationen. Lägg till slug i <code>appsettings.json</code> under <code>Redirects</code>, eller ändra URL.
+                </div>
+            }
+
             @if (NavigationButtons.Any())
             {
                 <div class="mb-3">
                     <h6>Befintliga knappar:</h6>
                     @foreach (var (button, index) in NavigationButtons.OrderBy(b => b.SortOrder).Select((b, i) => (b, i)))
                     {
+                        var missingSlug = GetMissingRedirectSlug(button.Url);
                         <div class="row mb-3 p-3 border rounded">
                             <div class="col-md-4">
                                 <label class="form-label small fw-medium">Knapptext</label>
@@ -29,8 +39,20 @@
                             <div class="col-md-4">
                                 <label class="form-label small fw-medium">Länk</label>
                                 <input type="text" class="form-control form-control-sm" 
-                                       placeholder="T.ex. /manual eller https://www.google.se" 
+                                       placeholder="T.ex. /go/manualen eller https://exempel.se" 
                                        @bind="button.Url" />
+                                @if (!string.IsNullOrWhiteSpace(missingSlug))
+                                {
+                                    <div class="form-text text-danger">
+                                        Slug <strong>@missingSlug</strong> saknas i Redirects. Lägg till <code>@missingSlug</code> i appsettings under <code>Redirects</code> eller ändra URL.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="form-text">
+                                        Tips: Använd <code>/go/&lt;slug&gt;</code> om du vill maskera extern mål-URL (hover visar endast den interna vägen).
+                                    </div>
+                                }
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label small fw-medium">Font Awesome ikon</label>
@@ -83,8 +105,20 @@
                     <div class="col-md-4">
                         <label class="form-label fw-medium">Länk</label>
                         <input type="text" class="form-control" 
-                               placeholder="T.ex. /manual eller https://www.google.se" 
+                               placeholder="T.ex. /go/manualen, /anvandartraff eller https://exempel.se" 
                                @bind="newButtonUrl" />
+                        @if (!string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl)))
+                        {
+                            <div class="form-text text-danger">
+                                Slug <strong>@GetMissingRedirectSlug(newButtonUrl)</strong> saknas i Redirects. Lägg till i appsettings eller ändra URL.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="form-text">
+                                Använd <code>/go/&lt;slug&gt;</code> för att dölja extern mål-URL i hover/statusrad.
+                            </div>
+                        }
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-medium">Font Awesome ikon</label>
@@ -99,7 +133,9 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-medium">&nbsp;</label>
-                        <button type="button" class="btn btn-primary d-block" @onclick="AddButton">
+                        <button type="button" class="btn btn-primary d-block"
+                                @onclick="AddButton"
+                                disabled="@IsNewButtonInvalid">
                             <i class="fa-solid fa-plus"></i> Lägg till
                         </button>
                     </div>
@@ -134,6 +170,54 @@
     private string newButtonUrl = "";
     private string newButtonIcon = "fa-solid fa-arrow-right";
 
+    // Redirect-slugs hämtade från appsettings: "Redirects": { "<slug>": "target" }
+    private HashSet<string> redirectSlugs = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override Task OnInitializedAsync()
+    {
+        var section = Configuration.GetSection("Redirects");
+        foreach (var child in section.GetChildren())
+        {
+            if (!string.IsNullOrWhiteSpace(child.Key))
+                redirectSlugs.Add(child.Key);
+        }
+        return Task.CompletedTask;
+    }
+
+    // UI: sammanfattande flagga om någon knapp har maskad URL utan slug i Redirects
+    private bool HasAnyInvalidMaskedUrl =>
+        NavigationButtons.Any(b => !string.IsNullOrWhiteSpace(GetMissingRedirectSlug(b.Url)));
+
+    // Är det en maskad /go/-URL?
+    private static bool IsMaskedGoUrl(string? url)
+        => !string.IsNullOrWhiteSpace(url) && url!.StartsWith("/go/", StringComparison.OrdinalIgnoreCase);
+
+    // Plocka slug ur /go/{slug}[?...] (utan query/hash)
+    private static string ExtractGoSlug(string url)
+    {
+        if (!IsMaskedGoUrl(url)) return "";
+        var withoutPrefix = url[4..]; // hoppa över "/go/"
+        // slug slutar vid första '/', '?', '#', om sådana finns
+        var end = withoutPrefix.IndexOfAny(new[] { '/', '?', '#' });
+        return end >= 0 ? withoutPrefix[..end] : withoutPrefix;
+    }
+
+    // Returnerar slug om den saknas i Redirects; annars tomt
+    private string GetMissingRedirectSlug(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return "";
+        if (!IsMaskedGoUrl(url)) return "";
+
+        var slug = ExtractGoSlug(url);
+        if (string.IsNullOrWhiteSpace(slug)) return "";
+        return redirectSlugs.Contains(slug) ? "" : slug;
+    }
+
+    private bool IsNewButtonInvalid =>
+        string.IsNullOrWhiteSpace(newButtonText) ||
+        string.IsNullOrWhiteSpace(newButtonUrl) ||
+        !string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl));
+
     private async Task OnShowNavigationButtonsChanged()
     {
         if (ShowNavigationButtonsChanged.HasDelegate)
@@ -144,8 +228,7 @@
 
     private async Task AddButton()
     {
-        if (string.IsNullOrWhiteSpace(newButtonText) || string.IsNullOrWhiteSpace(newButtonUrl))
-            return;
+        if (IsNewButtonInvalid) return;
 
         NavigationButtons.Add(new NavigationButtonViewModel
         {
@@ -182,11 +265,9 @@
             NavigationButtons.RemoveAt(index);
             NavigationButtons.Insert(index - 1, button);
             
-            // Uppdatera sorteringsordning
             for (int i = 0; i < NavigationButtons.Count; i++)
-            {
                 NavigationButtons[i].SortOrder = i;
-            }
+
             await NotifyChange();
         }
     }
@@ -198,12 +279,10 @@
         {
             NavigationButtons.RemoveAt(index);
             NavigationButtons.Insert(index + 1, button);
-            
-            // Uppdatera sorteringsordning
+
             for (int i = 0; i < NavigationButtons.Count; i++)
-            {
                 NavigationButtons[i].SortOrder = i;
-            }
+
             await NotifyChange();
         }
     }
