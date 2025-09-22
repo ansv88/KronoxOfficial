@@ -135,6 +135,20 @@
                             <div class="collapse @(functionsExpanded ? "show" : "")" id="functionsCollapse">
                                 <ul class="nav flex-column mb-2">
                                     <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/users">
+                                            <i class="fa-solid fa-users me-2"></i> Hantera användare
+                                            @if (newUserCount > 0)
+                                            {
+                                                <span class="badge bg-danger ms-1">@newUserCount</span>
+                                            }
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/documents/manage">
+                                            <i class="fa-solid fa-file-alt me-2"></i> Hantera dokument
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
                                         <NavLink class="nav-link" href="/admin/news">
                                             <i class="fa-solid fa-newspaper me-2"></i> Hantera nyheter
                                         </NavLink>
@@ -142,11 +156,6 @@
                                     <li class="nav-item">
                                         <NavLink class="nav-link" href="/admin/actionplan">
                                             <i class="fa-solid fa-clipboard-list me-2"></i> Hantera handlingsplan
-                                        </NavLink>
-                                    </li>
-                                    <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/documents/manage">
-                                            <i class="fa-solid fa-file-alt me-2"></i> Hantera dokument
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
@@ -159,20 +168,6 @@
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/memberlogos">
-                                            <i class="fa-solid fa-university me-2"></i> Hantera medlemslogotyper
-                                        </NavLink>
-                                    </li>
-                                    <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/users">
-                                            <i class="fa-solid fa-users me-2"></i> Hantera användare
-                                            @if (newUserCount > 0)
-                                            {
-                                                <span class="badge bg-danger ms-1">@newUserCount</span>
-                                            }
-                                        </NavLink>
-                                    </li>
-                                    <li class="nav-item">
                                         <NavLink class="nav-link" href="/admin/pages">
                                             <i class="fa-solid fa-plus-minus me-2"></i> Hantera nya sidor
                                         </NavLink>
@@ -180,6 +175,11 @@
                                     <li class="nav-item">
                                         <NavLink class="nav-link" href="/admin/navigation">
                                             <i class="fa-solid fa-compass me-2"></i> Hantera navigation
+                                        </NavLink>
+                                    </li>
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/admin/memberlogos">
+                                            <i class="fa-solid fa-university me-2"></i> Hantera medlemslogotyper
                                         </NavLink>
                                     </li>
                                 </ul>

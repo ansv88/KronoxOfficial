@@ -6,6 +6,7 @@
 @inject IHttpClientFactory HttpClientFactory
 @inject IToastService Toast
 @inject CacheService Cache
+@inject NavigationEvents NavEvents
 
 <div class="card mb-4" id="navigation-settings-card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -642,6 +643,9 @@
             {
                 await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
             }
+
+            // Informera NavMenu att hämta om navigationen
+            NavEvents.NotifyUpdated();
         }
         catch (Exception)
         {

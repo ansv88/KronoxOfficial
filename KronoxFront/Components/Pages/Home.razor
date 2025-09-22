@@ -19,8 +19,8 @@
     <meta name="description" content="KronoX – Schemaläggning och bokningssystem för högre utbildning. Upptäck funktioner, nyheter och medlemsinformation." />
 </HeadContent>
 
-<PageTitle>KronoX - @pageContent.Title</PageTitle>
-<h1 class="visually-hidden">@pageContent.Title</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Startsida" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "Startsida" : pageContent!.Title))</h1>
 
 @if (loading)
 {

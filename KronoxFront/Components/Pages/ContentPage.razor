@@ -19,7 +19,7 @@
     <meta name="description" content="@(pageContent?.Title ?? "Informationssida inom KronoX")" />
 </HeadContent>
 
-<PageTitle>KronoX - @(pageContent?.Title ?? "Sida")</PageTitle>
+<PageTitle>@($"{pageContent?.Title ?? "Sida"} - KronoX")</PageTitle>
 
 @if (loading)
 {

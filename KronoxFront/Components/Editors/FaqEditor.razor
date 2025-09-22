@@ -1,163 +1,166 @@
 ﻿@using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Forms
+@using KronoxFront.Components.Shared.Admin
 @inject IJSRuntime JS
 @inject ILogger<FaqEditor> Logger
 @implements IAsyncDisposable
 
-<div class="card mb-4">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h3 class="h5 mb-0">FAQ-sektioner</h3>
-           </div>
-
-        <div class="card-body">
-            @foreach (var (section, sectionIndex) in FaqSections.Select((s, i) => (s, i)))
-            {
-                <div class="card mb-4">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h4 class="h6 mb-0">FAQ-sektion @(sectionIndex + 1)</h4>
-                        <div>
-                            @if (sectionIndex > 0)
-                            {
-                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqSection(sectionIndex, -1)">
-                                    <i class="fa-solid fa-arrow-up"></i>
-                                </button>
-                            }
-                            @if (sectionIndex < FaqSections.Count - 1)
-                            {
-                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqSection(sectionIndex, 1)">
-                                    <i class="fa-solid fa-arrow-down"></i>
-                                </button>
-                            }
-                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveFaqSection(sectionIndex)">
-                                <i class="fa-solid fa-times"></i>
+<AdminSectionFrame Title="FAQ-sektioner" IconClass="fa-solid fa-circle-question">
+    <ChildContent>
+        @foreach (var (section, sectionIndex) in FaqSections.Select((s, i) => (s, i)))
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h4 class="h6 mb-0">FAQ-sektion @(sectionIndex + 1)</h4>
+                    <div>
+                        @if (sectionIndex > 0)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqSection(sectionIndex, -1)">
+                                <i class="fa-solid fa-arrow-up"></i>
                             </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Rubrik</label>
-                            <input type="text" class="form-control" @bind="section.Title" @bind:after="OnFaqChanged" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Beskrivning</label>
-                            <textarea id="faq-description-@sectionIndex"
-                                      class="form-control tinymce-editor" 
-                                      rows="2" 
-                                      @bind="section.Description" 
-                                      @bind:after="OnFaqChanged"></textarea>
-                        </div>
-
-                        @* FAQ Items *@
-                        <div class="border rounded p-3 bg-light">
-                            <h5 class="h6 mb-3">Frågor och svar</h5>
-
-                            @foreach (var (item, itemIndex) in section.FaqItems.Select((i, idx) => (i, idx)))
-                            {
-                                <div class="card mb-3">
-                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                        <span class="fw-bold">Fråga @(itemIndex + 1)</span>
-                                        <div>
-                                            @if (itemIndex > 0)
-                                            {
-                                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqItem(sectionIndex, itemIndex, -1)">
-                                                    <i class="fa-solid fa-arrow-up"></i>
-                                                </button>
-                                            }
-                                            @if (itemIndex < section.FaqItems.Count - 1)
-                                            {
-                                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqItem(sectionIndex, itemIndex, 1)">
-                                                    <i class="fa-solid fa-arrow-down"></i>
-                                                </button>
-                                            }
-                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveFaqItem(sectionIndex, itemIndex)">
-                                                <i class="fa-solid fa-times"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            @if (item.HasImage)
-                                            {
-                                                <div class="col-md-4 mb-3">
-                                                    <div class="form-check mb-2">
-                                                        <input type="checkbox" class="form-check-input" @bind="item.HasImage" @bind:after="OnFaqChanged" />
-                                                        <label class="form-check-label">Inkludera bild</label>
-                                                    </div>
-                                                    <div class="border p-3 bg-white text-center" style="min-height: 150px;">
-                                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                                        {
-                                                            <img src="@item.ImageUrl" class="img-fluid img-thumbnail mb-2" style="max-height: 150px;" />
-                                                            <div class="mt-2">
-                                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ClearFaqImage(sectionIndex, itemIndex)">
-                                                                    <i class="fa-solid fa-times"></i> Ta bort bild
-                                                                </button>
-                                                            </div>
-                                                            <div class="mt-2">
-                                                                <label class="form-label">Bildbeskrivning:</label>
-                                                                <input type="text" class="form-control form-control-sm" @bind="item.ImageAltText" @bind:after="OnFaqChanged" placeholder="Beskriv bilden" />
-                                                            </div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <InputFile OnChange="@(e => HandleFaqImageSelected(e, sectionIndex, itemIndex))" class="form-control" accept="image/*" />
-                                                            <div class="text-muted small mt-2">Klicka för att välja bild</div>
-                                                        }
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Fråga</label>
-                                                        <input type="text" class="form-control" @bind="item.Question" @bind:after="OnFaqChanged" />
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Svar</label>
-                                                        <textarea id="faq-editor-@sectionIndex-@itemIndex" 
-                                                                  class="form-control tinymce-editor" 
-                                                                  rows="4" 
-                                                                  @bind="item.Answer" 
-                                                                  @bind:after="OnFaqChanged"></textarea>
-                                                    </div>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <div class="col-12">
-                                                    <div class="form-check mb-3">
-                                                        <input type="checkbox" class="form-check-input" @bind="item.HasImage" @bind:after="OnFaqChanged" />
-                                                        <label class="form-check-label">Inkludera bild</label>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Fråga</label>
-                                                        <input type="text" class="form-control" @bind="item.Question" @bind:after="OnFaqChanged" />
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Svar</label>
-                                                        <textarea id="faq-editor-@sectionIndex-@itemIndex" 
-                                                                  class="form-control tinymce-editor" 
-                                                                  rows="4" 
-                                                                  @bind="item.Answer" 
-                                                                  @bind:after="OnFaqChanged"></textarea>
-                                                    </div>
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => AddFaqItem(FaqSections[sectionIndex], sectionIndex)">
-                                <i class="fa-solid fa-plus me-1"></i> Lägg till fråga
+                        }
+                        @if (sectionIndex < FaqSections.Count - 1)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqSection(sectionIndex, 1)">
+                                <i class="fa-solid fa-arrow-down"></i>
                             </button>
-                        </div>
+                        }
+                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveFaqSection(sectionIndex)">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
                     </div>
                 </div>
-            }
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Rubrik</label>
+                        <input type="text" class="form-control" @bind="section.Title" @bind:after="OnFaqChanged" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Beskrivning</label>
+                        <textarea id="faq-description-@sectionIndex"
+                                  class="form-control tinymce-editor" 
+                                  rows="2" 
+                                  @bind="section.Description" 
+                                  @bind:after="OnFaqChanged"></textarea>
+                    </div>
 
-            <button type="button" class="btn btn-outline-primary" @onclick="AddFaqSection">
-                <i class="fa-solid fa-plus me-1"></i> Lägg till FAQ-sektion
-            </button>
-        </div>
-</div>
+                    @* FAQ Items *@
+                    <div class="border rounded p-3 bg-light">
+                        <h5 class="h6 mb-3">Frågor och svar</h5>
+
+                        @foreach (var (item, itemIndex) in section.FaqItems.Select((i, idx) => (i, idx)))
+                        {
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold">Fråga @(itemIndex + 1)</span>
+                                    <div>
+                                        @if (itemIndex > 0)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqItem(sectionIndex, itemIndex, -1)">
+                                                <i class="fa-solid fa-arrow-up"></i>
+                                            </button>
+                                        }
+                                        @if (itemIndex < section.FaqItems.Count - 1)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => MoveFaqItem(sectionIndex, itemIndex, 1)">
+                                                <i class="fa-solid fa-arrow-down"></i>
+                                            </button>
+                                        }
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveFaqItem(sectionIndex, itemIndex)">
+                                            <i class="fa-solid fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        @if (item.HasImage)
+                                        {
+                                            <div class="col-md-4 mb-3">
+                                                <div class="form-check mb-2">
+                                                    <input type="checkbox" class="form-check-input" @bind="item.HasImage" @bind:after="OnFaqChanged" />
+                                                    <label class="form-check-label">Inkludera bild</label>
+                                                </div>
+                                                <div class="border p-3 bg-white text-center" style="min-height: 150px;">
+                                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                                    {
+                                                        <img src="@item.ImageUrl" class="img-fluid img-thumbnail mb-2" style="max-height: 150px;" />
+                                                        <div class="mt-2">
+                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ClearFaqImage(sectionIndex, itemIndex)">
+                                                                <i class="fa-solid fa-times"></i> Ta bort bild
+                                                            </button>
+                                                        </div>
+                                                        <div class="mt-2">
+                                                            <label class="form-label">Bildbeskrivning:</label>
+                                                            <input type="text" class="form-control form-control-sm" @bind="item.ImageAltText" @bind:after="OnFaqChanged" placeholder="Beskriv bilden" />
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <InputFile OnChange="@(e => HandleFaqImageSelected(e, sectionIndex, itemIndex))" class="form-control" accept="image/*" />
+                                                        <div class="text-muted small mt-2">Klicka för att välja bild</div>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Fråga</label>
+                                                    <input type="text" class="form-control" @bind="item.Question" @bind:after="OnFaqChanged" />
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Svar</label>
+                                                    <textarea id="faq-editor-@sectionIndex-@itemIndex" 
+                                                              class="form-control tinymce-editor" 
+                                                              rows="4" 
+                                                              @bind="item.Answer" 
+                                                              @bind:after="OnFaqChanged"></textarea>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="col-12">
+                                                <div class="form-check mb-3">
+                                                    <input type="checkbox" class="form-check-input" @bind="item.HasImage" @bind:after="OnFaqChanged" />
+                                                    <label class="form-check-label">Inkludera bild</label>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Fråga</label>
+                                                    <input type="text" class="form-control" @bind="item.Question" @bind:after="OnFaqChanged" />
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Svar</label>
+                                                    <textarea id="faq-editor-@sectionIndex-@itemIndex" 
+                                                              class="form-control tinymce-editor" 
+                                                              rows="4" 
+                                                              @bind="item.Answer" 
+                                                              @bind:after="OnFaqChanged"></textarea>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => AddFaqItem(FaqSections[sectionIndex], sectionIndex)">
+                            <i class="fa-solid fa-plus me-1"></i> Lägg till fråga
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-outline-primary" @onclick="AddFaqSection">
+            <i class="fa-solid fa-plus me-1"></i> Lägg till FAQ-sektion
+        </button>
+    </ChildContent>
+
+    <FooterContent>
+        <button type="button" class="btn btn-outline-primary" @onclick="AddFaqSection">
+            <i class="fa-solid fa-plus me-1"></i> Lägg till FAQ-sektion
+        </button>
+    </FooterContent>
+</AdminSectionFrame>
 
 @code {
     [Parameter] public List<FaqSectionViewModel> FaqSections { get; set; } = new();

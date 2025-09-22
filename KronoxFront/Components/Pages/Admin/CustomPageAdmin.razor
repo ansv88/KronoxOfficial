@@ -25,7 +25,7 @@
     <meta name="description" content="Redigera innehållet för anpassad sida @PageKey" />
 </HeadContent>
 
-<PageTitle>Admin - Redigera @customPage?.DisplayName</PageTitle>
+<PageTitle>Admin - @customPage?.DisplayName</PageTitle>
 
 @if (isLoading)
 {
@@ -121,16 +121,16 @@ else
                     </div>
                 </div>
 
+                @* ---------- Navigeringsinställningar ----------- *@
+                <NavigationSettings PageKey="@PageKey"
+                                    InitialDisplayName="@customPage.DisplayName"
+                                    OnDisplayNameChanged="OnNavigationNameChanged" />
+
                 @* ---------- Section Configuration Manager ----------- *@
                 <PageSectionConfigurator PageKey="@PageKey"
                                          AvailableSections="sectionConfigItems"
                                          OnConfigurationChanged="OnSectionConfigurationChanged"
                                          OnSave="SaveSectionConfiguration" />
-
-                @* ---------- Navigeringsinställningar ----------- *@
-                <NavigationSettings PageKey="@PageKey"
-                                    InitialDisplayName="@customPage.DisplayName"
-                                    OnDisplayNameChanged="OnNavigationNameChanged" />
 
                 @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
@@ -138,7 +138,7 @@ else
                     @switch (sectionConfig.Type)
                     {
                         case SectionType.Banner:
-                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" />
+                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" OnSaveRequested="SaveContent" />
                             break;
 
                         case SectionType.Intro:
@@ -160,9 +160,11 @@ else
 
                         case SectionType.FeatureSections:
                             <FeatureSectionEditor @ref="featureSectionEditorRef"
+                                                  Sections="featureSections"
                                                   OnSectionsChanged="OnFeatureSectionsChanged"
                                                   OnImageUpload="OnFeatureImageUploaded"
-                                                  OnImageDelete="OnFeatureImageDeleted" />
+                                                  OnImageDelete="OnFeatureImageDeleted"
+                                                  OnSaveSections="SaveFeatureSectionsFromEditor" />
                             break;
 
                         case SectionType.FaqSections:
@@ -317,7 +319,6 @@ else
         finally
         {
             isLoading = false;
-
             needsEditorInitialization = true;
         }
     }
@@ -498,16 +499,10 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Kolla både firstRender OCH needsEditorInitialization
         if (firstRender || needsEditorInitialization)
         {
-            // Återställ flaggan
             needsEditorInitialization = false;
-
-            // Vänta lite för att säkerställa att DOM är redo
             await Task.Delay(500);
-
-            // Initiera editorer
             await InitializeEditors();
         }
     }
@@ -518,11 +513,9 @@ else
         {
             Logger.LogInformation("=== Startar TinyMCE-initialisering för custom page {PageKey} ===", PageKey);
 
-            // Extra rensning vid sidbyten
             await JS.InvokeVoidAsync("eval", "if(typeof tinymce !== 'undefined') { tinymce.remove(); }");
             await Task.Delay(500);
 
-            // Global rensning
             await JS.InvokeVoidAsync("destroyAllEditors");
             await Task.Delay(300);
 
@@ -728,7 +721,6 @@ else
         }
     }
 
-    // Event handlers
     private void OnBannerUploaded(PageImageViewModel? img)
     {
         Toast.Success("Bannerbild uppdaterad!");
@@ -808,35 +800,38 @@ else
 
     private async Task OnNavigationNameChanged(string newDisplayName)
     {
-        if (!string.IsNullOrEmpty(newDisplayName) && customPage != null && customPage.DisplayName != newDisplayName)
+        if (string.IsNullOrWhiteSpace(newDisplayName) || customPage == null)
+            return;
+
+        try
         {
-            var shouldSync = await JS.InvokeAsync<bool>("confirm",
-                $"Vill du också ändra sidans visningsnamn till '{newDisplayName}'?");
-
-            if (shouldSync)
+            // 1) Uppdatera CustomPage.DisplayName via API
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            customPage.DisplayName = newDisplayName;
+            var response = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", customPage.ToUpdateRequest());
+            if (!response.IsSuccessStatusCode)
             {
-                // Uppdatera via API
-                try
-                {
-                    var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-                    customPage.DisplayName = newDisplayName;
-                    var response = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", customPage.ToUpdateRequest());
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        await Toast.Success("Sidans visningsnamn uppdaterat!");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Fel vid uppdatering av custom page DisplayName");
-                    await Toast.Error("Fel vid uppdatering av sidans visningsnamn");
-                }
+                await Toast.Error("Kunde inte uppdatera sidans visningsnamn");
+                return;
             }
+
+            // 2) Uppdatera endast breadcrumb i Intro (inte Intro.Title)
+            introSection.BreadcrumbTitle = newDisplayName.ToUpperInvariant();
+            await Cms.SaveIntroSectionAsync(PageKey, introSection);
+
+            // 3) Invalidera cache
+            Cache.InvalidatePageCache(PageKey);
+
+            await Toast.Success("Navigationsnamn och breadcrumb uppdaterades.");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppdatering av CustomPage DisplayName");
+            await Toast.Error("Fel vid uppdatering av sidans visningsnamn");
         }
     }
 
-    // Hjälpmetoder
     private string GetBreadcrumbPlaceholder()
     {
         return customPage?.DisplayName?.ToUpper() ?? "MIN SIDA";
@@ -929,6 +924,37 @@ else
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Fel vid dispose av CustomPageAdmin");
+        }
+    }
+
+    private async Task SaveFeatureSectionsFromEditor()
+    {
+        try
+        {
+            isSaving = true;
+
+            try
+            {
+                await JS.InvokeVoidAsync("syncAllEditors");
+                await Task.Delay(50);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte synkronisera editorer innan sparning av featuresektioner för {PageKey}", PageKey);
+            }
+
+            await Cms.SaveFeatureSectionsAsync(PageKey, featureSections);
+            Cache.InvalidatePageCache(PageKey);
+            await Toast.Success("Featuresektioner sparade!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av featuresektioner för custom page {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid sparning av featuresektioner.");
+        }
+        finally
+        {
+            isSaving = false;
         }
     }
 }

@@ -1,0 +1,48 @@
+@namespace KronoxFront.Components.Shared.Admin
+@inherits ComponentBase
+
+<div class="card mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h3 class="h5 mb-0">
+            @if (!string.IsNullOrWhiteSpace(IconClass))
+            {
+                <i class="@IconClass me-2"></i>
+            }
+            @Title
+        </h3>
+
+        @if (ShowAdminButton && !string.IsNullOrWhiteSpace(AdminButtonUrl))
+        {
+            <a href="@AdminButtonUrl" class="btn btn-outline-primary btn-sm">
+                @if (!string.IsNullOrWhiteSpace(AdminButtonIcon))
+                {
+                    <i class="@AdminButtonIcon me-1"></i>
+                }
+                @(string.IsNullOrWhiteSpace(AdminButtonText) ? "Hantera" : AdminButtonText)
+            </a>
+        }
+    </div>
+
+    <div class="card-body">
+        @ChildContent
+    </div>
+
+    @if (FooterContent is not null)
+    {
+        <div class="card-footer d-flex justify-content-end">
+            @FooterContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string IconClass { get; set; } = "";
+    [Parameter] public bool ShowAdminButton { get; set; } = false;
+    [Parameter] public string? AdminButtonText { get; set; }
+    [Parameter] public string? AdminButtonUrl { get; set; }
+    [Parameter] public string? AdminButtonIcon { get; set; } = "fa-solid fa-clipboard-list";
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+}

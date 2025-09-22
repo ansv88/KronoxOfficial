@@ -1,14 +1,14 @@
 @using KronoxFront.Services
+@using KronoxFront.Components.Shared.Admin
 @inject CmsService Cms
 
-<div class="card mb-4">
-    <div class="card-header bg-light">
-        <h3 class="h5 mb-0">
-            <i class="fa-solid fa-file-alt me-2"></i>
-            Dokumentsektion
-        </h3>
-    </div>
-    <div class="card-body">
+<AdminSectionFrame Title="Dokumentsektion"
+                   IconClass="fa-solid fa-file-alt"
+                   ShowAdminButton="true"
+                   AdminButtonUrl="/admin/documents/manage"
+                   AdminButtonText="Hantera dokument"
+                   AdminButtonIcon="fa-solid fa-cog">
+    <ChildContent>
         <div class="alert alert-info mb-3">
             <i class="fa-solid fa-info-circle me-2"></i>
             <strong>@Title</strong><br>
@@ -18,35 +18,14 @@
         <div class="row">
             <div class="col-md-6">
                 <div class="d-grid gap-2">
-                    <a href="/admin/documents/manage" class="btn btn-primary">
-                        <i class="fa-solid fa-cog me-1"></i>
-                        Hantera dokument
+                    <a href="/@GetPageUrl()" class="btn btn-outline-info" target="_blank">
+                        <i class="fa-solid fa-external-link-alt me-1"></i>
+                        Visa sida med dokumentsektion
                     </a>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="d-grid gap-2">
-                    @* Visa sidan där dokumentsektionen används *@
-                    @if (PageKey == "dokument")
-                    {
-                        <a href="/dokument" class="btn btn-outline-info" target="_blank">
-                            <i class="fa-solid fa-external-link-alt me-1"></i>
-                            Visa fullständig dokumentsida
-                        </a>
-                    }
-                    else
-                    {
-                        <a href="/@GetPageUrl()" class="btn btn-outline-info" target="_blank">
-                            <i class="fa-solid fa-external-link-alt me-1"></i>
-                            Visa sida med dokumentsektion
-                        </a>
-                    }
                 </div>
             </div>
         </div>
 
-        @* Information om dokumentvisning *@
         <div class="mt-4">
             <h6 class="text-muted mb-2">
                 <i class="fa-solid fa-info-circle me-1"></i>
@@ -59,14 +38,14 @@
                 <li><i class="fas fa-check text-success me-2"></i>Admin kan se och hantera arkiverade dokument</li>
             </ul>
         </div>
-    </div>
-</div>
+    </ChildContent>
+</AdminSectionFrame>
 
 @code {
     [Parameter] public string PageKey { get; set; } = "";
     [Parameter] public string Title { get; set; } = "Dokumentsektion";
     [Parameter] public string Description { get; set; } = "Denna sektion visar automatiskt relevanta dokument baserat på användarens roller och behörigheter.";
-    
+
     private string GetPageUrl()
     {
         return PageKey.ToLowerInvariant() switch

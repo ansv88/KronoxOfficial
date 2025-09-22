@@ -21,8 +21,8 @@
     <meta name="description" content="Information för styrelsemedlemmar i KronoX-konsortiet. Här hittar du dokument, protokoll och annan viktig information för styrelsen." />
 </HeadContent>
 
-<PageTitle>KronoX - @pageContent.Title</PageTitle>
-<h1 class="visually-hidden">@pageContent.Title</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "För styrelsen" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "För styrelsen" : pageContent!.Title))</h1>
 
 @if (loading)
 {

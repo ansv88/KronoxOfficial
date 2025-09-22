@@ -18,8 +18,8 @@
     <meta name="description" content="Utforska KronoX-systemets funktioner, teknik och fördelar för schemaläggning och resursbokning inom högre utbildning." />
 </HeadContent>
 
-<PageTitle>KronoX - @pageContent.Title</PageTitle>
-<h1 class="visually-hidden">@pageContent.Title</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Om systemet" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "Om systemet" : pageContent!.Title))</h1>
 
 @if (loading)
 {

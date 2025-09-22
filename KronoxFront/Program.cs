@@ -138,6 +138,8 @@ public class Program
 
         builder.Services.AddScoped<IToastService, ToastService>();
 
+        builder.Services.AddScoped<NavigationEvents>();
+
         builder.Services.AddResponseCompression(options => {
             options.EnableForHttps = true;
             options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(

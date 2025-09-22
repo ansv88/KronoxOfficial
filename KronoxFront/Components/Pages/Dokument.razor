@@ -21,8 +21,8 @@
     <meta name="description" content="Ladda ner och läs viktiga dokument, manualer och riktlinjer för KronoX-systemet och dess användning." />
 </HeadContent>
 
-<PageTitle>@pageContent.Title</PageTitle>
-<h1 class="visually-hidden">@pageContent.Title</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Dokument" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "Dokument" : pageContent!.Title))</h1>
 
 @if (loading)
 {
@@ -273,12 +273,12 @@ else
                                                 <div class="document-category mb-5">
                                                     <h2 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark h3">
                                                         @category.Name
-                                                        @if (isAdmin && category.AllowedRoles?.Any() == true)
+@*                                                         @if (isAdmin && category.AllowedRoles?.Any() == true)
                                                         {
                                                             <small class="text-muted fs-6">
                                                                 (Tillgänglig för: @string.Join(", ", category.AllowedRoles))
                                                             </small>
-                                                        }
+                                                        } *@
                                                     </h2>
                                                     <div class="document-list">
                                                         @foreach (var doc in categoryDocuments)

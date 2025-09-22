@@ -2,15 +2,13 @@
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Forms
+@using KronoxFront.Components.Shared.Admin
 @inject KronoxFront.Services.CmsService Cms
 @inject IToastService Toast
 @inject ILogger<BannerImageUploader> Logger
 
-<div class="card mb-4">
-    <div class="card-header bg-light">
-        <h2 class="h5 mb-0">Bannerbild</h2>
-    </div>
-    <div class="card-body">
+<AdminSectionFrame Title="Bannerbild" IconClass="fa-solid fa-image">
+    <ChildContent>
         @if (CurrentBanner != null)
         {
             <div class="mb-3">
@@ -55,12 +53,20 @@
                 Ladda upp en bannerbild för startsidan. Rekommenderad storlek: 1920x400px.
             </div>
         </div>
-    </div>
-</div>
+    </ChildContent>
+
+    <FooterContent>
+        <button type="button" class="btn btn-primary" @onclick="SaveBannerSection">
+            <i class="fa-solid fa-save me-1"></i>
+            Spara banner
+        </button>
+    </FooterContent>
+</AdminSectionFrame>
 
 @code {
     [Parameter] public string PageKey { get; set; } = "home";
     [Parameter] public EventCallback<PageImageViewModel> OnUploaded { get; set; }
+    [Parameter] public EventCallback OnSaveRequested { get; set; }
 
     private PageImageViewModel? CurrentBanner { get; set; }
 
@@ -69,15 +75,32 @@
         await LoadCurrentBanner();
     }
 
+    private async Task SaveBannerSection()
+    {
+        try
+        {
+            if (OnSaveRequested.HasDelegate)
+            {
+                await OnSaveRequested.InvokeAsync();
+            }
+            else
+            {
+                await Toast.Info("Inget att spara – uppladdning/alt-text sparas direkt.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparknapp för banner {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid sparning av banner");
+        }
+    }
+
     private async Task LoadCurrentBanner()
     {
-        // Hämta sidan och dess bilder
         var page = await Cms.GetPageContentAsync(PageKey);
         if (page != null)
         {
-            // Hitta den aktuella bannerbilden
             CurrentBanner = page.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-            
         }
     }
 
@@ -87,7 +110,6 @@
         {
             try
             {
-                // Validering
                 if (e.File.Size > 5 * 1024 * 1024)
                 {
                     await Toast.Error("Filen är för stor. Maximal storlek är 5MB.");
@@ -103,7 +125,6 @@
 
                 await Toast.Info("Laddar upp bild...");
 
-                // Ta bort befintlig bannerbild först
                 if (CurrentBanner != null)
                 {
                     try
@@ -122,7 +143,6 @@
                 await stream.CopyToAsync(ms);
                 ms.Position = 0;
 
-                // Ladda upp ny bannerbild
                 var uploadedImage = await Cms.UploadPageImageAsync(
                     PageKey, ms, e.File.Name, $"hero:Bannerbild för {PageKey}");
 
@@ -130,7 +150,6 @@
                 {
                     CurrentBanner = uploadedImage;
 
-                    // Meddela parent-komponenten
                     if (OnUploaded.HasDelegate)
                     {
                         await OnUploaded.InvokeAsync(uploadedImage);
@@ -158,16 +177,13 @@
         {
             try
             {
-                // Ta bort bilden från databasen
                 await Cms.DeletePageImageAsync(PageKey, CurrentBanner.Id);
 
-                // Meddela parent-komponenten
                 if (OnUploaded.HasDelegate)
                 {
                     await OnUploaded.InvokeAsync(null);
                 }
 
-                // Uppdatera UI
                 CurrentBanner = null;
 
                 await Toast.Success("Bannerbild borttagen!");
@@ -186,7 +202,6 @@
         {
             try
             {
-                // Skapa en kopia av bilden med uppdaterad altText
                 var updatedImage = new PageImageViewModel
                 {
                     Id = CurrentBanner.Id,
@@ -194,15 +209,12 @@
                     AltText = $"hero:{newAltText}"
                 };
 
-                // Uppdatera i databasen via API
                 var success = await Cms.UpdatePageImageAltTextAsync(PageKey, updatedImage);
 
                 if (success)
                 {
-                    // Uppdatera lokal reference
                     CurrentBanner = updatedImage;
 
-                    // Meddela parent-komponenten
                     if (OnUploaded.HasDelegate)
                     {
                         await OnUploaded.InvokeAsync(updatedImage);

@@ -1,4 +1,5 @@
 ﻿@page "/medlemsnytt"
+@using KronoxFront.Components.Admin
 @using KronoxFront.ViewModels
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
@@ -18,8 +19,8 @@
     <meta name="description" content="Senaste nyheterna och uppdateringarna för KronoX-konsortiet. Information för medlemmar." />
 </HeadContent>
 
-<PageTitle>Medlemsnytt - KronoX</PageTitle>
-<h1 class="visually-hidden">Medlemsnytt</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Medlemsnytt" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "Medlemsnytt" : pageContent!.Title))</h1>
 
 @if (loading)
 {
@@ -123,9 +124,7 @@ else
             case SectionType.ActionPlanTable:
                 <div class="wrapper-div py-3">
                     <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                        <div style="max-width:800px; margin: 0 auto;">
-                            <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
-                        </div>
+                        <ActionPlanSection ActionPlan="@actionPlan" Title="Handlingsplan" />
                     </section>
                 </div>
                 break;
@@ -147,6 +146,7 @@ else
 }
 
 @code {
+    private PageContentViewModel pageContent = new();
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
@@ -181,6 +181,17 @@ else
     {
         try
         {
+            // Ladda grundläggande sidinnehåll för fallback-titel
+            pageContent = await Cms.GetPageContentAsync("medlemsnytt")
+                          ?? new PageContentViewModel
+                          {
+                              PageKey = "medlemsnytt",
+                              Title = "Medlemsnytt",
+                              HtmlContent = "",
+                              LastModified = DateTime.Now,
+                              Images = new List<PageImageViewModel>()
+                          };
+
             // Ladda intro-sektion
             introSection = await Cms.GetIntroSectionAsync("medlemsnytt");
             
@@ -188,7 +199,7 @@ else
             featureSections = await Cms.GetFeatureSectionsAsync("medlemsnytt");
             faqSections = await Cms.GetFaqSectionsAsync("medlemsnytt");
             
-            // Sätt standardvärden om inget innehåll finns
+            // Sätt standardvärden om inget innehåll finns i intro
             if (string.IsNullOrEmpty(introSection.Title))
             {
                 introSection.Title = "För medlemmar";
@@ -238,6 +249,15 @@ else
             Logger.LogError(ex, "Fel vid laddning av sidinnehåll för medlemsnytt");
             
             // Fallback-innehåll
+            pageContent = new PageContentViewModel
+            {
+                PageKey = "medlemsnytt",
+                Title = "Medlemsnytt",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+
             introSection = new IntroSectionViewModel
             {
                 Title = "För medlemmar",
@@ -257,7 +277,6 @@ else
 
     private string GetHeroBannerUrl()
     {
-        // Kan senare hämtas från CMS om admins laddar upp en specifik bannerbild för medlemsnytt
         return "/images/hero/hero_top_klocka_blue-1300x394.jpg";
     }
 

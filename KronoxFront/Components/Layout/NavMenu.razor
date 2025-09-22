@@ -1,4 +1,5 @@
-﻿@using Microsoft.AspNetCore.Components.Authorization
+﻿@using KronoxFront.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @using KronoxFront.DTOs
@@ -9,6 +10,7 @@
 @inject IHttpClientFactory HttpFactory
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject NavigationEvents NavEvents
 @implements IDisposable
 
 <nav class="navbar navbar-expand-lg navbar-custom bg-dark">
@@ -87,10 +89,10 @@
                                             <ul class="dropdown-menu">
                                                 <li><NavLink class="dropdown-item" href="/admin">Dashboard</NavLink></li>
                                                 <li><hr class="dropdown-divider"></li>
-                                                <li><NavLink class="dropdown-item" href="/admin/pages">Hantera sidor</NavLink></li>
                                                 <li><NavLink class="dropdown-item" href="/admin/users">Hantera användare</NavLink></li>
+                                                <li><NavLink class="dropdown-item" href="/admin/news">Hantera nyheter</NavLink></li>
                                                 <li><NavLink class="dropdown-item" href="/admin/documents/manage">Hantera dokument</NavLink></li>
-                                                <li><NavLink class="dropdown-item" href="/admin/navigation">Hantera navigation</NavLink></li>
+                                                <li><NavLink class="dropdown-item" href="/admin/suggestions">Utvecklingsförslag</NavLink></li>
                                             </ul>
                                         </li>
                                     </Authorized>
@@ -257,7 +259,7 @@
     protected override async Task OnInitializedAsync()
     {
         Nav.LocationChanged += OnLocationChanged;
-        
+        NavEvents.NavigationUpdated += OnNavigationUpdated;
         await LoadNavigationPages();
         await LoadNavigationConfig();
         
@@ -282,6 +284,17 @@
         //         showLogin = true;
         //     }
         // }
+    }
+
+    private async void OnNavigationUpdated()
+    {
+        try
+        {
+            await LoadNavigationPages();
+            await LoadNavigationConfig();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { /* ignore */ }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -353,6 +366,7 @@
     public void Dispose()
     {
         Nav.LocationChanged -= OnLocationChanged;
+        NavEvents.NavigationUpdated -= OnNavigationUpdated;
     }
 
     private List<NavigationPageDto> GetCustomPagesForParent(string parentPageKey)

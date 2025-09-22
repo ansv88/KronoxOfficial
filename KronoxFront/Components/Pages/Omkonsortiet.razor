@@ -21,8 +21,8 @@
     <meta name="description" content="Läs om KronoX-konsortiet - en sammanslutning av svenska högskolor och universitet för utveckling av schemaläggningssystem." />
 </HeadContent>
 
-<PageTitle>KronoX - @pageContent.Title</PageTitle>
-<h1 class="visually-hidden">@pageContent.Title</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Om konsortiet" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "Om konsortiet" : pageContent!.Title))</h1>
 
 @if (loading)
 {

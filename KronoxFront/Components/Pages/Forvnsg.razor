@@ -21,8 +21,8 @@
     <meta name="description" content="Information för VNSG (VerksamhetsNära StyrGrupp) inom KronoX-konsortiet. Här hittar du dokument, protokoll och annan viktig information för VNSG." />
 </HeadContent>
 
-<PageTitle>KronoX - @pageContent.Title</PageTitle>
-<h1 class="visually-hidden">@pageContent.Title</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "För VNSG" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "För VNSG" : pageContent!.Title))</h1>
 
 @if (loading)
 {

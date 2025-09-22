@@ -25,10 +25,10 @@
 @inject IHttpClientFactory HttpClientFactory
 
 <HeadContent>
-    <meta name="description" content="Redigera sidan '@GetPageDisplayName()' för KronoX. Hantera innehåll, bilder och sektioner." />
+    <meta name="description" content="Redigera sidan '@CurrentDisplayName()' för KronoX. Hantera innehåll, bilder och sektioner." />
 </HeadContent>
 
-<PageTitle>Admin - @GetPageDisplayName()</PageTitle>
+<PageTitle>Admin - @CurrentDisplayName()</PageTitle>
 
 @if (isChecking)
 {
@@ -72,12 +72,12 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h1 class="h3">Redigera sidan "@GetPageDisplayName()"</h1>
+                    <h1 class="h3">Redigera sidan "@CurrentDisplayName()"</h1>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item"><a href="/admin/dashboard">Admin</a></li>
                             <li class="breadcrumb-item">Sidor</li>
-                            <li class="breadcrumb-item active" aria-current="page">@GetPageDisplayName()</li>
+                            <li class="breadcrumb-item active" aria-current="page">@CurrentDisplayName()</li>
                         </ol>
                     </nav>
                 </div>
@@ -123,47 +123,16 @@
             }
             else
             {
-                @* ---------- Section Configuration Manager (ALLTID TILLGÄNGLIG) ----------- *@
-                <PageSectionConfigurator PageKey="@PageKey"
-                                         AvailableSections="sectionConfigItems"
-                                         OnConfigurationChanged="OnSectionConfigurationChanged"
-                                         OnSave="SaveSectionConfiguration" />
-
                 @* ---------- Navigeringsinställningar (ALLTID TILLGÄNGLIG) ----------- *@
                 <NavigationSettings PageKey="@PageKey"
                                     InitialDisplayName="@pageContent.Title"
                                     OnDisplayNameChanged="OnNavigationNameChanged" />
 
-                @* ---------- Sidans titel (dynamiskt baserat på sida) ----------- *@
-                @if (ShouldShowPageTitleEditor())
-                {
-                    <EditForm Model="pageContent" OnValidSubmit="SavePageContent">
-                        <DataAnnotationsValidator />
-                        <div class="card mb-4">
-                            <div class="card-header bg-light">
-                                <h3 class="h5 mb-0">
-                                    <i class="fa-solid fa-heading me-2"></i>
-                                    Sidans titel
-                                </h3>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <label for="pageTitle" class="form-label">Titel</label>
-                                    <InputText id="pageTitle"
-                                               class="form-control"
-                                               @bind-Value="pageContent.Title"
-                                               placeholder="@GetPageTitlePlaceholder()" />
-                                    <ValidationMessage For="() => pageContent.Title" />
-                                    <div class="form-text">Denna titel visas i webbläsarens flik och som sidhuvud</div>
-                                </div>
-                                <button type="submit" class="btn btn-outline-primary" disabled="@isSaving">
-                                    <i class="fa-solid fa-save me-1"></i>
-                                    Spara titel
-                                </button>
-                            </div>
-                        </div>
-                    </EditForm>
-                }
+                @* ---------- Section Configuration Manager (ALLTID TILLGÄNGLIG) ----------- *@
+                <PageSectionConfigurator PageKey="@PageKey"
+                                         AvailableSections="sectionConfigItems"
+                                         OnConfigurationChanged="OnSectionConfigurationChanged"
+                                         OnSave="SaveSectionConfiguration" />
 
                 @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
@@ -171,7 +140,7 @@
                     @switch (sectionConfig.Type)
                     {
                         case SectionType.Banner:
-                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" />
+                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" OnSaveRequested="SaveContent" />
                             break;
 
                         case SectionType.Intro:
@@ -196,7 +165,8 @@
                                                   Sections="featureSections"
                                                   OnSectionsChanged="OnFeatureSectionsChanged"
                                                   OnImageUpload="OnFeatureImageUploaded"
-                                                  OnImageDelete="OnFeatureImageDeleted" />
+                                                  OnImageDelete="OnFeatureImageDeleted"
+                                                  OnSaveSections="SaveFeatureSectionsFromEditor" />
                             break;
 
                         case SectionType.FaqSections:
@@ -235,30 +205,23 @@
                             break;
 
                         case SectionType.MemberLogos:
-                            <div class="card mb-4">
-                                <div class="card-header bg-light">
-                                    <h3 class="h5 mb-0">
-                                        <i class="fa-solid fa-users me-2"></i>
-                                        Medlemslogotyper
-                                    </h3>
-                                </div>
-                                <div class="card-body">
+                            <AdminSectionFrame Title="Medlemslogotyper"
+                                               IconClass="fa-solid fa-users"
+                                               ShowAdminButton="true"
+                                               AdminButtonUrl="/admin/memberlogos"
+                                               AdminButtonText="Hantera medlemslogotyper"
+                                               AdminButtonIcon="fa-solid fa-cog">
+                                <ChildContent>
                                     <div class="alert alert-info mb-3">
                                         <i class="fa-solid fa-info-circle me-2"></i>
                                         <strong>Status:</strong> Medlemslogotyper visas automatiskt på denna sida när sektionen är aktiverad.
                                     </div>
-                                    <p class="text-muted mb-3">
-                                        Sektionen "Våra medlemmar" kommer att visas på sidan med alla aktiva medlemslogotyper.
-                                        För att hantera vilka logotyper som ska visas, deras ordning och beskrivningar, använd hanteringssidan nedan.
+                                    <p class="text-muted mb-0">
+                                        Sektionen ”Våra medlemmar” visar alla aktiva logotyper. Använd knappen ”Hantera medlemslogotyper”
+                                        för att justera vilka logotyper som visas, deras ordning och beskrivningar.
                                     </p>
-                                    <div class="d-flex gap-2">
-                                        <a href="/admin/memberlogos" class="btn btn-primary">
-                                            <i class="fa-solid fa-cog me-1"></i>
-                                            Hantera medlemslogotyper
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
+                                </ChildContent>
+                            </AdminSectionFrame>
                             break;
                     }
                 }
@@ -332,6 +295,10 @@
         ["dokument"] = "dokument"
     };
 
+    private string? _navDisplayName;
+
+    private string CurrentDisplayName() => _navDisplayName ?? GetPageDisplayName();
+
     protected override async Task OnParametersSetAsync()
     {
         // Rensa tidigare data först
@@ -369,10 +336,12 @@
                 Images = new List<PageImageViewModel>()
             };
 
+            // Initiera _navDisplayName från lagrat innehåll om det finns
+            _navDisplayName = pageContent.Title;
+
             // Ladda sektionskonfiguration först
             sectionConfigItems = await Cms.GetPageSectionConfigAsync(PageKey);
 
-            // Om ingen konfiguration finns, skapa standardkonfiguration
             if (!sectionConfigItems.Any())
             {
                 sectionConfigItems = GetDefaultSectionConfig(PageKey);
@@ -416,6 +385,7 @@
         introSectionEditorRef = null;
         featureSectionEditorRef = null;
         faqEditorRef = null;
+        _navDisplayName = null;
     }
 
     private async Task CheckPageType()
@@ -621,18 +591,18 @@
 
     private string GetBreadcrumbPlaceholder()
     {
-        return $"T.ex. {GetPageDisplayName().ToUpper()}";
+        return $"T.ex. {CurrentDisplayName().ToUpper()}";
     }
 
     private string GetPageTitlePlaceholder()
     {
-        return $"T.ex. KronoX - {GetPageDisplayName()}";
+        return $"T.ex. KronoX - {CurrentDisplayName()}";
     }
 
     private bool ShouldShowPageTitleEditor()
     {
-        // Visa sidtitelredigerare för alla sidor - användaren kan välja
-        return true;
+        // Policy: ingen manuell sidtitelredigering för fasta sidor
+        return false;
     }
 
     private bool ShouldShowDocumentPreview()
@@ -789,7 +759,7 @@
             "forvaltning" => ("Handlingsplan och utvecklingsförslag", "<p>Här finns konsortiets handlingsplan med utvecklingsförslag för 2024 och framåt. Denna uppdateras löpande.</p><p>Sist på sidan hittar du också ett formulär för utvecklingsförslag, där du kan skicka in dina utvecklingsförslag direkt till systemgruppen. Glöm inte att beskriva ditt förslag för att undvika missförstånd.</p>", "FÖRVALTNING"),
             "medlemsnytt" => ("För medlemmar", "<p>Här hittar du de senaste uppdateringarna och nyheterna om KronoX och konsortiet.</p><p>Vill du läsa mer om Konsortiets medlemmar och hur de arbetar med KronoX hittar du det under <strong>Hur vi arbetar med KronoX</strong>.</p><p>Letar du efter kontaktuppgifter till medlemmarna finns det under <strong>Om konsortiet</strong>.</p><p>Söker du information om handhavande/användarinstruktioner för schemasystemet, hittar du det i <strong>Manualen</strong>.</p>", "MEDLEMSNYTT"),
             "dokument" => ("Dokument och resurser", "<p>Här hittar du alla dokument och resurser relaterade till KronoX.</p>", "DOKUMENT"),
-            _ => (GetPageDisplayName(), $"<p>Välkommen till {GetPageDisplayName()}.</p>", GetPageDisplayName().ToUpper())
+            _ => (CurrentDisplayName(), $"<p>Välkommen till {CurrentDisplayName()}.</p>", CurrentDisplayName().ToUpper())
         };
     }
 
@@ -806,7 +776,7 @@
             "medlemsnytt" => ("Information för medlemmar", "<p>Lägg till innehåll här...</p>"),
             "dokument" => ("Dokument och resurser", "<p>Lägg till innehåll här...</p>"),
             "forvaltning" => ("Utveckling och förvaltning", "<p>Lägg till innehåll här...</p>"),
-            _ => ($"Information om {GetPageDisplayName()}", "<p>Lägg till innehåll här...</p>")
+            _ => ($"Information om {CurrentDisplayName()}", "<p>Lägg till innehåll här...</p>")
         };
     }
 
@@ -824,7 +794,7 @@
             "medlemsnytt" => ("Vanliga frågor för medlemmar", "Här hittar du svar på vanliga frågor från medlemmar", "Hur får jag tillgång till medlemsområdet?", "<p>Kontakta din kontaktperson för att få tillgång.</p>"),
             "dokument" => ("Vanliga frågor om dokument", "Här hittar du svar på frågor om dokumenthantering", "Var hittar jag dokumenten?", "<p>Dokument finns organiserade efter kategorier och roller.</p>"),
             "forvaltning" => ("Vanliga frågor om förvaltning", "Här hittar du svar på frågor om förvaltning och utveckling", "Hur kan jag skicka utvecklingsförslag?", "<p>Du kan skicka förslag genom formuläret på denna sida.</p>"),
-            _ => ($"Vanliga frågor om {GetPageDisplayName()}", $"Här hittar du svar på frågor om {GetPageDisplayName()}", "Exempel på fråga", "<p>Exempel på svar...</p>")
+            _ => ($"Vanliga frågor om {CurrentDisplayName()}", $"Här hittar du svar på frågor om {CurrentDisplayName()}", "Exempel på fråga", "<p>Exempel på svar...</p>")
         };
     }
 
@@ -832,9 +802,9 @@
     {
         introSection = new IntroSectionViewModel
         {
-            Title = GetPageDisplayName(),
+            Title = CurrentDisplayName(),
             Content = "<p>Information laddas...</p>",
-            BreadcrumbTitle = GetPageDisplayName().ToUpper()
+            BreadcrumbTitle = CurrentDisplayName().ToUpper()
         };
         featureSections = new List<FeatureSectionViewModel>();
         faqSections = new List<FaqSectionViewModel>();
@@ -845,16 +815,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Kolla både firstRender OCH needsEditorInitialization
         if (firstRender || needsEditorInitialization)
         {
-            // Återställ flaggan
             needsEditorInitialization = false;
-
-            // Vänta lite för att säkerställa att DOM är redo
             await Task.Delay(500);
-
-            // Initiera editorer
             await InitializeEditors();
         }
     }
@@ -865,11 +829,9 @@
         {
             Logger.LogInformation("=== Startar TinyMCE-initialisering för {PageKey} ===", PageKey);
 
-            // Extra rensning vid sidbyten
             await JS.InvokeVoidAsync("eval", "if(typeof tinymce !== 'undefined') { tinymce.remove(); }");
             await Task.Delay(500);
 
-            // Global rensning endast en gång
             await JS.InvokeVoidAsync("destroyAllEditors");
             await Task.Delay(300);
 
@@ -904,7 +866,7 @@
                 {
                     try
                     {
-                        await Task.Delay(200); // Stagger initialization
+                        await Task.Delay(200);
                         await featureSectionEditorRef.InitializeEditorsOnly();
                         Logger.LogInformation("Feature-editorer initialiserade");
                     }
@@ -923,7 +885,7 @@
                 {
                     try
                     {
-                        await Task.Delay(400); // Stagger initialization
+                        await Task.Delay(400);
                         await faqEditorRef.InitializeEditorsOnly();
                         Logger.LogInformation("FAQ-editorer initialiserade");
                     }
@@ -1015,10 +977,8 @@
         isSaving = true;
         try
         {
-            // Explicit synkronisering av intro-editor INNAN allmän syncAllEditors
             await SyncIntroEditor();
 
-            // Synkronisera editorer
             try
             {
                 await JS.InvokeVoidAsync("syncAllEditors");
@@ -1059,13 +1019,11 @@
                 saveTasks.Add(Cms.SaveActionPlanAsync(PageKey, actionPlan));
             }
 
-            // Vänta på att alla sparningar slutförs
             await Task.WhenAll(saveTasks);
 
-            // Invalidera cache
             Cache.InvalidatePageCache(PageKey);
 
-            await Toast.Success($"Innehållet för {GetPageDisplayName()} har sparats framgångsrikt!");
+            await Toast.Success($"Innehållet för {CurrentDisplayName()} har sparats framgångsrikt!");
         }
         catch (Exception ex)
         {
@@ -1078,7 +1036,6 @@
         }
     }
 
-    // Event handlers för olika sektioner
     private async Task OnBannerUploaded(PageImageViewModel? img)
     {
         try
@@ -1131,7 +1088,6 @@
         }
     }
 
-    // Övriga event handlers
     private async Task SavePageContent()
     {
         try
@@ -1187,17 +1143,40 @@
 
     private async Task OnNavigationNameChanged(string newDisplayName)
     {
-        // Synkronisera sidtiteln om önskas
-        if (!string.IsNullOrEmpty(newDisplayName) && pageContent.Title != newDisplayName)
-        {
-            var shouldSync = await JS.InvokeAsync<bool>("confirm",
-                $"Vill du också ändra sidtiteln till '{newDisplayName}'?");
+        if (string.IsNullOrWhiteSpace(newDisplayName))
+            return;
 
-            if (shouldSync)
+        try
+        {
+            _navDisplayName = newDisplayName;
+
+            // 1) Uppdatera sidtitel i CMS (driver webbläsarflik + H1 på publika sidor)
+            pageContent.Title = newDisplayName;
+
+            // 2) Uppdatera endast breadcrumb i Intro (om intro är aktiv)
+            if (sectionConfigItems.Any(s => s.Type == SectionType.Intro))
             {
-                pageContent.Title = newDisplayName;
-                await SavePageContent();
+                introSection.BreadcrumbTitle = newDisplayName.ToUpperInvariant();
             }
+
+            var tasks = new List<Task> { Cms.SavePageContentAsync(PageKey, pageContent) };
+            if (sectionConfigItems.Any(s => s.Type == SectionType.Intro))
+            {
+                tasks.Add(Cms.SaveIntroSectionAsync(PageKey, introSection));
+            }
+
+            await Task.WhenAll(tasks);
+
+            // Invalidera cache
+            Cache.InvalidatePageCache(PageKey);
+
+            await Toast.Success("Navigationsnamn uppdaterade sidtitel och breadcrumb.");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid synk av sidtitel/breadcrumb för {PageKey}", PageKey);
+            await Toast.Error("Kunde inte uppdatera sidtitel/breadcrumb.");
         }
     }
 
@@ -1211,13 +1190,43 @@
     {
         try
         {
-            // Rensa alla TinyMCE-editorer
             _ = JS.InvokeVoidAsync("destroyAllEditors");
             Logger.LogInformation("Disposed MainPageAdmin för {PageKey}", PageKey);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Fel vid dispose av MainPageAdmin");
+        }
+    }
+
+    private async Task SaveFeatureSectionsFromEditor()
+    {
+        try
+        {
+            isSaving = true;
+
+            try
+            {
+                await JS.InvokeVoidAsync("syncAllEditors");
+                await Task.Delay(50);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte synka editorer innan sparning av featuresektioner för {PageKey}", PageKey);
+            }
+
+            await Cms.SaveFeatureSectionsAsync(PageKey, featureSections);
+            Cache.InvalidatePageCache(PageKey);
+            await Toast.Success("Featuresektioner sparade!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av featuresektioner för {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid sparning av featuresektioner.");
+        }
+        finally
+        {
+            isSaving = false;
         }
     }
 }

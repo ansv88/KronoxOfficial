@@ -1,13 +1,14 @@
 @using KronoxFront.Services
+@using KronoxFront.Components.Shared.Admin
 @inject CmsService Cms
 
-<div class="card mb-4">
-    <div class="card-header bg-light">
-        <h3 class="h5 mb-0">
-            <i class="fa-solid fa-lightbulb me-2"></i>Utvecklingsförslagformulär
-        </h3>
-    </div>
-    <div class="card-body">
+<AdminSectionFrame Title="Utvecklingsförslag"
+                   IconClass="fa-solid fa-lightbulb"
+                   ShowAdminButton="true"
+                   AdminButtonUrl="/admin/suggestions"
+                   AdminButtonText="Hantera förslag"
+                   AdminButtonIcon="fa-solid fa-list">
+    <ChildContent>
         <div class="alert alert-info mb-3">
             <i class="fa-solid fa-info-circle me-2"></i>
             <strong>Status:</strong> Utvecklingsförslagformuläret visas automatiskt när det är aktiverat.
@@ -16,18 +17,8 @@
             Formuläret låter användare skicka in utvecklingsförslag för systemet.
             Alla förslag sparas i systemet och kan granskas av administratörer.
         </p>
-        <div class="d-flex gap-2">
-            <a href="/admin/suggestions" class="btn btn-primary">
-                <i class="fa-solid fa-list me-1"></i>
-                Visa inskickade förslag
-            </a>
-            <a href="/@PageKey" class="btn btn-outline-secondary" target="_blank">
-                <i class="fa-solid fa-eye me-1"></i>
-                Förhandsgranska sidan
-            </a>
-        </div>
-    </div>
-</div>
+    </ChildContent>
+</AdminSectionFrame>
 
 @code {
     [Parameter] public string PageKey { get; set; } = "";

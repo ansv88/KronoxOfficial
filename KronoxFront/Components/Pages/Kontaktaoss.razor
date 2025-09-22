@@ -19,8 +19,8 @@
     <meta name="description" content="Kontakta KronoX för frågor om systemet, medlemskap eller support. Här hittar du kontaktuppgifter och formulär." />
 </HeadContent>
 
-<PageTitle>KronoX - @pageContent.Title</PageTitle>
-<h1 class="visually-hidden">@pageContent.Title</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Kontakta oss" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "Kontakta oss" : pageContent!.Title))</h1>
 
 @if (loading)
 {

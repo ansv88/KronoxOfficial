@@ -18,8 +18,8 @@
     <meta name="description" content="Förvaltning av KronoX-systemet. Handlingsplan och utvecklingsförslag för medlemmar." />
 </HeadContent>
 
-<PageTitle>Förvaltning - KronoX</PageTitle>
-<h1 class="visually-hidden">Förvaltning</h1>
+<PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Förvaltning" : pageContent!.Title)} - KronoX")</PageTitle>
+<h1 class="visually-hidden">@((string.IsNullOrWhiteSpace(pageContent?.Title) ? "Förvaltning" : pageContent!.Title))</h1>
 
 @if (loading)
 {
@@ -138,6 +138,7 @@ else
 }
 
 @code {
+    private PageContentViewModel pageContent = new();
     private IntroSectionViewModel introSection = new();
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
@@ -172,6 +173,17 @@ else
     {
         try
         {
+            // Ladda grundläggande sidinnehåll (för fallback-titel)
+            pageContent = await Cms.GetPageContentAsync("forvaltning") 
+                          ?? new PageContentViewModel
+                          {
+                              PageKey = "forvaltning",
+                              Title = "Förvaltning",
+                              HtmlContent = "",
+                              LastModified = DateTime.Now,
+                              Images = new List<PageImageViewModel>()
+                          };
+
             // Ladda intro-sektion
             introSection = await Cms.GetIntroSectionAsync("forvaltning");
 
@@ -195,7 +207,6 @@ else
             // Ladda sektionskonfiguration
             sectionConfigurations = await Cms.GetPageSectionConfigAsync("forvaltning");
 
-            // Om ingen konfiguration finns, skapa standardkonfiguration
             if (!sectionConfigurations.Any())
             {
                 Logger.LogWarning("Ingen sektionskonfiguration hittades för förvaltning, skapar fallback");
@@ -215,6 +226,15 @@ else
             Logger.LogError(ex, "Fel vid laddning av sidinnehåll för förvaltning");
 
             // Fallback-innehåll
+            pageContent = new PageContentViewModel
+            {
+                PageKey = "forvaltning",
+                Title = "Förvaltning",
+                HtmlContent = "",
+                LastModified = DateTime.Now,
+                Images = new List<PageImageViewModel>()
+            };
+
             introSection = new IntroSectionViewModel
             {
                 Title = "Förvaltning",
@@ -222,7 +242,6 @@ else
                 BreadcrumbTitle = "FÖRVALTNING"
             };
 
-            // Skapa minimal konfiguration
             sectionConfigurations = new List<SectionConfigItem>
             {
                 new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },

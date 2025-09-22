@@ -17,46 +17,86 @@
 
 <h1 class="mb-4 text-center">Admin Dashboard</h1>
 
-<div class="row mb-4">
-    <!-- Statistiköversikt -->
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-light">
-                <h2 class="h5 mb-0"><i class="fa-solid fa-chart-simple me-2"></i>Statistiköversikt</h2>
+<div class="row g-3 mb-4">
+    <!-- Väntande -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex">
+                <div class="me-3">
+                    <i class="fa-solid fa-inbox fa-2x"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h3 class="h6 mb-1">Att hantera</h3>
+                        @if (PendingApprovals > 0)
+                        {
+                            <span class="badge bg-warning text-dark">@PendingApprovals</span>
+                        }
+                    </div>
+                    <div class="display-6 fw-semibold lh-1">@PendingApprovals</div>
+                    <div class="small text-muted mt-1">
+                        @newUserCount nya användare · @newSuggestionsCount nya förslag
+                    </div>
+                    <div class="mt-2 d-flex gap-2">
+                        <a href="/admin/users" class="btn btn-sm btn-outline-primary">Användare</a>
+                        <a href="/admin/suggestions" class="btn btn-sm btn-outline-primary">Förslag</a>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-3">
-                        <div class="p-3 border rounded">
-                            <h3 class="h5">Användare</h3>
-                            <div class="h2 mb-0">@userCount</div>
-                            @if (newUserCount > 0)
-                            {
-                                <span class="badge bg-danger">+@newUserCount nya</span>
-                            }
-                        </div>
+        </div>
+    </div>
+
+    <!-- Nyhetsstatus -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex">
+                <div class="me-3">
+                    <i class="fa-solid fa-newspaper fa-2x"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h3 class="h6 mb-1">Nyheter (publicerade)</h3>
+                    <div class="display-6 fw-semibold lh-1">@PublishedNewsCount</div>
+                    <div class="small text-muted mt-1">Arkiverade: @archivedNewsCount</div>
+                    <div class="mt-2">
+                        <a href="/admin/news" class="btn btn-sm btn-outline-primary">Hantera nyheter</a>
                     </div>
-                    <div class="col-md-3">
-                        <div class="p-3 border rounded">
-                            <h3 class="h5">Dokument</h3>
-                            <div class="h2 mb-0">@documentsCount</div>
-                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dokument -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex">
+                <div class="me-3">
+                    <i class="fa-solid fa-file-alt fa-2x"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h3 class="h6 mb-1">Dokument</h3>
+                    <div class="display-6 fw-semibold lh-1">@documentsCount</div>
+                    <div class="small text-muted mt-1">Kategorier: @mainCategoryCount/@subCategoryCount</div>
+                    <div class="mt-2">
+                        <a href="/admin/documents/manage" class="btn btn-sm btn-outline-primary">Hantera dokument</a>
                     </div>
-                    <div class="col-md-3">
-                        <div class="p-3 border rounded">
-                            <h3 class="h5">Kategorier</h3>
-                            <div class="h2 mb-0">@mainCategoryCount<span class="text-muted h5">/@subCategoryCount</span></div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3 border rounded">
-                            <h3 class="h5">Nyheter</h3>
-                            <div class="h2 mb-0">@newsCount</div>
-                            @if (archivedNewsCount > 0)
-                            {
-                                <small class="text-muted">(@archivedNewsCount arkiverade)</small>
-                            }
-                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Användare -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex">
+                <div class="me-3">
+                    <i class="fa-solid fa-users fa-2x"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h3 class="h6 mb-1">Användare (totalt)</h3>
+                    <div class="display-6 fw-semibold lh-1">@userCount</div>
+                    <div class="small text-muted mt-1">Nya ansökningar: @newUserCount</div>
+                    <div class="mt-2">
+                        <a href="/admin/users" class="btn btn-sm btn-outline-primary">Hantera användare</a>
                     </div>
                 </div>
             </div>
@@ -172,6 +212,7 @@
     </div>
 </div>
 
+<!-- Sidhantering + Användarhantering -->
 <div class="row">
     <!-- Hantera sidor & Navigation -->
     <div class="col-lg-6 mb-4">
@@ -201,6 +242,124 @@
                     <i class="fa-solid fa-lightbulb me-1"></i>
                     <strong>Tips:</strong> När du skapar nya sidor läggs de automatiskt till i navigationsmenyn.
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Användarhantering -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0"><i class="fa-solid fa-users me-2"></i>Användarhantering</h2>
+                @if (newUserCount > 0)
+                {
+                    <span class="badge bg-danger">@newUserCount</span>
+                }
+            </div>
+            <div class="card-body">
+                <p class="card-text">Hantera användarkonton, godkänn nya användare och ändra behörigheter.</p>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            Aktiva användare
+                            <small class="d-block text-muted">Godkända användare med olika roller</small>
+                        </span>
+                        <span class="badge bg-primary rounded-pill">@userCount</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            Nya ansökningar
+                            <small class="d-block text-muted">Väntar på godkännande</small>
+                        </span>
+                        <span class="badge bg-warning text-dark rounded-pill">@newUserCount</span>
+                    </li>
+                </ul>
+                <a href="/admin/users" class="btn btn-primary">
+                    <i class="fa-solid fa-user-gear me-2"></i>Hantera användare
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Nyhetshantering + Dokumenthantering -->
+<div class="row">
+    <!-- Nyhetshantering -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h2 class="h5 mb-0"><i class="fa-solid fa-newspaper me-2"></i>Nyhetshantering</h2>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Skapa och hantera nyheter och meddelanden som visas för medlemmar.</p>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            Publicerade nyheter
+                            <small class="d-block text-muted">Synliga för medlemmar</small>
+                        </span>
+                        <span class="badge bg-success rounded-pill">@(newsCount - archivedNewsCount)</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            Arkiverade nyheter
+                            <small class="d-block text-muted">Dolda från medlemmar</small>
+                        </span>
+                        <span class="badge bg-secondary rounded-pill">@archivedNewsCount</span>
+                    </li>
+                </ul>
+                <div class="d-flex gap-2">
+                    <a href="/admin/news" class="btn btn-primary">
+                        <i class="fa-solid fa-pen-to-square me-2"></i>Hantera nyheter
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dokumenthantering -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h2 class="h5 mb-0"><i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering</h2>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Ladda upp och organisera dokument i olika kategorier.</p>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Totalt antal dokument</span>
+                        <span class="badge bg-primary rounded-pill">@documentsCount</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Huvudkategorier</span>
+                        <span class="badge bg-info rounded-pill">@mainCategoryCount</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Underkategorier</span>
+                        <span class="badge bg-secondary rounded-pill">@subCategoryCount</span>
+                    </li>
+                </ul>
+                <a href="/admin/documents/manage" class="btn btn-primary">
+                    <i class="fa-solid fa-folder-open me-2"></i>Hantera dokument
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Handlingsplan + Utvecklingsförslag -->
+<div class="row">
+    <!-- Handlingsplan -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h2 class="h5 mb-0"><i class="fa-solid fa-clipboard-list me-2"></i>Handlingsplan</h2>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Administrera handlingsplanens aktiviteter och leveranser.</p>
+                <a href="/admin/actionplan" class="btn btn-primary">
+                    <i class="fa-solid fa-list-check me-2"></i>Hantera handlingsplan
+                </a>
             </div>
         </div>
     </div>
@@ -241,107 +400,8 @@
     </div>
 </div>
 
+<!-- Medlemslogotyper -->
 <div class="row">
-    <!-- Användarhantering -->
-    <div class="col-lg-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-0"><i class="fa-solid fa-users me-2"></i>Användarhantering</h2>
-                @if (newUserCount > 0)
-                {
-                    <span class="badge bg-danger">@newUserCount</span>
-                }
-            </div>
-            <div class="card-body">
-                <p class="card-text">Hantera användarkonton, godkänn nya användare och ändra behörigheter.</p>
-                <ul class="list-group mb-3">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>
-                            Aktiva användare
-                            <small class="d-block text-muted">Godkända användare med olika roller</small>
-                        </span>
-                        <span class="badge bg-primary rounded-pill">@userCount</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>
-                            Nya ansökningar
-                            <small class="d-block text-muted">Väntar på godkännande</small>
-                        </span>
-                        <span class="badge bg-warning text-dark rounded-pill">@newUserCount</span>
-                    </li>
-                </ul>
-                <a href="/admin/users" class="btn btn-primary">
-                    <i class="fa-solid fa-user-gear me-2"></i>Hantera användare
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Nyhetshantering -->
-    <div class="col-lg-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-light">
-                <h2 class="h5 mb-0"><i class="fa-solid fa-newspaper me-2"></i>Nyhetshantering</h2>
-            </div>
-            <div class="card-body">
-                <p class="card-text">Skapa och hantera nyheter och meddelanden som visas för medlemmar.</p>
-                <ul class="list-group mb-3">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>
-                            Publicerade nyheter
-                            <small class="d-block text-muted">Synliga för medlemmar</small>
-                        </span>
-                        <span class="badge bg-success rounded-pill">@(newsCount - archivedNewsCount)</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>
-                            Arkiverade nyheter
-                            <small class="d-block text-muted">Dolda från medlemmar</small>
-                        </span>
-                        <span class="badge bg-secondary rounded-pill">@archivedNewsCount</span>
-                    </li>
-                </ul>
-                <div class="d-flex gap-2">
-                    <a href="/admin/news" class="btn btn-primary">
-                        <i class="fa-solid fa-pen-to-square me-2"></i>Hantera nyheter
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Dokumenthantering -->
-    <div class="col-lg-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-light">
-                <h2 class="h5 mb-0"><i class="fa-solid fa-file-alt me-2"></i>Dokumenthantering</h2>
-            </div>
-            <div class="card-body">
-                <p class="card-text">Ladda upp och organisera dokument i olika kategorier.</p>
-                <ul class="list-group mb-3">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Totalt antal dokument</span>
-                        <span class="badge bg-primary rounded-pill">@documentsCount</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Huvudkategorier</span>
-                        <span class="badge bg-info rounded-pill">@mainCategoryCount</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Underkategorier</span>
-                        <span class="badge bg-secondary rounded-pill">@subCategoryCount</span>
-                    </li>
-                </ul>
-                <a href="/admin/documents/manage" class="btn btn-primary">
-                    <i class="fa-solid fa-folder-open me-2"></i>Hantera dokument
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Medlemslogotyphantering -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
             <div class="card-header bg-light">
@@ -375,6 +435,9 @@
     private int memberLogosCount = 0;
     private int newSuggestionsCount = 0;
     private int totalSuggestionsCount = 0;
+
+    private int PublishedNewsCount => Math.Max(0, newsCount - archivedNewsCount);
+    private int PendingApprovals => Math.Max(0, newUserCount + newSuggestionsCount);
 
     // Laddar statistik vid initiering
     protected override async Task OnInitializedAsync()
