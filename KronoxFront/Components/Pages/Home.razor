@@ -119,9 +119,7 @@ else
             case SectionType.ActionPlanTable:
                 <div class="wrapper-div py-3">
                     <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                        <div style="max-width:800px; margin: 0 auto;">
-                            <ActionPlanTableManager ActionPlan="@actionPlan" IsAdminMode="false" />
-                        </div>
+                        <ActionPlanSection ActionPlan="@actionPlan" Title="Handlingsplan" />
                     </section>
                 </div>
                 break;
