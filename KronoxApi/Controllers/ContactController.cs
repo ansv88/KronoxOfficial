@@ -18,8 +18,8 @@ public class ContactController : ControllerBase
     private readonly ApplicationDbContext _context;
 
     public ContactController(
-        IEmailService emailService, 
-        IConfiguration configuration, 
+        IEmailService emailService,
+        IConfiguration configuration,
         ILogger<ContactController> logger,
         ApplicationDbContext context)
     {
@@ -30,7 +30,7 @@ public class ContactController : ControllerBase
     }
 
     // ================== KONTAKTFORMULÄR ==================
-    
+
     [HttpPost("send")]
     public async Task<IActionResult> SendContactMessage([FromBody] ContactFormDto contactForm)
     {
@@ -43,28 +43,28 @@ public class ContactController : ControllerBase
         {
             // Hämta support-mailadress från konfiguration
             var supportEmail = _configuration["ContactSettings:SupportEmail"] ?? "support@kronox.se";
-            
+
             // Skapa e-postinnehåll
             var emailSubject = $"Kontaktformulär: {contactForm.Subject}";
             var emailBody = $@"
-Nytt meddelande från kontaktformuläret på KronoX-webbplatsen:
+                            Nytt meddelande från kontaktformuläret på KronoX-webbplatsen:
 
-Från: {contactForm.Name}
-E-post: {contactForm.Email}
-Ämne: {contactForm.Subject}
+                            Från: {contactForm.Name}
+                            E-post: {contactForm.Email}
+                            Ämne: {contactForm.Subject}
 
-Meddelande:
-{contactForm.Message}
+                            Meddelande:
+                            {contactForm.Message}
 
----
-Detta meddelande skickades från kontaktformuläret på webbplatsen.
-Svara direkt till {contactForm.Email} för att kontakta avsändaren.
-";
+                            ---
+                            Detta meddelande skickades från kontaktformuläret på webbplatsen.
+                            Svara direkt till {contactForm.Email} för att kontakta avsändaren.
+                            ";
 
             // Skicka e-post till support
             await _emailService.SendEmailAsync(supportEmail, emailSubject, emailBody);
 
-            _logger.LogInformation("Kontaktmeddelande skickat från {Email} med ämne '{Subject}'", 
+            _logger.LogInformation("Kontaktmeddelande skickat från {Email} med ämne '{Subject}'",
                 contactForm.Email, contactForm.Subject);
 
             return Ok(new { message = "Ditt meddelande har skickats. Vi återkommer så snart som möjligt!" });
@@ -159,7 +159,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
         try
         {
             var existingAddress = await _context.PostalAddresses.FirstOrDefaultAsync();
-            
+
             if (existingAddress == null)
             {
                 existingAddress = new PostalAddress();
@@ -175,7 +175,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
             existingAddress.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            
+
             _logger.LogInformation("Postadress uppdaterad av admin");
             return Ok();
         }
@@ -233,7 +233,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
             // Kontrollera om e-postadressen redan finns
             var existingPerson = await _context.ContactPersons
                 .FirstOrDefaultAsync(cp => cp.Email.ToLower() == dto.Email.ToLower());
-            
+
             if (existingPerson != null)
             {
                 return BadRequest(new { message = "En kontaktperson med denna e-postadress finns redan." });
@@ -294,7 +294,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
             // Kontrollera om e-postadressen redan finns (utom för denna person)
             var existingPerson = await _context.ContactPersons
                 .FirstOrDefaultAsync(cp => cp.Email.ToLower() == dto.Email.ToLower() && cp.Id != id);
-            
+
             if (existingPerson != null)
             {
                 return BadRequest(new { message = "En annan kontaktperson med denna e-postadress finns redan." });
@@ -309,7 +309,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
             contactPerson.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            
+
             _logger.LogInformation("Kontaktperson uppdaterad: {Name} (ID: {Id})", contactPerson.Name, id);
             return Ok();
         }
@@ -335,7 +335,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
 
             _context.ContactPersons.Remove(contactPerson);
             await _context.SaveChangesAsync();
-            
+
             _logger.LogInformation("Kontaktperson borttagen: {Name} (ID: {Id})", contactPerson.Name, id);
             return NoContent();
         }
@@ -363,10 +363,10 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
             contactPerson.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("Kontaktperson {Name} (ID: {Id}) {Status}", 
+
+            _logger.LogInformation("Kontaktperson {Name} (ID: {Id}) {Status}",
                 contactPerson.Name, id, contactPerson.IsActive ? "aktiverad" : "inaktiverad");
-            
+
             return Ok(new { isActive = contactPerson.IsActive });
         }
         catch (Exception ex)
@@ -478,7 +478,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
             emailList.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            
+
             _logger.LogInformation("E-postlista uppdaterad: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
             return NoContent();
         }
@@ -504,7 +504,7 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
 
             _context.EmailLists.Remove(emailList);
             await _context.SaveChangesAsync();
-            
+
             _logger.LogInformation("E-postlista borttagen: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
             return NoContent();
         }
@@ -531,8 +531,8 @@ Svara direkt till {contactForm.Email} för att kontakta avsändaren.
             emailList.IsActive = !emailList.IsActive;
             emailList.LastModified = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("E-postlista {Action}: {Name}", 
+
+            _logger.LogInformation("E-postlista {Action}: {Name}",
                 emailList.IsActive ? "aktiverad" : "inaktiverad", emailList.Name);
             return NoContent();
         }

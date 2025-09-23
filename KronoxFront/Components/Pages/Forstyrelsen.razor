@@ -229,13 +229,13 @@ else
     private string GetHeroBannerUrl()
     {
         var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
-        return heroBanner?.Url ?? "images/hero/board_hero.jpg";
+        return heroBanner?.Url ?? "";
     }
 
     private string GetHeroBannerAlt()
     {
         var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
-        return heroBanner?.AltText?.Substring(5) ?? "För styrelsen";
+        return heroBanner?.AltText?.Substring(5) ?? "";
     }
 
     private void ShowImage(string imageUrl)

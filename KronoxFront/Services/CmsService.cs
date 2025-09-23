@@ -1467,6 +1467,68 @@ public class CmsService
     }
 
     // ---------------------------------------------------
+    // PAGE KEYS (Dynamisk lista för filter/datalist)
+    // ---------------------------------------------------
+    public async Task<List<string>> GetAllPageKeysAsync()
+    {
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Hämta navigationens sidor (inkl. statiska system-sidor)
+        try
+        {
+            var navResp = await _http.GetAsync("api/navigation");
+            if (navResp.IsSuccessStatusCode)
+            {
+                var navItems = await navResp.Content.ReadFromJsonAsync<List<NavigationConfigDto>>();
+                if (navItems != null)
+                {
+                    foreach (var n in navItems)
+                    {
+                        if (!string.IsNullOrWhiteSpace(n.PageKey))
+                            keys.Add(n.PageKey);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Kunde inte hämta navigation för PageKeys");
+        }
+
+        // Hämta alla custom pages (kräver Admin – ok i adminvy)
+        try
+        {
+            var custResp = await _http.GetAsync("api/custompage");
+            if (custResp.IsSuccessStatusCode)
+            {
+                var pages = await custResp.Content.ReadFromJsonAsync<List<CustomPageDto>>();
+                if (pages != null)
+                {
+                    foreach (var p in pages)
+                    {
+                        if (!string.IsNullOrWhiteSpace(p.PageKey))
+                            keys.Add(p.PageKey);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Kunde inte hämta custom pages för PageKeys");
+        }
+
+        // Lägg till några vanliga standardsidor som fallback
+        foreach (var k in new[] { "home", "omkonsortiet", "omsystemet", "visioner", "kontaktaoss", "dokument", "forvaltning", "forstyrelsen", "forvnsg", "medlemsnytt" })
+            keys.Add(k);
+
+        // Rensa bort icke-innehållssidor om de smugit sig med
+        keys.Remove("admin");
+        keys.Remove("logout");
+
+        return keys.OrderBy(k => k).ToList();
+    }
+
+    // ---------------------------------------------------
     // PRIVATE HELPER METHODS
     // ---------------------------------------------------
     private async Task<List<FeatureSectionViewModel>> GetFeatureSectionsFromMetadata(string pageKey)
@@ -1755,6 +1817,7 @@ public class CmsService
             _ => "application/octet-stream"
         };
     }
+
     public async Task<List<PageImageViewModel>> GetPageImagesAsync(string pageKey)
     {
         try
@@ -1780,5 +1843,58 @@ public class CmsService
         _cache.InvalidatePageCache(pageKey);
         // Rensa nyckeln om den skulle vara satt utan grupp
         _cache.InvalidateKey($"actionplan_{pageKey}");
+    }
+
+    public async Task<List<PageImageViewModel>> GetAllImagesAsync(string? pageKey = null)
+    {
+        var url = string.IsNullOrWhiteSpace(pageKey) ? "api/content/images" : $"api/content/images?pageKey={pageKey}";
+        return await _http.GetFromJsonAsync<List<PageImageViewModel>>(url) ?? new();
+    }
+
+    public sealed class ImageUsageItem
+    {
+        public int Id { get; set; }
+        public string PageKey { get; set; } = "";
+        public string? AltText { get; set; }
+    }
+
+    public async Task<List<ImageUsageItem>> GetImageUsageAsync(string url)
+    {
+        var encoded = Uri.EscapeDataString(url);
+        return await _http.GetFromJsonAsync<List<ImageUsageItem>>($"api/content/images/usage?url={encoded}") ?? new();
+    }
+
+    public async Task<PageImageViewModel?> RegisterExistingImageAsync(string pageKey, string sourceUrl, string altText)
+    {
+        // Normalize: absolute => relative; trim leading '/'
+        if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var abs))
+            sourceUrl = abs.AbsolutePath;
+        var sourcePath = (sourceUrl ?? "").TrimStart('/');
+
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            _logger.LogWarning("RegisterExistingImageAsync: tom SourcePath för {PageKey}", pageKey);
+            return null;
+        }
+
+        // If the source is not already under this page's folder, copy it; otherwise just register reference
+        var targetPrefix = $"images/pages/{pageKey}/";
+        var needsCopy = !sourcePath.StartsWith(targetPrefix, StringComparison.OrdinalIgnoreCase);
+
+        var endpoint = needsCopy
+            ? $"api/content/{pageKey}/images/register-copy"
+            : $"api/content/{pageKey}/images/register";
+
+        var payload = new { SourcePath = sourcePath, AltText = altText };
+        var res = await _http.PostAsJsonAsync(endpoint, payload);
+
+        if (!res.IsSuccessStatusCode)
+        {
+            var err = await res.Content.ReadAsStringAsync();
+            _logger.LogWarning("RegisterExistingImageAsync misslyckades ({Status}): {Message}", res.StatusCode, err);
+            return null;
+        }
+
+        return await res.Content.ReadFromJsonAsync<PageImageViewModel>();
     }
 }

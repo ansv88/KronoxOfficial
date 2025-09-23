@@ -1,7 +1,24 @@
 ﻿@using KronoxFront.ViewModels
 
 <section class="hero-banner position-relative">
-    <img src="@ImageUrl" class="img-fluid w-100" alt="@AltText" />
+    @if (!string.IsNullOrWhiteSpace(ImageUrl))
+    {
+        <img src="@ImageUrl" class="img-fluid w-100" alt="@AltText" />
+    }
+    else
+    {
+        <div class="bg-light border-bottom" style="height:220px; display:flex; align-items:center; justify-content:center;">
+            @if (IsAdmin)
+            {
+                <div class="text-center text-muted">
+                    <i class="fa-solid fa-image fa-2x mb-2"></i>
+                    <div>Ingen bannerbild vald ännu</div>
+                    <div class="small">Välj "Redigera sida" och ladda upp en banner-bild.</div>
+                </div>
+            }
+        </div>
+    }
+
     @if (IsAdmin)
     {
         <div class="position-absolute top-0 end-0 m-3">

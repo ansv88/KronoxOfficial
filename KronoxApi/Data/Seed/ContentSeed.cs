@@ -302,14 +302,14 @@ public static class ContentSeed
                     PageKey = pageKey,
                     Title = section.title,
                     Content = section.content,
-                    ImageUrl = section.imageUrl,
+                    ImageUrl = imageUrl,                            
                     ImageAltText = section.imageAltText,
                     HasImage = section.hasImage,
                     SortOrder = sortOrder++,
                     HasPrivateContent = section.hasPrivateContent,
                     PrivateContent = section.privateContent,
                     ContactPersonsJson = section.contactPersons?.Count > 0
-                        ? JsonSerializer.Serialize(section.contactPersons) 
+                        ? JsonSerializer.Serialize(section.contactPersons)
                         : ""
                 });
             }
@@ -924,7 +924,16 @@ public static class ContentSeed
             var metadataJson = JsonSerializer.Serialize(new
             {
                 introSection,
-                features = featureSections
+                features = featureSections,
+                sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    // Aktivera gärna fler vid behov:
+                    // new { Type = "FeatureSections", IsEnabled = true, SortOrder = 2 },
+                    // new { Type = "FaqSections", IsEnabled = true, SortOrder = 3 },
+                },
+                lastConfigUpdate = DateTime.UtcNow
             });
 
             var omsystemetContent = new ContentBlock
@@ -959,7 +968,15 @@ public static class ContentSeed
             var metadataJson = JsonSerializer.Serialize(new
             {
                 introSection,
-                features = featureSections
+                features = featureSections,
+                sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "FeatureSections", IsEnabled = true, SortOrder = 2 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 3 }
+                },
+                lastConfigUpdate = DateTime.UtcNow
             });
 
             var homeContent = new ContentBlock
@@ -991,7 +1008,15 @@ public static class ContentSeed
             var metadataJson = JsonSerializer.Serialize(new
             {
                 introSection,
-                features = featureSections
+                features = featureSections,
+                sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "FeatureSections", IsEnabled = true, SortOrder = 2 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 3 }
+                },
+                lastConfigUpdate = DateTime.UtcNow
             });
 
             var omkonsortietsContent = new ContentBlock
@@ -1023,7 +1048,15 @@ public static class ContentSeed
             var visionerMetadataJson = JsonSerializer.Serialize(new
             {
                 introSection = visionerIntroSection,
-                features = visionerFeatureSections
+                features = visionerFeatureSections,
+                sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "FeatureSections", IsEnabled = true, SortOrder = 2 },
+                    new { Type = "MemberLogos", IsEnabled = true, SortOrder = 3 }
+                },
+                lastConfigUpdate = DateTime.UtcNow
             });
 
             var visionerContent = new ContentBlock
@@ -1055,7 +1088,14 @@ public static class ContentSeed
             var dokumentMetadataJson = JsonSerializer.Serialize(new
             {
                 introSection = dokumentIntroSection,
-                features = dokumentFeatureSections
+                features = dokumentFeatureSections,
+                sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 },
+                    new { Type = "DocumentSection", IsEnabled = true, SortOrder = 2 }
+                },
+                lastConfigUpdate = DateTime.UtcNow
             });
 
             var dokumentContent = new ContentBlock
@@ -1087,7 +1127,16 @@ public static class ContentSeed
             var omsystemetMetadataJson = JsonSerializer.Serialize(new
             {
                 introSection = omsystemetIntroSection,
-                features = omsystemetFeatureSections
+                features = omsystemetFeatureSections,
+                sectionConfig = new[]
+                {
+                    new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
+                    new { Type = "Intro", IsEnabled = true, SortOrder = 1 }
+                    // Aktivera fler sektioner här om du vill ha dem aktiva från start
+                    // new { Type = "FeatureSections", IsEnabled = true, SortOrder = 2 },
+                    // new { Type = "FaqSections", IsEnabled = true, SortOrder = 3 },
+                },
+                lastConfigUpdate = DateTime.UtcNow
             });
 
             var omsystemetContent = new ContentBlock
@@ -1184,7 +1233,8 @@ public static class ContentSeed
         }
         else
         {
-            logger.LogWarning("Frontend-mapp för medlemslogotyper hittades inte: {Path}", frontendMembersDir);
+            // Tonar ned från varning till info för att undvika onödiga varningsloggar i miljöer utan seed-assets
+            logger.LogInformation("Frontend-mapp för medlemslogotyper hittades inte: {Path}", frontendMembersDir);
         }
 
         if (Directory.Exists(membersDir))
@@ -1270,7 +1320,7 @@ public static class ContentSeed
                         bool hasCustomization = existingIntro.TryGetProperty("breadcrumbTitle", out _) ||
                                                existingIntro.TryGetProperty("showNavigationButtons", out _) ||
                                                existingIntro.TryGetProperty("navigationButtons", out _);
-                        
+
                         if (hasCustomization)
                         {
                             logger.LogInformation("Intro-sektion för startsidan har redan anpassningar, hoppar över seeding.");
@@ -1378,7 +1428,7 @@ public static class ContentSeed
                         bool hasCustomization = existingIntro.TryGetProperty("breadcrumbTitle", out _) ||
                                                existingIntro.TryGetProperty("showNavigationButtons", out _) ||
                                                existingIntro.TryGetProperty("navigationButtons", out _);
-                        
+
                         if (hasCustomization)
                         {
                             logger.LogInformation("Intro-sektion för Om konsortiet-sidan har redan anpassningar, hoppar över seeding.");
@@ -1494,7 +1544,7 @@ public static class ContentSeed
                         bool hasCustomization = existingIntro.TryGetProperty("breadcrumbTitle", out _) ||
                                                existingIntro.TryGetProperty("showNavigationButtons", out _) ||
                                                existingIntro.TryGetProperty("navigationButtons", out _);
-                        
+
                         if (hasCustomization)
                         {
                             logger.LogInformation("Intro-sektion för Visioner-sidan har redan anpassningar, hoppar över seeding.");
@@ -1599,7 +1649,7 @@ public static class ContentSeed
                         bool hasCustomization = existingIntro.TryGetProperty("breadcrumbTitle", out _) ||
                                                existingIntro.TryGetProperty("showNavigationButtons", out _) ||
                                                existingIntro.TryGetProperty("navigationButtons", out _);
-                        
+
                         if (hasCustomization)
                         {
                             logger.LogInformation("Intro-sektion för Dokument-sidan har redan anpassningar, hoppar över seeding.");
@@ -2066,7 +2116,8 @@ public static class ContentSeed
 
         if (!Directory.Exists(seedImageDir))
         {
-            logger.LogWarning($"Seed-bildmapp saknas: {seedImageDir}");
+            // Tonar ned från varning till info: i många miljöer finns inga seed-bilder.
+            logger.LogInformation("Seed-bildmapp saknas: {SeedDir}", seedImageDir);
             return;
         }
 
@@ -2087,7 +2138,7 @@ public static class ContentSeed
             if (!File.Exists(destFile))
             {
                 File.Copy(file, destFile);
-                logger.LogInformation($"Featurebild kopierad: {destFile}");
+                logger.LogInformation("Featurebild kopierad: {Destination}", destFile);
             }
 
             var relativeUrl = $"/images/pages/home/{filename}";
@@ -2107,7 +2158,7 @@ public static class ContentSeed
                     AltText = sectionInfo.sectionId
                 });
 
-                logger.LogInformation($"Registrerad bild i databasen: {filename}");
+                logger.LogInformation("Registrerad bild i databasen: {FileName}", filename);
             }
         }
 
@@ -2218,7 +2269,7 @@ public static class ContentSeed
             dbContext.FaqSections.Add(faqSection);
             await dbContext.SaveChangesAsync();
 
-            logger.LogInformation($"Seedade {faqSection.FaqItems.Count} FAQ-items för Om systemet-sidan");
+            logger.LogInformation("Seedade {Count} FAQ-items för Om systemet-sidan", faqSection.FaqItems.Count);
         }
         catch (Exception ex)
         {
@@ -2235,7 +2286,7 @@ public static class ContentSeed
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var existingContent = await dbContext.ContentBlocks.FirstOrDefaultAsync(c => c.PageKey == "kontaktaoss");
-            
+
             if (existingContent == null)
             {
                 logger.LogInformation("Seedar standardinnehåll för Kontakta oss-sidan...");
@@ -2262,10 +2313,10 @@ public static class ContentSeed
                     new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
                 };
 
-                var metadata = JsonSerializer.Serialize(new { 
-                    introSection, 
+                var metadata = JsonSerializer.Serialize(new {
+                    introSection,
                     sectionConfig,
-                    lastConfigUpdate = DateTime.UtcNow 
+                    lastConfigUpdate = DateTime.UtcNow
                 });
 
                 var kontaktaossContent = new ContentBlock
@@ -2284,10 +2335,10 @@ public static class ContentSeed
             else
             {
                 logger.LogInformation("Kontakta oss-sidans innehåll finns redan. Kontrollerar metadata...");
-                
+
                 // Kontrollera om metadata saknas eller är ofullständig
                 bool needsUpdate = false;
-                
+
                 if (string.IsNullOrEmpty(existingContent.Metadata))
                 {
                     logger.LogInformation("Metadata saknas helt, lägger till...");
@@ -2315,7 +2366,7 @@ public static class ContentSeed
                         needsUpdate = true;
                     }
                 }
-                
+
                 if (needsUpdate)
                 {
                     var introSection = new
@@ -2340,13 +2391,13 @@ public static class ContentSeed
                         new { Type = "MemberLogos", IsEnabled = true, SortOrder = 4 }
                     };
 
-                    existingContent.Metadata = JsonSerializer.Serialize(new { 
-                        introSection, 
+                    existingContent.Metadata = JsonSerializer.Serialize(new {
+                        introSection,
                         sectionConfig,
-                        lastConfigUpdate = DateTime.UtcNow 
+                        lastConfigUpdate = DateTime.UtcNow
                     });
                     existingContent.LastModified = DateTime.UtcNow;
-                    
+
                     await dbContext.SaveChangesAsync();
                     logger.LogInformation("Kontakta oss metadata har uppdaterats.");
                 }
@@ -2442,7 +2493,7 @@ public static class ContentSeed
 
                 dbContext.ContactPersons.AddRange(contactPersons);
                 await dbContext.SaveChangesAsync();
-                logger.LogInformation($"Seedade {contactPersons.Count} kontaktpersoner framgångsrikt.");
+                logger.LogInformation("Seedade {Count} kontaktpersoner framgångsrikt.", contactPersons.Count);
             }
             else
             {
@@ -2478,7 +2529,7 @@ public static class ContentSeed
 
                 dbContext.EmailLists.AddRange(emailLists);
                 await dbContext.SaveChangesAsync();
-                logger.LogInformation($"Seedade {emailLists.Count} e-postlistor framgångsrikt.");
+                logger.LogInformation("Seedade {Count} e-postlistor framgångsrikt.", emailLists.Count);
             }
             else
             {

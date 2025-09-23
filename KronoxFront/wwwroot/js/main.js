@@ -412,3 +412,21 @@ window.setCurrentPageKey = function (key) {
 window.clearCurrentPageKey = function () {
     window.currentPageKey = null;
 };
+
+(function () {
+    function updateNavbarOffset() {
+        var navbar = document.getElementById('mainNavbar');
+        if (!navbar) return;
+        var h = navbar.offsetHeight;
+        document.documentElement.style.setProperty('--navbar-height', h + 'px');
+    }
+
+    window.addEventListener('DOMContentLoaded', updateNavbarOffset);
+    window.addEventListener('load', updateNavbarOffset);
+    window.addEventListener('resize', updateNavbarOffset);
+    document.addEventListener('shown.bs.collapse', updateNavbarOffset);
+    document.addEventListener('hidden.bs.collapse', updateNavbarOffset);
+
+    // Exponera globalt vid behov
+    window.updateNavbarOffset = updateNavbarOffset;
+})();

@@ -13,27 +13,16 @@
         {
             <div class="mb-3">
                 <span class="form-label">Nuvarande bannerbild:</span>
-                <small class="text-muted d-block mb-2">
-                    <span class="text-danger">*</span> Observera: Tar du bort Banner-bilden tas den bort helt från wwwroot/images/hero
-                </small>
                 <div class="position-relative">
                     <img src="@CurrentBanner.Url" class="img-fluid img-thumbnail mb-2"
-                         alt="@CurrentBanner.AltText.Substring(5)" />
-                    <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
-                            @onclick="RemoveBanner"
-                            aria-label="Ta bort nuvarande bannerbild">
-                        <i class="fa-solid fa-times"></i> Ta bort
-                    </button>
+                         alt="@CurrentBanner.AltText?.Replace("hero:","")" />
                 </div>
                 <div class="mb-3 mt-2">
                     <label class="form-label" for="bannerAltText">Bildbeskrivning:</label>
                     <div class="input-group">
                         <span class="input-group-text">hero:</span>
-                        <input type="text" class="form-control" id="bannerAltText" value="@(CurrentBanner.AltText.Substring(5))"
+                        <input type="text" class="form-control" id="bannerAltText" value="@(CurrentBanner.AltText?.Replace("hero:",""))"
                                @onchange="@(e => UpdateAltText(e.Value?.ToString()))" aria-label="Beskrivning av nuvarande bannerbild" />
-                    </div>
-                    <div class="form-text">
-                        Beskrivning av bilden för tillgänglighet (alt-text)
                     </div>
                 </div>
             </div>
@@ -42,7 +31,7 @@
         {
             <div class="alert alert-info mb-3">
                 <i class="fa-solid fa-info-circle me-2"></i>
-                Ingen bannerbild är uppladdad. Ladda upp en bild nedan eller så kommer standardbilden att visas på den publika sidan.
+                Ingen bannerbild är uppladdad. Ladda upp en bild nedan eller välj från bildbiblioteket.
             </div>
         }
 
@@ -50,8 +39,14 @@
             <label class="form-label" for="newBannerFile">Ladda upp ny bannerbild:</label>
             <InputFile OnChange="HandleFileSelected" class="form-control" id="newBannerFile" accept="image/*" aria-label="Välj ny bannerbild" />
             <div class="form-text">
-                Ladda upp en bannerbild för startsidan. Rekommenderad storlek: 1920x400px.
+                Rekommenderad storlek: 1920x400px.
             </div>
+        </div>
+
+        <div class="mb-3">
+            <button type="button" class="btn btn-outline-secondary" @onclick="OpenLibrary">
+                <i class="fa-solid fa-images me-1"></i> Välj från bildbibliotek
+            </button>
         </div>
     </ChildContent>
 
@@ -63,16 +58,188 @@
     </FooterContent>
 </AdminSectionFrame>
 
+@if (libraryOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-images me-2"></i>Bildbibliotek</h5>
+                    <button type="button" class="btn-close" @onclick="CloseLibrary"></button>
+                </div>
+                <div class="modal-body">
+                    @if (libraryLoading)
+                    {
+                        <div class="text-muted">Laddar...</div>
+                    }
+                    else if (!allImages.Any())
+                    {
+                        <div class="alert alert-info">Inga bilder hittades.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            @foreach (var img in allImages)
+                            {
+                                <div class="col-sm-6 col-md-4">
+                                    <div class="card h-100">
+                                        <img src="@img.Url" class="card-img-top" alt="@img.AltText" />
+                                        <div class="card-body">
+                                            <div class="small text-muted text-truncate" title="@img.Url">@img.Url</div>
+                                            <button class="btn btn-sm btn-primary mt-2" @onclick="() => UseFromLibrary(img)">
+                                                Använd som banner
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseLibrary">Stäng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public string PageKey { get; set; } = "home";
-    [Parameter] public EventCallback<PageImageViewModel> OnUploaded { get; set; }
+    [Parameter] public EventCallback<PageImageViewModel?> OnUploaded { get; set; }
     [Parameter] public EventCallback OnSaveRequested { get; set; }
 
     private PageImageViewModel? CurrentBanner { get; set; }
 
+    // Bibliotek
+    private bool libraryOpen = false;
+    private bool libraryLoading = false;
+    private List<PageImageViewModel> allImages = new();
+
     protected override async Task OnInitializedAsync()
     {
         await LoadCurrentBanner();
+    }
+
+    private async Task LoadCurrentBanner()
+    {
+        var page = await Cms.GetPageContentAsync(PageKey);
+        CurrentBanner = page?.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File == null) return;
+
+        try
+        {
+            if (e.File.Size > 5 * 1024 * 1024)
+            {
+                await Toast.Error("Filen är för stor. Max 5MB.");
+                return;
+            }
+
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml" };
+            if (!allowedTypes.Contains(e.File.ContentType))
+            {
+                await Toast.Error("Endast JPG, PNG, GIF, WebP och SVG.");
+                return;
+            }
+
+            await Toast.Info("Laddar upp bild...");
+
+            // 1) Ladda upp ny först (API deduperar och återanvänder fil vid identiskt innehåll)
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            var uploadedImage = await Cms.UploadPageImageAsync(
+                PageKey, ms, e.File.Name, $"hero:Bannerbild för {PageKey}");
+
+            if (uploadedImage == null)
+            {
+                await Toast.Error("Bilduppladdning misslyckades.");
+                return;
+            }
+
+            // 2) Avpublicera föregående hero (ta bort hero:-prefix, radera ej)
+            if (CurrentBanner != null && CurrentBanner.Id != uploadedImage.Id)
+            {
+                var oldAlt = CurrentBanner.AltText ?? "";
+                var newAlt = oldAlt.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) ? oldAlt[5..] : oldAlt;
+
+                await Cms.UpdatePageImageAltTextAsync(PageKey, new PageImageViewModel
+                {
+                    Id = CurrentBanner.Id,
+                    Url = CurrentBanner.Url,
+                    AltText = newAlt
+                });
+            }
+
+            CurrentBanner = uploadedImage;
+            if (OnUploaded.HasDelegate) await OnUploaded.InvokeAsync(uploadedImage);
+            await Toast.Success("Bannerbild uppdaterad!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppladdning av bannerbild för {PageKey}", PageKey);
+            await Toast.Error($"Ett fel inträffade: {ex.Message}");
+        }
+    }
+
+    private async Task UseFromLibrary(PageImageViewModel img)
+    {
+        try
+        {
+            // Validera URL
+            if (string.IsNullOrWhiteSpace(img?.Url))
+            {
+                await Toast.Error("Bildens URL saknas – kan inte registrera.");
+                return;
+            }
+
+            // Om någon bild råkar vara absolut URL, gör om till relativ (API kräver lokalt lagrad fil)
+            // Ex: https://localhost:7231/images/pages/home/foo.jpg -> images/pages/home/foo.jpg
+            var url = img.Url;
+            if (Uri.TryCreate(url, UriKind.Absolute, out var abs))
+            {
+                url = abs.AbsolutePath; // "/images/pages/home/foo.jpg"
+            }
+
+            // Trimma ledande slash så API:et säkert får 'images/pages/...'
+            var sourcePath = url.TrimStart('/');
+
+            var newHero = await Cms.RegisterExistingImageAsync(PageKey, sourcePath, $"hero:Bannerbild för {PageKey}");
+            if (newHero == null)
+            {
+                await Toast.Error("Kunde inte registrera vald bild.");
+                return;
+            }
+
+            // Avpublicera tidigare hero (behåll filen)
+            if (CurrentBanner != null && CurrentBanner.Id != newHero.Id)
+            {
+                var oldAlt = CurrentBanner.AltText ?? "";
+                var newAlt = oldAlt.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) ? oldAlt[5..] : oldAlt;
+
+                await Cms.UpdatePageImageAltTextAsync(PageKey, new PageImageViewModel
+                {
+                    Id = CurrentBanner.Id,
+                    Url = CurrentBanner.Url,
+                    AltText = newAlt
+                });
+            }
+
+            CurrentBanner = newHero;
+            await Toast.Success("Bannerbild uppdaterad från biblioteket.");
+            CloseLibrary();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid val av bild från biblioteket för {PageKey}", PageKey);
+            await Toast.Error($"Ett fel inträffade: {ex.Message}");
+        }
     }
 
     private async Task SaveBannerSection()
@@ -80,13 +247,9 @@
         try
         {
             if (OnSaveRequested.HasDelegate)
-            {
                 await OnSaveRequested.InvokeAsync();
-            }
             else
-            {
-                await Toast.Info("Inget att spara – uppladdning/alt-text sparas direkt.");
-            }
+                await Toast.Info("Inget att spara – ändringar är uppdaterade.");
         }
         catch (Exception ex)
         {
@@ -95,142 +258,41 @@
         }
     }
 
-    private async Task LoadCurrentBanner()
+    private async Task OpenLibrary()
     {
-        var page = await Cms.GetPageContentAsync(PageKey);
-        if (page != null)
-        {
-            CurrentBanner = page.Images.FirstOrDefault(i => i.AltText.StartsWith("hero:"));
-        }
+        libraryOpen = true;
+        libraryLoading = true;
+        StateHasChanged();
+        allImages = await Cms.GetAllImagesAsync(); // ev. filtrera på pageKey
+        libraryLoading = false;
     }
 
-    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    private void CloseLibrary()
     {
-        if (e.File != null)
-        {
-            try
-            {
-                if (e.File.Size > 5 * 1024 * 1024)
-                {
-                    await Toast.Error("Filen är för stor. Maximal storlek är 5MB.");
-                    return;
-                }
-
-                var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml" };
-                if (!allowedTypes.Contains(e.File.ContentType))
-                {
-                    await Toast.Error("Endast JPG, PNG, GIF, WebP och SVG bilder är tillåtna.");
-                    return;
-                }
-
-                await Toast.Info("Laddar upp bild...");
-
-                if (CurrentBanner != null)
-                {
-                    try
-                    {
-                        await Cms.DeletePageImageAsync(PageKey, CurrentBanner.Id);
-                        Logger.LogInformation("Befintlig bannerbild {ImageId} borttagen", CurrentBanner.Id);
-                    }
-                    catch (Exception deleteEx)
-                    {
-                        Logger.LogWarning(deleteEx, "Kunde inte ta bort befintlig bannerbild {ImageId}", CurrentBanner.Id);
-                    }
-                }
-
-                using var stream = e.File.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-                using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                ms.Position = 0;
-
-                var uploadedImage = await Cms.UploadPageImageAsync(
-                    PageKey, ms, e.File.Name, $"hero:Bannerbild för {PageKey}");
-
-                if (uploadedImage != null)
-                {
-                    CurrentBanner = uploadedImage;
-
-                    if (OnUploaded.HasDelegate)
-                    {
-                        await OnUploaded.InvokeAsync(uploadedImage);
-                    }
-
-                    await Toast.Success("Bannerbild uppladdad!");
-                }
-                else
-                {
-                    await Toast.Error("Bilduppladdning misslyckades. Kontrollera filen och försök igen.");
-                    Logger.LogError("UploadPageImageAsync returnerade null för fil: {FileName}", e.File.Name);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Fel vid uppladdning av bannerbild för {PageKey}", PageKey);
-                await Toast.Error($"Ett fel inträffade: {ex.Message}");
-            }
-        }
-    }
-
-    private async Task RemoveBanner()
-    {
-        if (CurrentBanner != null)
-        {
-            try
-            {
-                await Cms.DeletePageImageAsync(PageKey, CurrentBanner.Id);
-
-                if (OnUploaded.HasDelegate)
-                {
-                    await OnUploaded.InvokeAsync(null);
-                }
-
-                CurrentBanner = null;
-
-                await Toast.Success("Bannerbild borttagen!");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Fel vid borttagning av bannerbild för {PageKey}", PageKey);
-                await Toast.Error($"Ett fel inträffade: {ex.Message}");
-            }
-        }
+        libraryOpen = false;
     }
 
     private async Task UpdateAltText(string? newAltText)
     {
         if (CurrentBanner != null && !string.IsNullOrWhiteSpace(newAltText))
         {
-            try
+            var updated = new PageImageViewModel
             {
-                var updatedImage = new PageImageViewModel
-                {
-                    Id = CurrentBanner.Id,
-                    Url = CurrentBanner.Url,
-                    AltText = $"hero:{newAltText}"
-                };
+                Id = CurrentBanner.Id,
+                Url = CurrentBanner.Url,
+                AltText = $"hero:{newAltText}"
+            };
 
-                var success = await Cms.UpdatePageImageAltTextAsync(PageKey, updatedImage);
-
-                if (success)
-                {
-                    CurrentBanner = updatedImage;
-
-                    if (OnUploaded.HasDelegate)
-                    {
-                        await OnUploaded.InvokeAsync(updatedImage);
-                    }
-
-                    await Toast.Success("Bildbeskrivning uppdaterad!");
-                }
-                else
-                {
-                    await Toast.Error("Kunde inte uppdatera bildbeskrivningen.");
-                }
+            var success = await Cms.UpdatePageImageAltTextAsync(PageKey, updated);
+            if (success)
+            {
+                CurrentBanner = updated;
+                if (OnUploaded.HasDelegate) await OnUploaded.InvokeAsync(updated);
+                await Toast.Success("Bildbeskrivning uppdaterad!");
             }
-            catch (Exception ex)
+            else
             {
-                Logger.LogError(ex, "Fel vid uppdatering av alt-text för bannerbild på {PageKey}", PageKey);
-                await Toast.Error($"Ett fel inträffade: {ex.Message}");
+                await Toast.Error("Kunde inte uppdatera bildbeskrivningen.");
             }
         }
         else if (string.IsNullOrWhiteSpace(newAltText))

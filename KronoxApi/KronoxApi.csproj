@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <Folder Include="PrivateStorage\" />
+    <Folder Include="wwwroot\images\pages\omkonsortiet\" />
+    <Folder Include="wwwroot\images\pages\visioner\" />
   </ItemGroup>
 
 </Project>

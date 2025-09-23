@@ -9,7 +9,13 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\images\members\" />
+    <Folder Include="wwwroot\images\pages\forstyrelsen\" />
+    <Folder Include="wwwroot\images\pages\forvaltning\" />
+    <Folder Include="wwwroot\images\pages\forvnsg\" />
     <Folder Include="wwwroot\images\pages\home\" />
+    <Folder Include="wwwroot\images\pages\omkonsortiet\" />
+    <Folder Include="wwwroot\images\pages\omsystemet\" />
+    <Folder Include="wwwroot\images\pages\visioner\" />
   </ItemGroup>
 
 </Project>

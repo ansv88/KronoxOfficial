@@ -7,6 +7,7 @@
 @inject IJSRuntime JS
 @inject ILogger<FeatureSectionEditor> Logger
 @inject IToastService ToastService
+@inject CmsService Cms
 
 <AdminSectionFrame Title="Featuresektioner" IconClass="fa-solid fa-star">
     <ChildContent>
@@ -51,7 +52,10 @@
                                              style="max-height: 150px; cursor: pointer"
                                              @onclick="() => PreviewImage(item.ImageUrl)"
                                              alt="@(string.IsNullOrEmpty(item.ImageAltText) ? $"Bild för sektion {index + 1}" : item.ImageAltText)" />
-                                        <div class="mt-2 d-flex justify-content-center">
+                                        <div class="mt-2 d-flex justify-content-center gap-2">
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenLibraryFor(index)" aria-label="Välj bild från biblioteket">
+                                                <i class="fa-solid fa-images me-1"></i> Välj från bildbibliotek
+                                            </button>
                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => ClearImage(index)" aria-label="Ta bort sektionsbild">
                                                 <i class="fa-solid fa-times"></i> Ta bort bild
                                             </button>
@@ -79,6 +83,11 @@
                                                        aria-label="@inputFileAriaLabel" />
                                             <div class="text-muted small mt-2">
                                                 Klicka för att välja bild (rekommenderad storlek: 800x600px)
+                                            </div>
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenLibraryFor(index)" aria-label="Välj bild från biblioteket">
+                                                    <i class="fa-solid fa-images me-1"></i> Välj från bildbibliotek
+                                                </button>
                                             </div>
                                         </div>
                                     }
@@ -283,6 +292,52 @@
     </div>
 }
 
+@if (libraryOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-images me-2"></i>Bildbibliotek</h5>
+                    <button type="button" class="btn-close" @onclick="CloseLibrary"></button>
+                </div>
+                <div class="modal-body">
+                    @if (libraryLoading)
+                    {
+                        <div class="text-muted">Laddar...</div>
+                    }
+                    else if (!allImages.Any())
+                    {
+                        <div class="alert alert-info">Inga bilder hittades.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            @foreach (var img in allImages)
+                            {
+                                <div class="col-sm-6 col-md-4">
+                                    <div class="card h-100">
+                                        <img src="@img.Url" class="card-img-top" alt="@img.AltText" />
+                                        <div class="card-body">
+                                            <div class="small text-muted text-truncate" title="@img.Url">@img.Url</div>
+                                            <button class="btn btn-sm btn-primary mt-2" @onclick="() => UseFromLibrary(img)">
+                                                Använd i sektion
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseLibrary">Stäng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public List<FeatureSectionViewModel> Sections { get; set; } = new();
     [Parameter] public EventCallback OnSectionsChanged { get; set; }
@@ -300,6 +355,12 @@
     // Texteditor-referenser
     private Dictionary<int, ElementReference> editorTextAreas = new();
     private Dictionary<int, ElementReference> privateEditorTextAreas = new();
+
+    // Bildbibliotek
+    private bool libraryOpen = false;
+    private bool libraryLoading = false;
+    private List<PageImageViewModel> allImages = new();
+    private int? targetSectionForLibrary;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -786,6 +847,66 @@
         {
             Logger.LogError(ex, "Fel vid borttagning av bild för sektion #{Index}", index);
             await ToastService.Error("Ett fel inträffade när bilden skulle tas bort");
+        }
+    }
+
+    // Bildbibliotek
+    private async Task OpenLibraryFor(int sectionIndex)
+    {
+        targetSectionForLibrary = sectionIndex;
+        libraryOpen = true;
+        libraryLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            allImages = await Cms.GetAllImagesAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte ladda bildbiblioteket");
+            await ToastService.Error("Kunde inte ladda bildbiblioteket");
+        }
+        finally
+        {
+            libraryLoading = false;
+        }
+    }
+
+    private void CloseLibrary()
+    {
+        libraryOpen = false;
+        targetSectionForLibrary = null;
+    }
+
+    private async Task UseFromLibrary(PageImageViewModel img)
+    {
+        if (targetSectionForLibrary is null) return;
+        var idx = targetSectionForLibrary.Value;
+
+        try
+        {
+            var section = Sections[idx];
+
+            // Registrera referens till sidan så filen inte raderas om den återanvänds
+            if (!string.IsNullOrWhiteSpace(section.PageKey))
+            {
+                _ = await Cms.RegisterExistingImageAsync(section.PageKey, img.Url, img.AltText ?? "");
+            }
+
+            section.ImageUrl = img.Url;
+            section.HasImage = true;
+            if (string.IsNullOrWhiteSpace(section.ImageAltText))
+                section.ImageAltText = img.AltText ?? "";
+
+            SectionsChanged();
+            await ToastService.Success("Bild vald från biblioteket.");
+            CloseLibrary();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid val av bild från biblioteket");
+            await ToastService.Error("Kunde inte använda vald bild.");
         }
     }
 

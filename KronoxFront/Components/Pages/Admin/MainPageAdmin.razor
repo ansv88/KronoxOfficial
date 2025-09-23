@@ -284,7 +284,7 @@
     private readonly Dictionary<string, string> pageUrlMapping = new()
     {
         ["home"] = "",
-        ["visioner"] = "visionerverksamhetside",
+        ["visioner"] = "visioner",
         ["omsystemet"] = "omsystemet",
         ["omkonsortiet"] = "omkonsortiet",
         ["kontaktaoss"] = "kontaktaoss",
@@ -599,12 +599,6 @@
         return $"T.ex. KronoX - {CurrentDisplayName()}";
     }
 
-    private bool ShouldShowPageTitleEditor()
-    {
-        // Policy: ingen manuell sidtitelredigering för fasta sidor
-        return false;
-    }
-
     private bool ShouldShowDocumentPreview()
     {
         return PageKey.ToLowerInvariant() is "medlemsnytt" or "dokument";
@@ -638,60 +632,6 @@
             _ => "Dokumentsektionen visar relevanta dokument för denna sida."
         };
     }
-
-    // private RenderFragment GetPageSpecificButtons()
-    // {
-    //     var activeSections = sectionConfigItems.Where(s => s.IsEnabled).Select(s => s.Type).ToList();
-    //     var buttons = new List<RenderFragment>();
-
-    //     if (activeSections.Contains(SectionType.NewsSection))
-    //     {
-    //         buttons.Add(@<a href="/admin/news" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-newspaper me-1"></i>
-    //             Hantera nyheter
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.DocumentSection))
-    //     {
-    //         buttons.Add(@<a href="/admin/documents/manage" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-file me-1"></i>
-    //             Hantera dokument
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.DevelopmentSuggestionForm))
-    //     {
-    //         buttons.Add(@<a href="/admin/suggestions" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-lightbulb me-1"></i>
-    //             Visa förslag
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.MemberLogos))
-    //     {
-    //         buttons.Add(@<a href="/admin/memberlogos" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-users me-1"></i>
-    //             Hantera logotyper
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.ActionPlanTable))
-    //     {
-    //         buttons.Add(@<a href="/admin/actionplan" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-tasks me-1"></i>
-    //             Hantera handlingsplan
-    //         </a>);
-    //     }
-
-    //     return builder =>
-    //     {
-    //         foreach (var button in buttons)
-    //         {
-    //             builder.AddContent(0, button);
-    //         }
-    //     };
-    // }
 
     private void EnsureDefaultContent()
     {
@@ -793,7 +733,7 @@
             "forvnsg" => ("Vanliga frågor för VNSG", "Här hittar du svar på frågor för VNSG-medlemmar", "Vad är VNSG?", "<p>VNSG är vårdnadshavarnas samarbetsgrupp.</p>"),
             "medlemsnytt" => ("Vanliga frågor för medlemmar", "Här hittar du svar på vanliga frågor från medlemmar", "Hur får jag tillgång till medlemsområdet?", "<p>Kontakta din kontaktperson för att få tillgång.</p>"),
             "dokument" => ("Vanliga frågor om dokument", "Här hittar du svar på frågor om dokumenthantering", "Var hittar jag dokumenten?", "<p>Dokument finns organiserade efter kategorier och roller.</p>"),
-            "forvaltning" => ("Vanliga frågor om förvaltning", "Här hittar du svar på frågor om förvaltning och utveckling", "Hur kan jag skicka utvecklingsförslag?", "<p>Du kan skicka förslag genom formuläret på denna sida.</p>"),
+            "forvaltning" => ("Vanliga frågor om förvaltning och utveckling", "Här hittar du svar på frågor om förvaltning och utveckling", "Hur kan jag skicka utvecklingsförslag?", "<p>Du kan skicka förslag genom formuläret på denna sida.</p>"),
             _ => ($"Vanliga frågor om {CurrentDisplayName()}", $"Här hittar du svar på frågor om {CurrentDisplayName()}", "Exempel på fråga", "<p>Exempel på svar...</p>")
         };
     }
@@ -1040,7 +980,12 @@
     {
         try
         {
+            // Invalidera cache så ny bild hämtas direkt
+            Cache.InvalidatePageCache(PageKey);
+
+            // Ladda om pageContent så Images uppdateras
             pageContent = await Cms.GetPageContentAsync(PageKey) ?? pageContent;
+
             await Toast.Success("Bannerbild uppdaterad!");
         }
         catch (Exception ex)

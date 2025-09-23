@@ -381,13 +381,13 @@ else
     private string GetHeroBannerUrl()
     {
         var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
-        return heroBanner?.Url ?? "images/hero/konsortiet_hero.jpg";
+        return heroBanner?.Url ?? "";
     }
 
     private string GetHeroBannerAlt()
     {
         var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
-        return heroBanner?.AltText?.Substring(5) ?? "KronoX konsortiet";
+        return heroBanner?.AltText?.Substring(5) ?? "";
     }
 
     private string GetEnhancedContent(FeatureSectionViewModel featureItem)

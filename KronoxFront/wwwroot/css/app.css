@@ -466,3 +466,16 @@ mark.bg-warning {
     font-weight: normal;
     padding: 0.35em 0.65em;
 }
+
+:root {
+    --navbar-height: 56px; /* default, överskrivs av JS */
+}
+
+body {
+    margin: 0;
+}
+
+/* Reservera plats för navbaren via layoutens header */
+.site-header {
+    height: var(--navbar-height);
+}

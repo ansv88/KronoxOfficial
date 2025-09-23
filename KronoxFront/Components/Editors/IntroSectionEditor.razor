@@ -35,12 +35,15 @@
                             @if (!string.IsNullOrEmpty(IntroSection.ImageUrl))
                             {
                                 <img src="@IntroSection.ImageUrl" class="img-fluid img-thumbnail mb-2" style="max-height: 200px;" />
-                                <div class="mt-2">
+                                <div class="d-flex justify-content-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenLibrary">
+                                        <i class="fa-solid fa-images me-1"></i> Välj från bildbibliotek
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearIntroImage">
                                         <i class="fa-solid fa-times"></i> Ta bort bild
                                     </button>
                                 </div>
-                                <div class="mt-2">
+                                <div class="mt-2 text-start">
                                     <label class="form-label">Bildbeskrivning:</label>
                                     <InputText class="form-control form-control-sm"
                                                @bind-Value="IntroSection.ImageAltText"
@@ -52,6 +55,11 @@
                             {
                                 <InputFile OnChange="HandleIntroImageSelected" class="form-control" accept="image/*" />
                                 <div class="text-muted small mt-2">Klicka för att välja bild</div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenLibrary">
+                                        <i class="fa-solid fa-images me-1"></i> Välj från bildbibliotek
+                                    </button>
+                                </div>
                             }
                         </div>
                     }
@@ -89,6 +97,52 @@
     </AdminSectionFrame>
 </EditForm>
 
+@if (libraryOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-images me-2"></i>Bildbibliotek</h5>
+                    <button type="button" class="btn-close" @onclick="CloseLibrary"></button>
+                </div>
+                <div class="modal-body">
+                    @if (libraryLoading)
+                    {
+                        <div class="text-muted">Laddar...</div>
+                    }
+                    else if (!allImages.Any())
+                    {
+                        <div class="alert alert-info">Inga bilder hittades.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            @foreach (var img in allImages)
+                            {
+                                <div class="col-sm-6 col-md-4">
+                                    <div class="card h-100">
+                                        <img src="@img.Url" class="card-img-top" alt="@img.AltText" />
+                                        <div class="card-body">
+                                            <div class="small text-muted text-truncate" title="@img.Url">@img.Url</div>
+                                            <button class="btn btn-sm btn-primary mt-2" @onclick="() => UseFromLibrary(img)">
+                                                Använd i intro
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseLibrary">Stäng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public IntroSectionViewModel IntroSection { get; set; } = new();
     [Parameter] public string PageKey { get; set; } = "";
@@ -99,6 +153,11 @@
 
     private string editorId => $"intro-editor-{PageKey}";
     private bool isInitialized = false;
+
+    // Bildbibliotek
+    private bool libraryOpen = false;
+    private bool libraryLoading = false;
+    private List<PageImageViewModel> allImages = new();
 
     public async Task InitializeEditor()
     {
@@ -230,6 +289,40 @@
         {
             Logger.LogError(ex, "Fel vid sparande av intro-sektion för {PageKey}", PageKey);
             await Toast.Error("Fel vid sparande av intro-sektion");
+        }
+    }
+
+    // Bibliotek
+    private async Task OpenLibrary()
+    {
+        libraryOpen = true;
+        libraryLoading = true;
+        StateHasChanged();
+
+        allImages = await Cms.GetAllImagesAsync(); // ev. filtrera med pageKey
+        libraryLoading = false;
+    }
+    private void CloseLibrary() => libraryOpen = false;
+
+    private async Task UseFromLibrary(PageImageViewModel img)
+    {
+        try
+        {
+            // Registrera en PageImage-referens till denna sida (för att undvika att filen tas bort)
+            _ = await Cms.RegisterExistingImageAsync(PageKey, img.Url, img.AltText ?? "");
+
+            IntroSection.ImageUrl = img.Url;
+            if (string.IsNullOrWhiteSpace(IntroSection.ImageAltText))
+                IntroSection.ImageAltText = img.AltText ?? "";
+
+            await OnIntroSectionChanged.InvokeAsync();
+            await Toast.Success("Bild vald från biblioteket.");
+            CloseLibrary();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid val av biblioteksbild för intro {PageKey}", PageKey);
+            await Toast.Error("Kunde inte använda vald bild.");
         }
     }
 

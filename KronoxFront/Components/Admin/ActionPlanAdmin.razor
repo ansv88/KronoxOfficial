@@ -188,7 +188,7 @@
 @if (showEditModal && editingItem != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg" @onclick:stopPropagation>
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -231,7 +231,13 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Utförlig beskrivning</label>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label mb-0">Utförlig beskrivning</label>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenLibrary" title="Välj bild från biblioteket">
+                                    <i class="fa-solid fa-images me-1"></i> Välj bild
+                                </button>
+                            </div>
+
                             <textarea id="@_detailsEditorId"
                                       class="form-control tinymce-editor"
                                       rows="8"
@@ -264,7 +270,7 @@
 @if (showDeleteModal && deletingItem != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
+        <div class="modal-dialog" @onclick:stopPropagation>
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Bekräfta borttagning</h5>
@@ -294,6 +300,52 @@
     </div>
 }
 
+@if (libraryOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-images me-2"></i>Bildbibliotek</h5>
+                    <button type="button" class="btn-close" @onclick="CloseLibrary"></button>
+                </div>
+                <div class="modal-body">
+                    @if (libraryLoading)
+                    {
+                        <div class="text-muted">Laddar...</div>
+                    }
+                    else if (!allImages.Any())
+                    {
+                        <div class="alert alert-info">Inga bilder hittades.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            @foreach (var img in allImages)
+                            {
+                                <div class="col-sm-6 col-md-4">
+                                    <div class="card h-100">
+                                        <img src="@img.Url" class="card-img-top" alt="@img.AltText" />
+                                        <div class="card-body">
+                                            <div class="small text-muted text-truncate" title="@img.Url">@img.Url</div>
+                                            <button class="btn btn-sm btn-primary mt-2" @onclick="() => UseFromLibrary(img)">
+                                                Infoga i beskrivning
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseLibrary">Stäng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private ActionPlanTableViewModel? actionPlan;
     private bool isLoading = true;
@@ -315,6 +367,11 @@
     private bool showDeleteModal = false;
     private bool isDeleting = false;
     private ActionPlanItem? deletingItem;
+
+    // Bildbibliotek
+    private bool libraryOpen = false;
+    private bool libraryLoading = false;
+    private List<PageImageViewModel> allImages = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -739,6 +796,51 @@
         {
             Logger.LogError(ex, "Fel vid rensning av oanvända bilder");
             await Toast.Error("Kunde inte rensa oanvända bilder.");
+        }
+    }
+
+    // Bildbibliotek
+    private async Task OpenLibrary()
+    {
+        libraryOpen = true;
+        libraryLoading = true;
+        StateHasChanged();
+        try
+        {
+            allImages = await Cms.GetAllImagesAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte ladda bildbiblioteket");
+            await Toast.Error("Kunde inte ladda bildbiblioteket");
+        }
+        finally
+        {
+            libraryLoading = false;
+        }
+    }
+
+    private void CloseLibrary() => libraryOpen = false;
+
+    private async Task UseFromLibrary(PageImageViewModel img)
+    {
+        try
+        {
+            // Registrera referens på sidan (hindrar att filen raderas om den återanvänds)
+            _ = await Cms.RegisterExistingImageAsync(pageKey, img.Url, img.AltText ?? "");
+
+            // Infoga i TinyMCE
+            var safeUrl = (img.Url ?? string.Empty).Replace("'", "\\'");
+            await JS.InvokeVoidAsync("eval",
+                $"tinymce.get('{_detailsEditorId}')?.insertContent('<img src=\\'{safeUrl}\\' />')");
+
+            await Toast.Success("Bild infogad i beskrivningen.");
+            CloseLibrary();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid infogning av bild i TinyMCE");
+            await Toast.Error("Kunde inte infoga bild.");
         }
     }
 }

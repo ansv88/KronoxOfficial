@@ -1,0 +1,334 @@
+﻿@page "/admin/images"
+@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@using KronoxFront.Components.Shared.UI
+@using KronoxFront.Services
+@using KronoxFront.ViewModels
+@using Microsoft.JSInterop
+@inject CmsService Cms
+@inject IToastService Toast
+@inject IJSRuntime JS
+
+<h1 class="h5 mb-2"><i class="fa-solid fa-images me-2"></i>Hantera bilder</h1>
+
+<div class="row g-2 mb-2 align-items-center">
+    <div class="col-12 col-sm-8 col-md-6 col-lg-5">
+        <input class="form-control form-control-sm"
+               list="pageKeysList"
+               placeholder="Filtrera på PageKey (valfritt)"
+               @bind="filterPageKey" />
+        <datalist id="pageKeysList">
+            @foreach (var key in pageKeys)
+            {
+                <option value="@key"></option>
+            }
+        </datalist>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-primary" @onclick="Load">Ladda</button>
+    </div>
+    <div class="col-12">
+        <div class="small text-muted">
+            Tips: PageKey motsvarar sidans nyckel (väljs från listan eller skriv egen).
+        </div>
+        <div class="small text-muted mt-1">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            Medlemslogotyper hanteras separat på sidan
+            <a href="/admin/memberlogos" class="text-decoration-underline">Medlemslogotyper</a>.
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-muted">Laddar...</div>
+}
+else if (images.Count == 0)
+{
+    <div class="alert alert-info py-2 mb-2">Inga bilder hittades.</div>
+}
+else
+{
+    <div class="row g-2">
+        @foreach (var img in images)
+        {
+            <div class="col-6 col-sm-4 col-md-3 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="ratio ratio-1x1" role="button" title="Förhandsgranska" @onclick="() => Preview(img.Url)">
+                        <img src="@img.Url"
+                             alt="@img.AltText"
+                             class="w-100 h-100 rounded-top"
+                             loading="lazy"
+                             decoding="async"
+                             style="object-fit: cover;" />
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="small text-muted text-truncate" title="@img.Url">@img.Url</div>
+                        @if (!string.IsNullOrWhiteSpace(img.AltText))
+                        {
+                            <div class="small text-muted text-truncate" title="@img.AltText">@img.AltText</div>
+                        }
+                        <div class="mt-2 d-flex gap-1">
+                            <button class="btn btn-outline-secondary btn-sm px-2 py-1"
+                                    title="Visa var just den här fil-URL:en används"
+                                    @onclick="() => OpenUsageAsync(img.Url)">
+                                <i class="fa-solid fa-list"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm px-2 py-1"
+                                    title="Ta bort alla registrerade användningar av just den här fil-URL:en"
+                                    @onclick="() => DeleteEverywhere(img)">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<ImageModal ImageUrl="@previewUrl" OnClose="@ClosePreview" />
+
+@* Usage/Delete-modal *@
+@if (usageOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0">
+                        <i class="fa-solid fa-list me-2"></i>Användning
+                        @if (!string.IsNullOrEmpty(usageImageUrl)) { <small class="text-muted">@usageImageUrl</small> }
+                    </h6>
+                    <button type="button" class="btn-close" @onclick="CloseUsage"></button>
+                </div>
+                <div class="modal-body p-2">
+                    <div class="small text-muted mb-2">
+                        Här visas sidor (PageKeys) där exakt den här filens URL är registrerad. Att ta bort all användning raderar filen när sista referensen försvinner.
+                    </div>
+                    @if (usageLoading)
+                    {
+                        <div class="text-muted">Laddar...</div>
+                    }
+                    else if (usageList.Count == 0)
+                    {
+                        <div class="alert alert-info py-2 mb-0">Inga registrerade användningar.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="py-2">PageKey</th>
+                                        <th class="py-2">Alt‑text</th>
+                                        <th class="py-2 text-end" style="width:10%;">Ta bort</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var u in usageList)
+                                    {
+                                        <tr>
+                                            <td class="py-2"><code>@u.PageKey</code></td>
+                                            <td class="py-2 text-truncate">@u.AltText</td>
+                                            <td class="py-2 text-end">
+                                                <button class="btn btn-sm btn-outline-danger px-2 py-1"
+                                                        title="Ta bort från sidan"
+                                                        @onclick="() => DeleteUsage(u.PageKey, u.Id)">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer py-2">
+                    <button class="btn btn-sm btn-secondary" @onclick="CloseUsage">Stäng</button>
+                    <button class="btn btn-sm btn-danger"
+                            @onclick="DeleteAllUsages"
+                            disabled="@(usageLoading || usageList.Count == 0)">
+                        Ta bort alla användningar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isLoading;
+    private string? filterPageKey;
+    private List<PageImageViewModel> images = new();
+    private string? previewUrl;
+
+    // Usage/Delete state
+    private bool usageOpen;
+    private bool usageLoading;
+    private string? usageImageUrl;
+    private List<CmsService.ImageUsageItem> usageList = new();
+
+    // Dynamiska PageKeys för datalist
+    private List<string> pageKeys = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageKeys();
+        await Load();
+    }
+
+    private async Task LoadPageKeys()
+    {
+        try
+        {
+            pageKeys = await Cms.GetAllPageKeysAsync();
+        }
+        catch (Exception ex)
+        {
+            await Toast.Warning($"Kunde inte hämta PageKeys: {ex.Message}");
+        }
+    }
+
+    private async Task Load()
+    {
+        isLoading = true;
+        try
+        {
+            images = await Cms.GetAllImagesAsync(filterPageKey);
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Kunde inte hämta bilder: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Preview(string url) => previewUrl = url;
+    private void ClosePreview() => previewUrl = null;
+
+    // Usage/Delete
+    private async Task OpenUsageAsync(string imageUrl)
+    {
+        usageOpen = true;
+        usageImageUrl = imageUrl;
+        await LoadUsage(imageUrl);
+    }
+
+    private async Task LoadUsage(string imageUrl)
+    {
+        usageLoading = true;
+        usageList.Clear();
+        StateHasChanged();
+
+        try
+        {
+            usageList = await Cms.GetImageUsageAsync(imageUrl);
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Kunde inte hämta användningar: {ex.Message}");
+        }
+        finally
+        {
+            usageLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CloseUsage()
+    {
+        usageOpen = false;
+        usageImageUrl = null;
+        usageList.Clear();
+    }
+
+    private async Task DeleteUsage(string pageKey, int id)
+    {
+        try
+        {
+            await Cms.DeletePageImageAsync(pageKey, id);
+
+            await Toast.Success($"Tog bort användning på '{pageKey}'.");
+            if (!string.IsNullOrEmpty(usageImageUrl))
+                await LoadUsage(usageImageUrl);
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Fel vid borttagning: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteEverywhere(PageImageViewModel img)
+    {
+        try
+        {
+            var usages = await Cms.GetImageUsageAsync(img.Url);
+            var count = usages.Count;
+
+            if (count == 0)
+            {
+                await Toast.Info("Inga registrerade användningar hittades. Om bilden fortfarande visas på någon sida behöver referensen i sidans innehåll tas bort manuellt.");
+                return;
+            }
+
+            var previewList = string.Join(", ", usages.Select(u => u.PageKey).Distinct().Take(5));
+            var message = count <= 5
+                ? $"Ta bort bilden från {count} plats(er): {previewList}? Sista referensen tar även bort filen."
+                : $"Ta bort bilden från {count} plats(er) (t.ex. {previewList}...)? Sista referensen tar även bort filen.";
+
+            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", message);
+            if (!ok) return;
+
+            foreach (var u in usages)
+            {
+                await Cms.DeletePageImageAsync(u.PageKey, u.Id);
+            }
+
+            await Toast.Success($"Tog bort bilden från {count} plats(er).");
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Kunde inte ta bort: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteAllUsages()
+    {
+        try
+        {
+            if (usageList.Count == 0) return;
+
+            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", $"Ta bort alla {usageList.Count} användningar?");
+            if (!ok) return;
+
+            foreach (var u in usageList.ToList())
+            {
+                try
+                {
+                    await Cms.DeletePageImageAsync(u.PageKey, u.Id);
+                }
+                catch (Exception ex)
+                {
+                    await Toast.Warning($"Kunde inte ta bort från '{u.PageKey}' (id {u.Id}): {ex.Message}");
+                }
+            }
+
+            await Toast.Success("Alla registrerade användningar har tagits bort.");
+            await Load();
+            CloseUsage();
+        }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Fel vid massborttagning: {ex.Message}");
+        }
+    }
+}

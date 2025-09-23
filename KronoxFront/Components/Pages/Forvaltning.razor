@@ -254,12 +254,14 @@ else
 
     private string GetHeroBannerUrl()
     {
-        return "/images/hero/hero_top_klocka_blue-1300x394.jpg";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.Url ?? "";
     }
 
     private string GetHeroBannerAlt()
     {
-        return "Förvaltning bannerbild";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        return heroBanner?.AltText?.Substring(5) ?? "";
     }
 
     private void ShowImage(string imageUrl)
