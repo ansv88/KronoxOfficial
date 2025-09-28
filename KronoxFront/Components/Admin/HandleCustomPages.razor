@@ -13,6 +13,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<HandleCustomPages> Logger
+@inject NavigationEvents NavEvents
 
 <HeadContent>
     <meta name="description" content="Hantera anpassade sidor för KronoX-webbplatsen" />
@@ -184,7 +185,7 @@
                                                 <i class="fa-solid fa-eye"></i>
                                             </a>
 
-                                            <a href="@($"/admin/{customPage.PageKey}")" 
+                                            <a href="@($"/admin/page/{customPage.PageKey}")" 
                                                class="btn btn-outline-primary btn-sm"
                                                title="Redigera innehåll">
                                                 <i class="fa-solid fa-edit"></i>
@@ -790,6 +791,12 @@
                 newPage.SortOrder = customPages.Count > 0 ? customPages.Max(p => p.SortOrder) + 1 : 1;
             }
         }
+
+        // Nollställ ParentPageKey när sidan inte längre ska vara dropdown
+        if (selectedType != "dropdown")
+        {
+            newPage.ParentPageKey = null;
+        }
         
         StateHasChanged();
     }
@@ -815,6 +822,12 @@
                 editingPage.SortOrder = customPages.Count > 0 ? customPages.Max(p => p.SortOrder) + 1 : 1;
             }
         }
+
+        // Nollställ ParentPageKey när sidan inte längre ska vara dropdown
+        if (selectedType != "dropdown")
+        {
+            editingPage.ParentPageKey = null;
+        }
         
         StateHasChanged();
     }
@@ -830,11 +843,24 @@
             
             if (response.IsSuccessStatusCode)
             {
+                var created = await response.Content.ReadFromJsonAsync<KronoxFront.DTOs.CustomPageDto>();
+                var pageKey = created?.PageKey ?? newPage.PageKey;
+
                 await Toast.Success("Sida skapad framgångsrikt!");
+
                 HideCreateModal();
                 await LoadCustomPages();
-                
-                Nav.NavigateTo($"/admin/{newPage.PageKey}");
+
+                NavEvents.NotifyUpdated();
+
+                if (!string.IsNullOrWhiteSpace(pageKey))
+                {
+                    Nav.NavigateTo($"/admin/page/{pageKey}");
+                }
+                else
+                {
+                    Nav.NavigateTo("/admin/pages");
+                }
             }
             else
             {
@@ -870,6 +896,9 @@
                 await Toast.Success("Sidinställningar uppdaterade!");
                 HideEditModal();
                 await LoadCustomPages();
+
+                // signalera att navigationen ska laddas om
+                NavEvents.NotifyUpdated();
             }
             else
             {
@@ -991,7 +1020,7 @@
             { "omsystemet", "Om systemet" },
             { "visioner", "Visioner & verksamhetsidé" },
             { "dokument", "Dokument" },
-            { "kontakt", "Kontakta oss" },
+            { "kontaktaoss", "Kontakta oss" },
             { "forvaltning", "Förvaltning" },
             { "medlemsnytt", "Medlemsnytt" }
         };

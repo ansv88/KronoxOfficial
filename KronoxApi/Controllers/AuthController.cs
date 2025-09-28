@@ -9,6 +9,7 @@ namespace KronoxApi.Controllers;
 /// <summary>
 /// Hanterar autentisering och registrering av användare.
 /// </summary>
+
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey]
@@ -29,7 +30,6 @@ public class AuthController : ControllerBase
         _logger = logger;
     }
 
-
     // Loggar in en användare med användarnamn och lösenord.
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
         var user = await _users.FindByNameAsync(dto.Username);
         if (user == null || !await _users.CheckPasswordAsync(user, dto.Password))
         {
-            _logger.LogWarning("Login failed for {User}", dto.Username);
+            _logger.LogWarning("Inloggning misslyckades för {User}", dto.Username);
             return Unauthorized("Felaktigt användarnamn eller lösenord.");
         }
 
@@ -55,7 +55,6 @@ public class AuthController : ControllerBase
             Roles = roles.ToList()
         });
     }
-
 
     // Registrerar en ny användare och lägger till rollen "Ny användare".
     [HttpPost("register")]
@@ -83,7 +82,6 @@ public class AuthController : ControllerBase
         await _users.AddToRoleAsync(newUser, NewUserRole);
         return Ok("Användare skapad.");
     }
-
 
     // Returnerar lösenordskraven för registrering.
     [HttpGet("password-requirements")]

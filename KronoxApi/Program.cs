@@ -21,8 +21,7 @@ public class Program
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' saknas.");
 
-        builder.Services.AddDbContext<ApplicationDbContext>(o =>
-            o.UseSqlServer(connectionString));
+        builder.Services.AddDbContext<ApplicationDbContext>(o => o.UseSqlServer(connectionString));
 
         // Lägg till Identity för användarhantering
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
@@ -32,33 +31,35 @@ public class Program
         // Lägg till stöd för Authorization
         builder.Services.AddAuthorization();
 
-        // Konfigurera CORS-policy för att tillåta Blazor-applikationen
+        // CORS för Blazor/Frontend
         builder.Services.AddCors(p =>
         {
-            p.AddPolicy("AllowBlazor", p =>
+            p.AddPolicy("AllowBlazor", cors =>
             {
-                var trustedOrigins = builder.Configuration.GetSection("ApiSettings:TrustedOrigins")
-                .Get<string[]>() ?? new[] { "https://localhost:7122" };
-
-                p.WithOrigins("https://localhost:7122")
-                 .AllowAnyHeader()
-                 .AllowAnyMethod()
-                 .AllowCredentials();
+                var trustedOrigins = builder.Configuration.GetSection("ApiSettings:TrustedOrigins").Get<string[]>() ?? Array.Empty<string>();
+                cors.WithOrigins(trustedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             });
         });
 
         // Lägg till controllers och Swagger för API-dokumentation
-        builder.Services.AddControllers()
-                .AddJsonOptions(options =>
-                {
-                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-                });
+        builder.Services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        });
 
         if (builder.Environment.IsDevelopment())
         {
             builder.Services.AddSwaggerGen(o =>
             {
-                o.SwaggerDoc("v1", new OpenApiInfo { Title = "KronoxApi", Version = "v1" });
+                o.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "KronoxApi",
+                    Version = "v1",
+                    Description = "API för KronoX. Använd headern 'X-API-Key' med din API-nyckel för skyddade endpoints. Vissa endpoints kräver dessutom inloggning/roll (t.ex. Admin)."
+                });
                 o.OperationFilter<SwaggerFileOperationFilter>();
                 o.CustomSchemaIds(type => type.FullName);
 
@@ -75,33 +76,22 @@ public class Program
                     Name = "X-API-Key",
                     Description = "API-nyckel för autentisering"
                 });
-
                 o.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "ApiKey"
-                            }
-                        },
-                        Array.Empty<string>()
-                    }
+                    { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" } }, Array.Empty<string>() }
                 });
             });
         }
 
         // Lägg till e-posttjänst
         builder.Services.AddTransient<IEmailService, MailKitEmailService>();
-        builder.Services.Configure<EmailTemplates>(builder.Configuration.GetSection("EmailTemplates"));
+        builder.Services.AddOptions<EmailTemplates>()
+            .Bind(builder.Configuration.GetSection("EmailTemplates"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         builder.Services.AddScoped<IFileService, FileService>();
-        //builder.Services.AddScoped<ICmsService, CmsService>();
-
         builder.Services.AddScoped<IRoleValidationService, RoleValidationService>();
-
         builder.Services.AddScoped<EmailTemplateService>();
 
         builder.Services.ConfigureApplicationCookie(options =>
@@ -144,7 +134,7 @@ public class Program
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         AutoReplenishment = true,
-                        PermitLimit = 2000,  // Ökad från 1000 till 2000
+                        PermitLimit = 2000,
                         Window = TimeSpan.FromMinutes(1)
                     }));
 
@@ -155,7 +145,7 @@ public class Program
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         AutoReplenishment = true,
-                        PermitLimit = 1500,  // Något lägre för API-anrop
+                        PermitLimit = 1500,
                         Window = TimeSpan.FromMinutes(1)
                     }));
 
@@ -165,11 +155,11 @@ public class Program
                     partitionKey: httpContext.User?.Identity?.Name ?? "anonymous",
                     factory: _ => new TokenBucketRateLimiterOptions
                     {
-                        TokenLimit = 100,     // Max 100 tokens
+                        TokenLimit = 100,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                         QueueLimit = 10,
                         ReplenishmentPeriod = TimeSpan.FromMinutes(1),
-                        TokensPerPeriod = 60, // 60 tokens per minut
+                        TokensPerPeriod = 60,
                         AutoReplenishment = true
                     }));
 
@@ -179,11 +169,11 @@ public class Program
                     partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "localhost",
                     factory: _ => new TokenBucketRateLimiterOptions
                     {
-                        TokenLimit = 10,      // Max 10 uppladdningar i bufferten
+                        TokenLimit = 10,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 3,       // Max 3 i kön
+                        QueueLimit = 3,
                         ReplenishmentPeriod = TimeSpan.FromMinutes(1),
-                        TokensPerPeriod = 5,  // 5 nya tokens per minut
+                        TokensPerPeriod = 5,
                         AutoReplenishment = true
                     }));
         });
@@ -204,18 +194,18 @@ public class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+        else
+        {
+            app.UseHsts();
+        }
 
-        app.UseStaticFiles();
-
-        // Servera bilder även för frontend-anrop
+        // Statisk filserver + headers
         app.UseStaticFiles(new StaticFileOptions
         {
-            FileProvider = new PhysicalFileProvider(
-                Path.Combine(builder.Environment.ContentRootPath, "wwwroot")),
-            RequestPath = "/content",
+            FileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.ContentRootPath, "wwwroot")),
             OnPrepareResponse = ctx =>
             {
-                // Lägg till CORS headers för bilder
+                // CORS för bilder: öppna GET
                 ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
                 ctx.Context.Response.Headers.Append("Access-Control-Allow-Methods", "GET");
                 ctx.Context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type");
@@ -225,24 +215,15 @@ public class Program
             }
         });
 
+        // Skapa mappar vid behov
         var webRootPath = app.Services.GetRequiredService<IWebHostEnvironment>().WebRootPath;
         Directory.CreateDirectory(Path.Combine(webRootPath, "images", "members"));
         Directory.CreateDirectory(Path.Combine(webRootPath, "images", "pages"));
-
-        // Skapa privatStorage för säker dokumentlagring
         var privateStoragePath = Path.Combine(app.Environment.ContentRootPath, "PrivateStorage", "documents");
         Directory.CreateDirectory(privateStoragePath);
-        Directory.CreateDirectory(Path.Combine(webRootPath, "images", "members"));
-        Directory.CreateDirectory(Path.Combine(webRootPath, "images", "pages"));
 
         app.UseHttpsRedirection();
         app.UseCors("AllowBlazor");
-
-        app.UseCors(policy => policy
-       .WithOrigins("https://localhost:7122", "http://localhost:5291") // Frontend URLs
-       .AllowAnyMethod()
-       .AllowAnyHeader()
-       .AllowCredentials());
 
         app.UseAuthentication();
         app.UseAuthorization();
@@ -258,7 +239,6 @@ public class Program
         using (var scope = app.Services.CreateScope())
         {
             await scope.ServiceProvider.SeedAllAsync(builder.Configuration);
-            await scope.ServiceProvider.SeedContentAsync();
         }
 
         app.Run();

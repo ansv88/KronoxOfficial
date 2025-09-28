@@ -1,9 +1,9 @@
-﻿@using System.Text.Json
-@using System.Collections.Generic
+﻿@using System.Collections.Generic
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.ViewModels
 @using KronoxFront.Services
 @using KronoxFront.Components.Shared.Admin
+@using KronoxFront.ViewModels.Features
 @inject IJSRuntime JS
 @inject ILogger<FeatureSectionEditor> Logger
 @inject IToastService ToastService
@@ -487,10 +487,10 @@
                     var privateEditorId = $"private-content-editor-{index}";
                     if (!await JS.InvokeAsync<bool>("tinymceExists", privateEditorId) &&
                         await JS.InvokeAsync<bool>("elementExists", privateEditorId))
-                    {
-                        await JS.InvokeVoidAsync("initTinyMCE", privateEditorId);
-                        Logger.LogInformation("Initialiserade saknad private-editor: {EditorId}", privateEditorId);
-                    }
+                        {
+                            await JS.InvokeVoidAsync("initTinyMCE", privateEditorId);
+                            Logger.LogInformation("Initialiserade saknad private-editor: {EditorId}", privateEditorId);
+                        }
                 }
             }
 
@@ -612,22 +612,6 @@
             Logger.LogError(ex, "Fel vid initialisering av TinyMCE-editor {EditorId} för sektion #{Index}", editorId, index);
             throw; // Kasta vidare för att huvudmetoden ska hantera det
         }
-    }
-
-    // Information om bild som ska laddas upp
-    public class ImageUploadInfo
-    {
-        public IBrowserFile? File { get; set; }
-        public int SectionIndex { get; set; }
-        public FeatureSectionViewModel? Section { get; set; }
-        public Action? CloseModal { get; set; }
-    }
-
-    // Information om bild som ska tas bort
-    public class ImageDeleteInfo
-    {
-        public int SectionIndex { get; set; }
-        public string? ImageUrl { get; set; }
     }
 
     // Tar bort en sektion med angivet index

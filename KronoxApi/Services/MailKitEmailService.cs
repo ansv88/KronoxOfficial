@@ -3,7 +3,10 @@ using MimeKit;
 
 namespace KronoxApi.Services;
 
-// Implementation av IEmailService som skickar e-post via SMTP med MailKit.
+/// <summary>
+/// Implementation av IEmailService som skickar e‑post via SMTP med MailKit.
+/// Läser inställningar från EmailSettings i konfigurationen.
+/// </summary>
 public class MailKitEmailService : IEmailService
 {
     private readonly IConfiguration _configuration;
@@ -59,11 +62,11 @@ public class MailKitEmailService : IEmailService
             await smtpClient.SendAsync(message);
             await smtpClient.DisconnectAsync(true);
 
-            _logger.LogInformation("E-post skickad till {To} med ämne '{Subject}'", to, subject);
+            _logger.LogInformation("E‑post skickad till {To} med ämne '{Subject}'", to, subject);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid utskick av e-post till {To} med ämne '{Subject}'", to, subject);
+            _logger.LogError(ex, "Fel vid utskick av e‑post till {To} med ämne '{Subject}'", to, subject);
             throw; // Låt felet bubbla upp om det ska hanteras högre upp
         }
     }

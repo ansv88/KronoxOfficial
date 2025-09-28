@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace KronoxApi.DTOs;
 
 public class NavigationConfigDto
@@ -20,12 +22,18 @@ public class NavigationConfigDto
 
 public class NavigationUpdateDto
 {
+    [Required(ErrorMessage = "DisplayName krävs.")]
+    [StringLength(200, ErrorMessage = "DisplayName får vara max 200 tecken.")]
     public string DisplayName { get; set; } = "";
+
     public int SortOrder { get; set; }
     public int? GuestSortOrder { get; set; }
     public int? MemberSortOrder { get; set; }
+
     public bool IsVisibleToGuests { get; set; }
     public bool IsVisibleToMembers { get; set; }
     public bool IsActive { get; set; }
+
+    [StringLength(500, ErrorMessage = "För många eller för långa roller.")]
     public string? RequiredRoles { get; set; }
 }

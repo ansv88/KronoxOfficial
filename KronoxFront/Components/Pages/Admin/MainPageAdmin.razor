@@ -9,6 +9,8 @@
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
+@using KronoxFront.ViewModels.Features
+@using KronoxFront.ViewModels.Faq
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
@@ -38,10 +40,8 @@
         </div>
         <p class="mt-2 text-muted">Kontrollerar om sidan är en fast sida eller anpassad sida...</p>
     </div>
-    return;
 }
-
-@if (string.IsNullOrEmpty(PageKey) || (!IsValidPageKey(PageKey) && !isCustomPage))
+else if (string.IsNullOrEmpty(PageKey) || (!IsValidPageKey(PageKey) && !isCustomPage))
 {
     <div class="container-fluid">
         <div class="alert alert-danger">
@@ -64,9 +64,9 @@
             </div>
         </div>
     </div>
-    return;
 }
-
+else
+{
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -126,13 +126,13 @@
                 @* ---------- Navigeringsinställningar (ALLTID TILLGÄNGLIG) ----------- *@
                 <NavigationSettings PageKey="@PageKey"
                                     InitialDisplayName="@pageContent.Title"
-                                    OnDisplayNameChanged="OnNavigationNameChanged" />
+                                    OnDisplayNameChanged="@(EventCallback.Factory.Create<string>(this, OnNavigationNameChanged))" />
 
                 @* ---------- Section Configuration Manager (ALLTID TILLGÄNGLIG) ----------- *@
                 <PageSectionConfigurator PageKey="@PageKey"
                                          AvailableSections="sectionConfigItems"
-                                         OnConfigurationChanged="OnSectionConfigurationChanged"
-                                         OnSave="SaveSectionConfiguration" />
+                                         OnConfigurationChanged="@(EventCallback.Factory.Create(this, OnSectionConfigurationChanged))"
+                                         OnSave="@(EventCallback.Factory.Create<List<SectionConfigItem>>(this, SaveSectionConfiguration))" />
 
                 @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
@@ -140,7 +140,7 @@
                     @switch (sectionConfig.Type)
                     {
                         case SectionType.Banner:
-                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" OnSaveRequested="SaveContent" />
+                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" />
                             break;
 
                         case SectionType.Intro:
@@ -242,6 +242,7 @@
     </div>
 </div>
 
+}
 <ScrollTopButton />
 
 @code {
@@ -309,9 +310,9 @@
 
         await CheckPageType();
 
+        // Omdirigera till CustomPageEditor istället för att ladda innehåll här (fallback)
         if (isCustomPage)
         {
-            // Omdirigera till CustomPageEditor istället
             Navigation.NavigateTo($"/admin/page/{PageKey}");
             return;
         }
@@ -336,8 +337,10 @@
                 Images = new List<PageImageViewModel>()
             };
 
-            // Initiera _navDisplayName från lagrat innehåll om det finns
-            _navDisplayName = pageContent.Title;
+            // Använd alltid uppslagsnamn för fasta sidor, annars CMS-titel
+            _navDisplayName = IsValidPageKey(PageKey)
+                ? GetPageDisplayName()
+                : pageContent.Title;
 
             // Ladda sektionskonfiguration först
             sectionConfigItems = await Cms.GetPageSectionConfigAsync(PageKey);
@@ -738,7 +741,7 @@
         };
     }
 
-    private async Task SetFallbackContent()
+    private Task SetFallbackContent()
     {
         introSection = new IntroSectionViewModel
         {
@@ -751,6 +754,7 @@
         sectionConfigItems = GetDefaultSectionConfig(PageKey);
         contactInfo = new ContactPageInfoViewModel();
         actionPlan = new ActionPlanTableViewModel { PageKey = PageKey, Items = new List<ActionPlanItem>() };
+        return Task.CompletedTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -996,7 +1000,7 @@
         StateHasChanged();
     }
 
-    private async Task OnFeatureImageUploaded(FeatureSectionEditor.ImageUploadInfo info)
+    private async Task OnFeatureImageUploaded(ImageUploadInfo info)
     {
         if (info.File != null && info.Section != null)
         {
@@ -1015,7 +1019,7 @@
         }
     }
 
-    private async Task OnFaqImageUploaded(FaqEditor.FaqImageUploadInfo info)
+    private async Task OnFaqImageUploaded(FaqImageUploadInfo info)
     {
         if (info.File != null && info.Item != null)
         {
@@ -1059,7 +1063,7 @@
     }
 
     private void OnFeatureSectionsChanged() { }
-    private void OnFeatureImageDeleted(FeatureSectionEditor.ImageDeleteInfo info) { }
+    private void OnFeatureImageDeleted(ImageDeleteInfo info) { }
     private void OnFaqSectionsChanged() { }
 
     private Task OnShowNavigationButtonsChanged(bool value)

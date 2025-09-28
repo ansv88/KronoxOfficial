@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+ï»¿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using KronoxApi.DTOs;
 using KronoxApi.Services;
@@ -7,6 +7,12 @@ using KronoxApi.Models;
 using KronoxApi.Attributes;
 
 namespace KronoxApi.Controllers;
+
+/// <summary>
+/// APIâ€‘kontroller fÃ¶r kontaktsidan: skickar kontaktformulÃ¤r (eâ€‘post), hÃ¤mtar kontaktinfo,
+/// samt Adminâ€‘CRUD fÃ¶r kontaktpersoner, postadress och eâ€‘postlistor.
+/// Blandad Ã¥tkomst: publika GET:ar och Admin-skyddade uppdateringar.
+/// </summary>
 
 [Route("api/[controller]")]
 [ApiController]
@@ -29,7 +35,7 @@ public class ContactController : ControllerBase
         _context = context;
     }
 
-    // ================== KONTAKTFORMULÄR ==================
+    // ================== KONTAKTFORMULÃ„R ==================
 
     [HttpPost("send")]
     public async Task<IActionResult> SendContactMessage([FromBody] ContactFormDto contactForm)
@@ -41,38 +47,38 @@ public class ContactController : ControllerBase
 
         try
         {
-            // Hämta support-mailadress från konfiguration
+            // HÃ¤mta support-mailadress frÃ¥n konfiguration
             var supportEmail = _configuration["ContactSettings:SupportEmail"] ?? "support@kronox.se";
 
-            // Skapa e-postinnehåll
-            var emailSubject = $"Kontaktformulär: {contactForm.Subject}";
+            // Skapa e-postinnehÃ¥ll
+            var emailSubject = $"KontaktformulÃ¤r: {contactForm.Subject}";
             var emailBody = $@"
-                            Nytt meddelande från kontaktformuläret på KronoX-webbplatsen:
+                            Nytt meddelande frÃ¥n kontaktformulÃ¤ret pÃ¥ KronoX-webbplatsen:
 
-                            Från: {contactForm.Name}
+                            FrÃ¥n: {contactForm.Name}
                             E-post: {contactForm.Email}
-                            Ämne: {contactForm.Subject}
+                            Ã„mne: {contactForm.Subject}
 
                             Meddelande:
                             {contactForm.Message}
 
                             ---
-                            Detta meddelande skickades från kontaktformuläret på webbplatsen.
-                            Svara direkt till {contactForm.Email} för att kontakta avsändaren.
+                            Detta meddelande skickades frÃ¥n kontaktformulÃ¤ret pÃ¥ webbplatsen.
+                            Svara direkt till {contactForm.Email} fÃ¶r att kontakta avsÃ¤ndaren.
                             ";
 
             // Skicka e-post till support
             await _emailService.SendEmailAsync(supportEmail, emailSubject, emailBody);
 
-            _logger.LogInformation("Kontaktmeddelande skickat från {Email} med ämne '{Subject}'",
+            _logger.LogDebug("Kontaktmeddelande skickat frÃ¥n {Email} med Ã¤mne '{Subject}'",
                 contactForm.Email, contactForm.Subject);
 
-            return Ok(new { message = "Ditt meddelande har skickats. Vi återkommer så snart som möjligt!" });
+            return Ok(new { message = "Ditt meddelande har skickats. Vi Ã¥terkommer sÃ¥ snart som mÃ¶jligt!" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid skickning av kontaktmeddelande från {Email}", contactForm.Email);
-            return StatusCode(500, new { message = "Ett fel uppstod vid skickning av meddelandet. Försök igen senare." });
+            _logger.LogError(ex, "Fel vid skickning av kontaktmeddelande frÃ¥n {Email}", contactForm.Email);
+            return StatusCode(500, new { message = "Ett fel uppstod vid skickning av meddelandet. FÃ¶rsÃ¶k igen senare." });
         }
     }
 
@@ -87,9 +93,9 @@ public class ContactController : ControllerBase
             var postalAddress = await _context.PostalAddresses.FirstOrDefaultAsync() ?? new PostalAddress
             {
                 OrganizationName = "KronoX",
-                AddressLine1 = "Högskolan i Borås",
+                AddressLine1 = "HÃ¶gskolan i BorÃ¥s",
                 PostalCode = "501 90",
-                City = "Borås",
+                City = "BorÃ¥s",
                 Country = "Sverige"
             };
 
@@ -98,7 +104,7 @@ public class ContactController : ControllerBase
                 .OrderBy(cp => cp.SortOrder)
                 .ToListAsync();
 
-            // Hämta e-postlistor
+            // HÃ¤mta e-postlistor
             var emailLists = await _context.EmailLists
                 .Where(el => el.IsActive)
                 .OrderBy(el => el.SortOrder)
@@ -125,7 +131,7 @@ public class ContactController : ControllerBase
                     SortOrder = cp.SortOrder,
                     IsActive = cp.IsActive
                 }).ToList(),
-                // Lägg till e-postlistor
+                // LÃ¤gg till e-postlistor
                 EmailLists = emailLists.Select(el => new EmailListDto
                 {
                     Id = el.Id,
@@ -141,15 +147,15 @@ public class ContactController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hämtning av kontaktinformation");
-            return StatusCode(500, "Ett fel uppstod vid hämtning av kontaktinformation");
+            _logger.LogError(ex, "Fel vid hÃ¤mtning av kontaktinformation");
+            return StatusCode(500, "Ett fel uppstod vid hÃ¤mtning av kontaktinformation");
         }
     }
 
     // PUT: api/contact/postal-address
     [HttpPut("postal-address")]
     [RequireRole("Admin")]
-    public async Task<ActionResult> UpdatePostalAddress(ContactPostalAddressDto dto)
+    public async Task<ActionResult> UpdatePostalAddress([FromBody] ContactPostalAddressDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -176,7 +182,7 @@ public class ContactController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Postadress uppdaterad av admin");
+            _logger.LogDebug("Postadress uppdaterad av admin");
             return Ok();
         }
         catch (Exception ex)
@@ -186,7 +192,7 @@ public class ContactController : ControllerBase
         }
     }
 
-    // GET: api/contact/persons (för admin)
+    // GET: api/contact/persons (fÃ¶r admin)
     [HttpGet("persons")]
     [RequireRole("Admin")]
     public async Task<ActionResult<List<ContactPagePersonDto>>> GetContactPersons()
@@ -213,15 +219,15 @@ public class ContactController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hämtning av kontaktpersoner för admin");
-            return StatusCode(500, "Ett fel uppstod vid hämtning av kontaktpersoner");
+            _logger.LogError(ex, "Fel vid hÃ¤mtning av kontaktpersoner fÃ¶r admin");
+            return StatusCode(500, "Ett fel uppstod vid hÃ¤mtning av kontaktpersoner");
         }
     }
 
     // POST: api/contact/persons
     [HttpPost("persons")]
     [RequireRole("Admin")]
-    public async Task<ActionResult<ContactPagePersonDto>> CreateContactPerson(UpsertContactPagePersonDto dto)
+    public async Task<ActionResult<ContactPagePersonDto>> CreateContactPerson([FromBody] UpsertContactPagePersonDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -263,7 +269,7 @@ public class ContactController : ControllerBase
                 IsActive = contactPerson.IsActive
             };
 
-            _logger.LogInformation("Ny kontaktperson skapad: {Name} ({Email})", contactPerson.Name, contactPerson.Email);
+            _logger.LogDebug("Ny kontaktperson skapad: {Name} ({Email})", contactPerson.Name, contactPerson.Email);
             return CreatedAtAction(nameof(GetContactInfo), new { id = contactPerson.Id }, result);
         }
         catch (Exception ex)
@@ -276,7 +282,7 @@ public class ContactController : ControllerBase
     // PUT: api/contact/persons/{id}
     [HttpPut("persons/{id}")]
     [RequireRole("Admin")]
-    public async Task<ActionResult> UpdateContactPerson(int id, UpsertContactPagePersonDto dto)
+    public async Task<ActionResult> UpdateContactPerson(int id, [FromBody] UpsertContactPagePersonDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -291,7 +297,7 @@ public class ContactController : ControllerBase
                 return NotFound(new { message = "Kontaktpersonen hittades inte." });
             }
 
-            // Kontrollera om e-postadressen redan finns (utom för denna person)
+            // Kontrollera om e-postadressen redan finns (utom fÃ¶r denna person)
             var existingPerson = await _context.ContactPersons
                 .FirstOrDefaultAsync(cp => cp.Email.ToLower() == dto.Email.ToLower() && cp.Id != id);
 
@@ -310,7 +316,7 @@ public class ContactController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Kontaktperson uppdaterad: {Name} (ID: {Id})", contactPerson.Name, id);
+            _logger.LogDebug("Kontaktperson uppdaterad: {Name} (ID: {Id})", contactPerson.Name, id);
             return Ok();
         }
         catch (Exception ex)
@@ -336,7 +342,7 @@ public class ContactController : ControllerBase
             _context.ContactPersons.Remove(contactPerson);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Kontaktperson borttagen: {Name} (ID: {Id})", contactPerson.Name, id);
+            _logger.LogDebug("Kontaktperson borttagen: {Name} (ID: {Id})", contactPerson.Name, id);
             return NoContent();
         }
         catch (Exception ex)
@@ -364,15 +370,15 @@ public class ContactController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Kontaktperson {Name} (ID: {Id}) {Status}",
+            _logger.LogDebug("Kontaktperson {Name} (ID: {Id}) {Status}",
                 contactPerson.Name, id, contactPerson.IsActive ? "aktiverad" : "inaktiverad");
 
             return Ok(new { isActive = contactPerson.IsActive });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid ändring av aktivstatus för kontaktperson med ID {Id}", id);
-            return StatusCode(500, "Ett fel uppstod vid ändring av aktivstatus");
+            _logger.LogError(ex, "Fel vid Ã¤ndring av aktivstatus fÃ¶r kontaktperson med ID {Id}", id);
+            return StatusCode(500, "Ett fel uppstod vid Ã¤ndring av aktivstatus");
         }
     }
 
@@ -403,15 +409,15 @@ public class ContactController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hämtning av e-postlistor");
-            return StatusCode(500, "Ett fel uppstod vid hämtning av e-postlistor");
+            _logger.LogError(ex, "Fel vid hÃ¤mtning av e-postlistor");
+            return StatusCode(500, "Ett fel uppstod vid hÃ¤mtning av e-postlistor");
         }
     }
 
     // POST: api/contact/emaillists
     [HttpPost("emaillists")]
     [RequireRole("Admin")]
-    public async Task<ActionResult<EmailListDto>> CreateEmailList(UpsertEmailListDto dto)
+    public async Task<ActionResult<EmailListDto>> CreateEmailList([FromBody] UpsertEmailListDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -442,7 +448,7 @@ public class ContactController : ControllerBase
                 IsActive = emailList.IsActive
             };
 
-            _logger.LogInformation("Ny e-postlista skapad: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
+            _logger.LogDebug("Ny e-postlista skapad: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
             return CreatedAtAction(nameof(GetEmailLists), new { id = emailList.Id }, result);
         }
         catch (Exception ex)
@@ -455,7 +461,7 @@ public class ContactController : ControllerBase
     // PUT: api/contact/emaillists/{id}
     [HttpPut("emaillists/{id}")]
     [RequireRole("Admin")]
-    public async Task<ActionResult> UpdateEmailList(int id, UpsertEmailListDto dto)
+    public async Task<ActionResult> UpdateEmailList(int id, [FromBody] UpsertEmailListDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -479,7 +485,7 @@ public class ContactController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("E-postlista uppdaterad: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
+            _logger.LogDebug("E-postlista uppdaterad: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
             return NoContent();
         }
         catch (Exception ex)
@@ -505,7 +511,7 @@ public class ContactController : ControllerBase
             _context.EmailLists.Remove(emailList);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("E-postlista borttagen: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
+            _logger.LogDebug("E-postlista borttagen: {Name} ({Email})", emailList.Name, emailList.EmailAddress);
             return NoContent();
         }
         catch (Exception ex)
@@ -532,14 +538,14 @@ public class ContactController : ControllerBase
             emailList.LastModified = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("E-postlista {Action}: {Name}",
+            _logger.LogDebug("E-postlista {Action}: {Name}",
                 emailList.IsActive ? "aktiverad" : "inaktiverad", emailList.Name);
             return NoContent();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid ändring av aktivstatus för e-postlista");
-            return StatusCode(500, "Ett fel uppstod vid ändring av aktivstatus");
+            _logger.LogError(ex, "Fel vid Ã¤ndring av aktivstatus fÃ¶r e-postlista");
+            return StatusCode(500, "Ett fel uppstod vid Ã¤ndring av aktivstatus");
         }
     }
 }

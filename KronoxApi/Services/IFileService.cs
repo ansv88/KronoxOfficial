@@ -1,6 +1,8 @@
 ﻿namespace KronoxApi.Services;
 
-// Tjänstegränssnitt för filhantering, validering och lagring.
+/// <summary>
+/// Tjänstegränssnitt för filhantering, validering och lagring.
+/// </summary>
 public interface IFileService
 {
     // Validering

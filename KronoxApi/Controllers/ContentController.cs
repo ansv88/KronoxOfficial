@@ -10,7 +10,15 @@ using System.Text.RegularExpressions;
 
 namespace KronoxApi.Controllers;
 
-// API-kontroller för hantering av innehållsblock och sidbilder.
+/// <summary>
+/// API‑kontroller för innehållsblock och sidbilder (CMS).
+/// Hämtar/skapar/uppdaterar ContentBlock per pageKey och hanterar PageImages:
+/// lista/användning, uppladdning med deduplicering (hash‑suffix), registrering/kopiering av befintliga filer,
+/// uppdatering av alt‑text samt säker borttagning (endast när sista referensen försvunnit).
+/// Adminkrav för ändringar, skyddad med API‑nyckel och __EnableRateLimiting("API")__
+/// (samt "Upload" på bilduppladdning); returnerar 409 vid samtidighetskonflikt.
+/// </summary>
+
 [ApiController]
 [Route("api/content")]
 [RequireApiKey]
@@ -25,7 +33,6 @@ public class ContentController : ControllerBase
         _db = db;
         _logger = logger;
     }
-
 
     // Hämtar ett innehållsblock baserat på pageKey.
     [HttpGet("{pageKey}")]
@@ -91,7 +98,6 @@ public class ContentController : ControllerBase
         };
     }
 
-
     // Skapar eller uppdaterar ett innehållsblock baserat på pageKey
     [HttpPut("{pageKey}")]
     [RequireRole("Admin")]
@@ -128,13 +134,17 @@ public class ContentController : ControllerBase
             await _db.SaveChangesAsync();
             return Ok();
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av innehållsblock för {PageKey}", pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fel vid uppdatering av innehållsblock för {PageKey}", pageKey);
             return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av innehållsblocket.");
         }
     }
-
 
     // Uppdaterar alt-texten för en bild kopplad till ett innehållsblock.
     [HttpPut("{pageKey}/images/{id}/alttext")]
@@ -160,8 +170,13 @@ public class ContentController : ControllerBase
             pageImage.AltText = dto.AltText;
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Alt-text uppdaterad för bild {Id} på {PageKey}", id, pageKey);
+            _logger.LogDebug("Alt-text uppdaterad för bild {Id} på {PageKey}", id, pageKey);
             return Ok();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av alt-text för bild {Id} på {PageKey}", id, pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
         }
         catch (Exception ex)
         {
@@ -170,8 +185,7 @@ public class ContentController : ControllerBase
         }
     }
 
-
-    // NY: Lista alla bilder (bibliotek)
+    // Lista alla bilder (bibliotek)
     [HttpGet("images")]
     [RequireRole("Admin")]
     public async Task<IActionResult> GetAllImages([FromQuery] string? pageKey = null)
@@ -192,7 +206,7 @@ public class ContentController : ControllerBase
         return Ok(items);
     }
 
-    // NY: Visa var en bild används (alla referenser till samma Url)
+    // Visa var en bild används (alla referenser till samma Url)
     [HttpGet("images/usage")]
     [RequireRole("Admin")]
     public async Task<IActionResult> GetImageUsage([FromQuery] string url)
@@ -205,7 +219,7 @@ public class ContentController : ControllerBase
         return Ok(usage);
     }
 
-    // NY: Mappa MIME->ext (fallback)
+    // Mappa MIME->ext (fallback)
     private static string GuessExtension(string contentType) => contentType switch
     {
         "image/jpeg" => ".jpg",
@@ -216,7 +230,7 @@ public class ContentController : ControllerBase
         _ => ".jpg"
     };
 
-    // NY: Rensa filnamnsbas (för läsbart namn)
+    // Rensa filnamnsbas (för läsbart namn)
     private static string SanitizeBase(string name)
     {
         var baseName = Path.GetFileNameWithoutExtension(name)
@@ -232,11 +246,11 @@ public class ContentController : ControllerBase
         return baseName;
     }
 
-    // NY: Strippa ev. tidigare hash-suffix (-[0-9a-f]{8}) i slutet av basnamnet
+    // Strippa ev. tidigare hash-suffix (-[0-9a-f]{8}) i slutet av basnamnet
     private static string StripExistingHashSuffix(string baseName)
         => Regex.Replace(baseName, "-[0-9a-f]{8}$", "", RegexOptions.IgnoreCase);
 
-    // NY: SHA-256 -> 8 tecken (kort hash-suffix)
+    // SHA-256 -> 8 tecken (kort hash-suffix)
     private static string ShortHash8(Stream s)
     {
         using var sha = SHA256.Create();
@@ -325,6 +339,11 @@ public class ContentController : ControllerBase
                 return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText });
             }
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppladdning av bild för {PageKey}", pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fel vid uppladdning av bild för {PageKey}", pageKey);
@@ -332,11 +351,10 @@ public class ContentController : ControllerBase
         }
     }
 
-
     // Registrerar metadata för en redan uppladdad bild (utan kopiering).
     [HttpPost("{pageKey}/images/register")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> RegisterImageMetadata(string pageKey, [FromBody] RegisterExistingImageRequest dto)
+    public async Task<IActionResult> RegisterImageMetadata(string pageKey, [FromBody] RegisterExistingImageDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.SourcePath))
             return BadRequest("Source path kan inte vara tom.");
@@ -375,6 +393,11 @@ public class ContentController : ControllerBase
                 return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText });
             }
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid registrering av bildmetadata för {PageKey}", pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fel vid registrering av bildmetadata för {PageKey}", pageKey);
@@ -385,7 +408,7 @@ public class ContentController : ControllerBase
     // Kopierar en redan uppladdad bild till rätt sidmapp och registrerar den
     [HttpPost("{pageKey}/images/register-copy")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> RegisterImageCopy(string pageKey, [FromBody] RegisterExistingImageRequest dto)
+    public async Task<IActionResult> RegisterImageCopy(string pageKey, [FromBody] RegisterExistingImageDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.SourcePath))
             return BadRequest("Source path kan inte vara tom.");
@@ -457,6 +480,11 @@ public class ContentController : ControllerBase
                 return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText });
             }
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid kopiering/registrering av bild för {PageKey}", pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fel vid kopiering av bild till {PageKey}", pageKey);
@@ -489,6 +517,11 @@ public class ContentController : ControllerBase
             }
 
             return Ok();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid borttagning av bild {Id} för {PageKey}", id, pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
         }
         catch (Exception ex)
         {

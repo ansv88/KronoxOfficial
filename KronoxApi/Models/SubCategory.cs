@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace KronoxApi.Models;
 
-// Representerar en underkategori i dokumenthanteringssystemet.
+// Underkategori för dokument (namn).
 public class SubCategory 
 {
     public int Id { get; set; }

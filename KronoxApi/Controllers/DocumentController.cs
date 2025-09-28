@@ -10,7 +10,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 
-// API-kontroller för hantering av dokument och filuppladdning med rollbaserad åtkomst.
+/// <summary>
+/// API‑kontroller för dokument och filhantering (privat lagring).
+/// Admin: uppladdning (multipart, rate‑limit "Upload"), uppdatera kategorier (inkl. fysisk filflytt),
+/// arkivera/avarkivera och radera.
+/// Läsning: rollbaserad åtkomst via X‑User‑Roles samt säker nedladdning från PrivateStorage.
+/// Exponerar även Admin‑lista och rollfiltrerad lista för medlemmar/styrelse.
+/// Skyddad med API‑nyckel och __EnableRateLimiting("API")__; returnerar 409 vid samtidighetskonflikt.
+/// </summary>
+
 [ApiController]
 [Route("api/documents")]
 [RequireApiKey]
@@ -76,7 +84,7 @@ public class DocumentController : ControllerBase
             _db.Documents.Add(document);
             await _db.SaveChangesAsync();
 
-            _log.LogInformation("Dokument uppladdat: {FileName} (ID: {Id})", document.FileName, document.Id);
+            _log.LogDebug("Dokument uppladdat: {FileName} (ID: {Id})", document.FileName, document.Id);
             return Ok(document);
         }
         catch (Exception ex)
@@ -286,10 +294,15 @@ public class DocumentController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            _log.LogInformation("Dokument arkiverat: {FileName} (ID: {Id}) av {User}", 
+            _log.LogDebug("Dokument arkiverat: {FileName} (ID: {Id}) av {User}", 
                 document.FileName, document.Id, document.ArchivedBy);
 
             return Ok("Dokumentet har arkiverats.");
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _log.LogWarning(ex, "Samtidighetskonflikt vid arkivering av dokument {Id}", id);
+            return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
@@ -323,10 +336,15 @@ public class DocumentController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            _log.LogInformation("Dokument återställt: {FileName} (ID: {Id})", 
+            _log.LogDebug("Dokument återställt: {FileName} (ID: {Id})", 
                 document.FileName, document.Id);
 
             return Ok("Dokumentet har återställts.");
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _log.LogWarning(ex, "Samtidighetskonflikt vid återställning av dokument {Id}", id);
+            return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
@@ -401,7 +419,7 @@ public class DocumentController : ControllerBase
 
                     document.FilePath = newRelativePath;
 
-                    _log.LogInformation("Fil flyttad från {OldPath} till {NewPath}", oldFilePath, newRelativePath);
+                    _log.LogDebug("Fil flyttad från {OldPath} till {NewPath}", oldFilePath, newRelativePath);
                 }
                 catch (Exception ex)
                 {
@@ -412,9 +430,14 @@ public class DocumentController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            _log.LogInformation("Dokument uppdaterat: {FileName} (ID: {Id})", document.FileName, document.Id);
+            _log.LogDebug("Dokument uppdaterat: {FileName} (ID: {Id})", document.FileName, document.Id);
 
             return Ok(document);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _log.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av dokument {Id}", id);
+            return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
@@ -439,8 +462,13 @@ public class DocumentController : ControllerBase
             _db.Documents.Remove(document);
             await _db.SaveChangesAsync();
 
-            _log.LogInformation("Dokument raderat: {FileName} (ID: {Id})", document.FileName, document.Id);
+            _log.LogDebug("Dokument raderat: {FileName} (ID: {Id})", document.FileName, document.Id);
             return NoContent();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _log.LogWarning(ex, "Samtidighetskonflikt vid borttagning av dokument {Id}", id);
+            return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {

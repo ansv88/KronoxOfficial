@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using KronoxApi.DTOs;
 
 namespace KronoxApi.Controllers;
 
@@ -73,7 +74,24 @@ public class AdminController : ControllerBase
         try
         {
             var newUsers = await _userManager.GetUsersInRoleAsync(NewUserRole);
-            return Ok(newUsers);
+            var result = new List<AdminUserDto>(newUsers.Count);
+
+            foreach (var user in newUsers)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                result.Add(new AdminUserDto
+                {
+                    UserName = user.UserName,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    Academy = user.Academy,
+                    Roles = roles.ToList(),
+                    CreatedDate = user.CreatedDate
+                });
+            }
+
+            return Ok(result);
         }
         catch (Exception ex)
         {
@@ -371,25 +389,19 @@ public class AdminController : ControllerBase
         try
         {
             var users = _userManager.Users.ToList();
-
-            if (!users.Any())
-            {
-                return Ok(new List<object>());
-            }
-
-            var result = new List<object>();
+            var result = new List<AdminUserDto>(users.Count);
 
             foreach (var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                result.Add(new
+                result.Add(new AdminUserDto
                 {
                     UserName = user.UserName,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
                     Email = user.Email,
                     Academy = user.Academy,
-                    Roles = roles,
+                    Roles = roles.ToList(),
                     CreatedDate = user.CreatedDate
                 });
             }

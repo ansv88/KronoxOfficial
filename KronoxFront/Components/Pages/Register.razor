@@ -2,8 +2,12 @@
 @inject IHttpClientFactory HttpClientFactory
 @using System.ComponentModel.DataAnnotations
 @using System.Net.Http.Json
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.DTOs
 @using KronoxFront.Requests
+
+<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<RequirePageEnabled PageKey="registrera" FailClosed="true" />
 
 <HeadContent>
     <meta name="description" content="Registrera dig som ny användare i KronoX-portalen." />

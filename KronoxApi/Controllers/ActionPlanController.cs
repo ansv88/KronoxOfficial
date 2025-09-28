@@ -1,4 +1,4 @@
-using KronoxApi.Attributes;
+ï»¿using KronoxApi.Attributes;
 using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
@@ -7,6 +7,12 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
+
+/// <summary>
+/// APIâ€‘kontroller fÃ¶r handlingsplaner per sida (pageKey).
+/// Ger Admin CRUD pÃ¥ Ã¥tgÃ¤rdsposter samt omordning; uppdaterar LastModified.
+/// Skyddad med APIâ€‘nyckel och __EnableRateLimiting("API")__.
+/// </summary>
 
 [ApiController]
 [Route("api/[controller]")]
@@ -32,10 +38,10 @@ public class ActionPlanController : ControllerBase
 
         if (actionPlan == null)
         {
-            return new ActionPlanTableDto 
-            { 
-                PageKey = pageKey, 
-                Items = new List<ActionPlanItemDto>() 
+            return new ActionPlanTableDto
+            {
+                PageKey = pageKey,
+                Items = new List<ActionPlanItemDto>()
             };
         }
 
@@ -60,11 +66,12 @@ public class ActionPlanController : ControllerBase
 
     [HttpPost("{pageKey}/items")]
     [RequireRole("Admin")]
-    public async Task<ActionResult<ActionPlanItemDto>> CreateActionPlanItem(string pageKey, CreateActionPlanItemDto dto)
+    public async Task<ActionResult<ActionPlanItemDto>> CreateActionPlanItem(string pageKey, [FromBody] CreateActionPlanItemDto dto)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         try
         {
-            // Hitta eller skapa ActionPlanTable
             var actionPlan = await _context.ActionPlanTables
                 .Include(t => t.Items)
                 .FirstOrDefaultAsync(t => t.PageKey == pageKey);
@@ -73,10 +80,9 @@ public class ActionPlanController : ControllerBase
             {
                 actionPlan = new ActionPlanTable { PageKey = pageKey };
                 _context.ActionPlanTables.Add(actionPlan);
-                await _context.SaveChangesAsync(); // Spara för att få ID
+                await _context.SaveChangesAsync();
             }
 
-            // Skapa nytt item
             var newItem = new ActionPlanItem
             {
                 ActionPlanTableId = actionPlan.Id,
@@ -91,7 +97,7 @@ public class ActionPlanController : ControllerBase
 
             _context.ActionPlanItems.Add(newItem);
             actionPlan.LastModified = DateTime.UtcNow;
-            
+
             await _context.SaveChangesAsync();
 
             var result = new ActionPlanItemDto
@@ -106,20 +112,22 @@ public class ActionPlanController : ControllerBase
                 SortOrder = newItem.SortOrder
             };
 
-            _logger.LogInformation("Skapade nytt handlingsplan-item {Id} för {PageKey}", newItem.Id, pageKey);
+            _logger.LogDebug("Skapade nytt handlingsplan-item {Id} fÃ¶r {PageKey}", newItem.Id, pageKey);
             return CreatedAtAction(nameof(GetActionPlan), new { pageKey }, result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid skapande av handlingsplan-item för {PageKey}", pageKey);
-            return StatusCode(500, "Ett fel uppstod vid skapande av åtgärden");
+            _logger.LogError(ex, "Fel vid skapande av handlingsplan-item fÃ¶r {PageKey}", pageKey);
+            return StatusCode(500, "Ett fel uppstod vid skapande av Ã¥tgÃ¤rden");
         }
     }
 
     [HttpPut("{pageKey}/items/{id}")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> UpdateActionPlanItem(string pageKey, int id, CreateActionPlanItemDto dto)
+    public async Task<IActionResult> UpdateActionPlanItem(string pageKey, int id, [FromBody] CreateActionPlanItemDto dto)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         try
         {
             var item = await _context.ActionPlanItems
@@ -137,18 +145,18 @@ public class ActionPlanController : ControllerBase
             item.DetailedDescription = dto.DetailedDescription;
             item.PlannedDelivery = dto.PlannedDelivery;
             item.Completed = dto.Completed;
-            
+
             item.ActionPlanTable.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Uppdaterade handlingsplan-item {Id} för {PageKey}", id, pageKey);
+            _logger.LogDebug("Uppdaterade handlingsplan-item {Id} fÃ¶r {PageKey}", id, pageKey);
             return NoContent();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppdatering av handlingsplan-item {Id} för {PageKey}", id, pageKey);
-            return StatusCode(500, "Ett fel uppstod vid uppdatering av åtgärden");
+            _logger.LogError(ex, "Fel vid uppdatering av handlingsplan-item {Id} fÃ¶r {PageKey}", id, pageKey);
+            return StatusCode(500, "Ett fel uppstod vid uppdatering av Ã¥tgÃ¤rden");
         }
     }
 
@@ -171,10 +179,8 @@ public class ActionPlanController : ControllerBase
             var sortOrder = item.SortOrder;
             var actionPlan = item.ActionPlanTable;
 
-            // Ta bort item
             _context.ActionPlanItems.Remove(item);
 
-            // Uppdatera SortOrder för återstående items
             var remainingItems = actionPlan.Items
                 .Where(i => i.Id != id && i.SortOrder > sortOrder)
                 .OrderBy(i => i.SortOrder);
@@ -184,26 +190,27 @@ public class ActionPlanController : ControllerBase
                 remainingItem.SortOrder--;
             }
 
-            // Uppdatera LastModified
             actionPlan.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Tog bort handlingsplan-item {Id} från {PageKey}", id, pageKey);
+            _logger.LogDebug("Tog bort handlingsplan-item {Id} frÃ¥n {PageKey}", id, pageKey);
             return NoContent();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid borttagning av handlingsplan-item {Id} från {PageKey}", id, pageKey);
-            return StatusCode(500, "Ett fel uppstod vid borttagning av åtgärden");
+            _logger.LogError(ex, "Fel vid borttagning av handlingsplan-item {Id} frÃ¥n {PageKey}", id, pageKey);
+            return StatusCode(500, "Ett fel uppstod vid borttagning av Ã¥tgÃ¤rden");
         }
     }
 
-    // Behåll den gamla PUT-metoden för bakåtkompatibilitet
+    // BehÃ¥ll PUT fÃ¶r bakÃ¥tkompatibilitet
     [HttpPut("{pageKey}")]
     [RequireRole("Admin")]
-    public async Task<IActionResult> UpdateActionPlan(string pageKey, ActionPlanTableDto dto)
+    public async Task<IActionResult> UpdateActionPlan(string pageKey, [FromBody] ActionPlanTableDto dto)
     {
+        if (dto == null) return BadRequest("Ogiltig begÃ¤ran.");
+
         try
         {
             var actionPlan = await _context.ActionPlanTables
@@ -216,10 +223,8 @@ public class ActionPlanController : ControllerBase
                 _context.ActionPlanTables.Add(actionPlan);
             }
 
-            // Ta bort befintliga items
             _context.ActionPlanItems.RemoveRange(actionPlan.Items);
 
-            // Lägg till nya items
             actionPlan.Items = dto.Items.Select(i => new ActionPlanItem
             {
                 Priority = i.Priority,
@@ -234,13 +239,13 @@ public class ActionPlanController : ControllerBase
             actionPlan.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("Uppdaterade hela handlingsplanen för {PageKey}", pageKey);
+
+            _logger.LogDebug("Uppdaterade hela handlingsplanen fÃ¶r {PageKey}", pageKey);
             return Ok();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppdatering av handlingsplan för {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid uppdatering av handlingsplan fÃ¶r {PageKey}", pageKey);
             return StatusCode(500, "Ett fel uppstod vid uppdatering av handlingsplanen");
         }
     }
@@ -249,6 +254,8 @@ public class ActionPlanController : ControllerBase
     [RequireRole("Admin")]
     public async Task<IActionResult> MoveActionPlanItem(string pageKey, int id, [FromBody] MoveItemRequest request)
     {
+        if (request == null) return BadRequest("Ogiltig begÃ¤ran.");
+
         try
         {
             var actionPlan = await _context.ActionPlanTables
@@ -263,7 +270,7 @@ public class ActionPlanController : ControllerBase
             var item = actionPlan.Items.FirstOrDefault(i => i.Id == id);
             if (item == null)
             {
-                return NotFound("Åtgärd hittades inte");
+                return NotFound("Ã…tgÃ¤rd hittades inte");
             }
 
             var sortedItems = actionPlan.Items.OrderBy(i => i.SortOrder).ToList();
@@ -275,11 +282,9 @@ public class ActionPlanController : ControllerBase
                 return BadRequest("Ogiltig flyttning");
             }
 
-            // Flytta item
             sortedItems.RemoveAt(currentIndex);
             sortedItems.Insert(newIndex, item);
 
-            // Uppdatera SortOrder för alla items
             for (int i = 0; i < sortedItems.Count; i++)
             {
                 sortedItems[i].SortOrder = i;
@@ -288,19 +293,18 @@ public class ActionPlanController : ControllerBase
             actionPlan.LastModified = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Flyttade handlingsplan-item {Id} i {PageKey}", id, pageKey);
+            _logger.LogDebug("Flyttade handlingsplan-item {Id} i {PageKey}", id, pageKey);
             return Ok();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fel vid flyttning av handlingsplan-item {Id} i {PageKey}", id, pageKey);
-            return StatusCode(500, "Ett fel uppstod vid flyttning av åtgärden");
+            return StatusCode(500, "Ett fel uppstod vid flyttning av Ã¥tgÃ¤rden");
         }
     }
 }
 
-// DTO för flyttning av items
 public class MoveItemRequest
 {
-    public int Direction { get; set; } // -1 för upp, 1 för ner
+    public int Direction { get; set; } // -1 eller 1
 }

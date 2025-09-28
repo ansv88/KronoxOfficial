@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace KronoxApi.Requests;
 
+// Request-modell för att skapa en anpassad sida (CustomPage) med navigation, sortering och rollkrav.
 public class CreateCustomPageRequest
 {
     [Required(ErrorMessage = "PageKey är obligatoriskt")]
@@ -24,7 +25,8 @@ public class CreateCustomPageRequest
     public bool ShowInNavigation { get; set; } = true;
 
     [StringLength(20, ErrorMessage = "Navigationstyp får vara max 20 tecken")]
-    public string NavigationType { get; set; } = "main"; // "main", "dropdown", "footer", "hidden"
+    [RegularExpression("^(main|dropdown|hidden)$", ErrorMessage = "Navigationstyp måste vara en av: main, dropdown, hidden.")]
+    public string NavigationType { get; set; } = "main";
 
     [StringLength(100, ErrorMessage = "Föräldrasida får vara max 100 tecken")]
     public string? ParentPageKey { get; set; }

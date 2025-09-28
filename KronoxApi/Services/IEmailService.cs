@@ -1,6 +1,8 @@
 ﻿namespace KronoxApi.Services;
 
-// Tjänstegränssnitt för att skicka e-post.
+/// <summary>
+/// Tjänstegränssnitt för att skicka e‑post.
+/// </summary>
 public interface IEmailService
 {
     Task SendEmailAsync(string to, string subject, string body);

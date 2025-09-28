@@ -7,7 +7,7 @@ namespace KronoxApi.Data.Seed;
 // Innehåller metoder för att seeda grundläggande data vid applikationsstart.
 public static class StartupSeed
 {
-    // Konfigurerar och seedar användardata, kategorier och navigeringslänkar för applikationen.
+    // Konfigurerar och seedar roller, admin, kategorier, navigation och innehåll för applikationen.
     public static async Task SeedAllAsync(this IServiceProvider serviceProvider, IConfiguration configuration)
     {
         using var scope = serviceProvider.CreateScope();
@@ -31,6 +31,11 @@ public static class StartupSeed
 
             // Navigationsseeding
             await NavigationSeed.SeedNavigationConfigAsync(dbContext);
+
+            // Innehåll (sidor, metadata, bilder, FAQ, kontakt)
+            await services.SeedContentAsync();
+
+            logger.LogInformation("SeedAllAsync slutfört.");
         }
         catch (Exception ex)
         {
@@ -111,14 +116,14 @@ public static class StartupSeed
         if (await dbContext.MainCategories.AnyAsync())
         {
             logger.LogInformation("Kategorier finns redan i databasen");
-            
+
             // Hämta alla kategorier först, sedan filtrera i minnet
             logger.LogInformation("Kontrollerar kategorier utan roller...");
             var allCategories = await dbContext.MainCategories.ToListAsync();
             var categoriesWithoutRoles = allCategories
                 .Where(mc => mc.AllowedRoles == null || mc.AllowedRoles.Count == 0)
                 .ToList();
-                
+
             if (categoriesWithoutRoles.Any())
             {
                 logger.LogInformation("Uppdaterar {Count} kategorier med Admin-roller", categoriesWithoutRoles.Count);
@@ -135,13 +140,12 @@ public static class StartupSeed
             {
                 logger.LogInformation("Alla kategorier har redan roller tilldelade");
             }
-            
+
             return;
         }
 
         logger.LogInformation("Skapar huvudkategorier med Admin-roller...");
-        
-        // Skapa kategorier med olika rollnivåer
+
         var categoryData = new[]
         {
             new { Name = "Styrelsen", Roles = new[] { "Admin" } },
@@ -154,8 +158,8 @@ public static class StartupSeed
             new { Name = "Övrigt", Roles = new[] { "Admin" } }
         };
 
-        var mainCategories = categoryData.Select(cd => new MainCategory 
-        { 
+        var mainCategories = categoryData.Select(cd => new MainCategory
+        {
             Name = cd.Name,
             AllowedRoles = cd.Roles.ToList(),
             IsActive = true,
@@ -173,20 +177,16 @@ public static class StartupSeed
         logger.LogInformation("Kategorier seedade framgångsrikt med Admin-roller");
     }
 
-    // Returnerar en lista med standardnamn för underkategorier
-    private static IEnumerable<string> GetDefaultSubCategories()
+    private static IEnumerable<string> GetDefaultSubCategories() => new[]
     {
-        return new[]
-        {
-            "Versionshistorik",
-            "Arbetsmöten",
-            "Anvisningar",
-            "Månadsbrev",
-            "Protokoll",
-            "Avtal",
-            "Anteckningar",
-            "Budget",
-            "Utfall"
-        };
-    }
+        "Versionshistorik",
+        "Arbetsmöten",
+        "Anvisningar",
+        "Månadsbrev",
+        "Protokoll",
+        "Avtal",
+        "Anteckningar",
+        "Budget",
+        "Utfall"
+    };
 }

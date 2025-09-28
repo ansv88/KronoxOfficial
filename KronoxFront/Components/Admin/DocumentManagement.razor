@@ -4,6 +4,7 @@
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
+@using KronoxFront.ViewModels.Documents
 @using KronoxFront.Requests
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
@@ -53,19 +54,19 @@
                 <div class="card-body">
                     <EditForm Model="uploadModel" OnValidSubmit="UploadDocument">
                         <DataAnnotationsValidator />
+                        <ValidationSummary />
 
                         <!-- Filval -->
                         <div class="mb-3">
                             <label for="uploadFile">Dokument</label>
                             <InputFile OnChange="OnInputFileChange"
                                        id="uploadFile"
-                                       accept=".pdf,.docx,.xlsx,.pptx,.txt"
+                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
                                        class="form-control" />
+                            <ValidationMessage For="() => uploadModel.File" />
                             @if (selectedFile != null)
                             {
-                                <div class="mt-1">
-                                    @selectedFile.Name
-                                </div>
+                                <div class="mt-1">@selectedFile.Name</div>
                             }
                         </div>
 
@@ -88,6 +89,7 @@
                                         </option>
                                     }
                                 </select>
+                                <ValidationMessage For="() => uploadModel.SelectedMainCategoryId" />
                             </div>
                         </div>
 
@@ -101,7 +103,7 @@
                                         <input type="checkbox"
                                         class="form-check-input"
                                                id="subcat-upload-@subCategory.Id"
-                                        @onchange="e => ToggleCategory(subCategory.Id,(bool)e.Value)" />
+                                               @onchange="(ChangeEventArgs e) => ToggleCategory(subCategory.Id, e?.Value as bool? == true)" />
                                         <label class="form-check-label" for="subcat-upload-@subCategory.Id">@subCategory.Name</label>
                                     </div>
                                 }
@@ -135,10 +137,12 @@
                 <div class="card-body">
                     <EditForm Model="newCategory" OnValidSubmit="AddCategory">
                         <DataAnnotationsValidator />
+                        <ValidationSummary />
 
                         <div class="mb-3">
                             <label for="categoryName">Namn</label>
                             <InputText id="categoryName" @bind-Value="newCategory.Name" class="form-control" />
+                            <ValidationMessage For="() => newCategory.Name" />
                         </div>
 
                         <div class="mb-3">
@@ -162,7 +166,7 @@
                                                    class="form-check-input"
                                                    id="role-@role"
                                                    checked="@newCategory.AllowedRoles.Contains(role)"
-                                                   @onchange="e => ToggleNewCategoryRole(role, (bool)e.Value)" />
+                                                   @onchange="(ChangeEventArgs e) => ToggleNewCategoryRole(role, e?.Value as bool? == true)" />
                                             <label class="form-check-label" for="role-@role">@role</label>
                                         </div>
                                     }
@@ -407,7 +411,7 @@
                                                class="form-check-input"
                                                id="subcat-@subCategory.Id"
                                                checked="@IsSubCategorySelected(subCategory.Id)"
-                                               @onchange="e => ToggleEditCategory(subCategory.Id, (bool)e.Value)" />
+                                               @onchange="(ChangeEventArgs e) => ToggleEditCategory(subCategory.Id, e?.Value as bool? == true)" />
                                         <label class="form-check-label" for="subcat-@subCategory.Id">@subCategory.Name</label>
                                     </div>
                                 }
@@ -474,7 +478,7 @@
                                                    class="form-check-input"
                                                    id="editrole-@role"
                                                    checked="@editCategoryModel.AllowedRoles.Contains(role)"
-                                                   @onchange="e => ToggleEditCategoryRole(role, (bool)e.Value)" />
+                                                   @onchange="(ChangeEventArgs e) => ToggleEditCategoryRole(role, e?.Value as bool? == true)" />
                                             <label class="form-check-label" for="editrole-@role">@role</label>
                                         </div>
                                     }
@@ -501,44 +505,16 @@ OnDownload="DownloadDocument" />
 
 
 @code {
-    class UploadModel
-    {
-        public IBrowserFile? File { get; set; }
-        public int SelectedMainCategoryId { get; set; } = 0;
-        public List<SubCategoryDto> SelectedSubCategoryIds { get; set; } = new();
-    }
+    private EditCategoryViewModel editCategoryModel = new();
 
-    class EditModel
-    {
-        public int DocumentId { get; set; }
-        public int SelectedMainCategoryId { get; set; }
-        public List<int> SelectedSubCategoryIds { get; set; } = new();
-    }
-
-    private class CategoryFormModel
-    {
-        public string Name { get; set; } = "";
-        public List<string> AllowedRoles { get; set; } = new();
-    }
-
-    private class EditCategoryModel
-    {
-        public string Name { get; set; } = "";
-        public List<string> AllowedRoles { get; set; } = new();
-    }
-    
-    private EditCategoryModel editCategoryModel = new();
-
-    UploadModel uploadModel = new();
+    UploadDocumentViewModel uploadModel = new();
     IBrowserFile? selectedFile;
     bool isUploading, isLoading, showArchived;
-    // bool newCategoryIsMain = true;
     string newCategoryString = "";
-    // string searchTerm = "";
-    private CategoryFormModel newCategory = new();
+    private CreateCategoryViewModel newCategory = new();
     DocumentViewModel? documentToEdit;
     bool isSaving;
-    EditModel editModel = new();
+    EditDocumentCategoriesViewModel editModel = new();
 
     private bool isEditCategoryModalOpen = false;
     private bool editCategoryIsMain;
@@ -582,18 +558,19 @@ OnDownload="DownloadDocument" />
             return cachedDocuments;
         }
 
-        // Om cachen är tom, hämta från databasen och fyll cachen
-        var documents = await CreateDocumentDto();
-        if (documents != null && documents.Any())
+        // Hämta från API och säkerställ icke-null
+        var docs = await CreateDocumentDto();
+        if (docs.Any())
         {
-            CacheService.SetDocumentsToCache(documents);
+            CacheService.SetDocumentsToCache(docs);
         }
-        return documents;
+        return docs;
     }
 
     private async Task<List<DocumentViewModel>> CreateDocumentDto()
     {
-        var documentsDto = await DocumentService.GetDocumentsAsync();
+        // Säkerställ icke-null lista
+        var documentsDto = await DocumentService.GetDocumentsAsync() ?? new List<DocumentViewModel>();
 
         foreach (var document in documentsDto)
         {
@@ -616,6 +593,7 @@ OnDownload="DownloadDocument" />
                 }
             }
         }
+
         return documentsDto;
     }
 
@@ -751,7 +729,7 @@ OnDownload="DownloadDocument" />
         if (ok)
         {
             await ToastService.Success("Kategori skapad");
-            newCategory = new CategoryFormModel();
+            newCategory = new CreateCategoryViewModel();
             newCategoryString = "";
 
             // Uppdatera listor över kategorier
@@ -786,7 +764,7 @@ OnDownload="DownloadDocument" />
     {
         isEditCategoryModalOpen = false;
         editCategoryId = 0;
-        editCategoryModel = new EditCategoryModel();
+        editCategoryModel = new EditCategoryViewModel();
     }
 
     private async Task SaveEditCategory()
@@ -866,7 +844,7 @@ OnDownload="DownloadDocument" />
         documentToEdit = document;
 
         // Initialize the edit model with current values
-        editModel = new EditModel
+        editModel = new EditDocumentCategoriesViewModel
         {
             DocumentId = document.Id,
             SelectedMainCategoryId = document.MainCategoryId,

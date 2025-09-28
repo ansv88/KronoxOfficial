@@ -1,14 +1,14 @@
-namespace KronoxApi.Models;
+ï»¿namespace KronoxApi.Models;
 
-// Representerar en bild kopplad till en specifik sida i CMS-systemet
+// Bild kopplad till en sida via PageKey (URL, altâ€‘text) och lÃ¤nk till innehÃ¥llsblock.
 public class PageImage
 {
     public int Id { get; set; }
     public string Url { get; set; } = default!;
     public string AltText { get; set; } = default!;
-    public string PageKey { get; set; } = default!; // Detta fält är foreign key till ContentBlock.PageKey
+    public string PageKey { get; set; } = default!; // Detta fÃ¤lt Ã¤r foreign key till ContentBlock.PageKey
 
 
-    // Navigeringsegenskap för att enkelt komma åt innehållsblocket som bilden hör till
+    // Navigeringsegenskap fÃ¶r att enkelt komma Ã¥t innehÃ¥llsblocket som bilden hÃ¶r till
     public ContentBlock ContentBlock { get; set; } = default!;
 }

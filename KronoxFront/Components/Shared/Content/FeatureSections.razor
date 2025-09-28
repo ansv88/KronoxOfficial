@@ -61,7 +61,7 @@ else
         <p>Innehållet laddas...</p>
         @if (IsAdmin)
         {
-            <p><a href="@($"/admin/{PageKey}")" class="btn btn-primary">Lägg till innehåll</a></p>
+            <p><a href="@AdminEditUrl" class="btn btn-primary">Lägg till innehåll</a></p>
         }
     </div>
 }
@@ -70,9 +70,12 @@ else
     [Parameter] public string PageKey { get; set; } = "";
     [Parameter] public bool IsAdmin { get; set; } = false;
     [Parameter] public EventCallback<string> OnImageClick { get; set; }
+    [Parameter] public bool IsCustomPage { get; set; } = false;
 
     private List<FeatureSectionViewModel> Sections { get; set; } = new();
     private bool isLoggedIn = false;
+
+    private string AdminEditUrl => IsCustomPage ? $"/admin/page/{PageKey}" : $"/admin/{PageKey}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,9 +144,8 @@ else
                 {
                     if (string.IsNullOrEmpty(contact.Name)) continue;
 
-                    var contactInfo = $"<div class='contact-enhanced py-2 ps-3 mb-3 border-start border-primary border-3'>";
-
-                    contactInfo += $"<div class='fw-semibold mb-1'>{contact.Name}";
+                    var contactInfo = $"<div class='contact-enhanced py-2 ps-3 mb-3 border-start border-primary border-3'>" +
+                                      $"<div class='fw-semibold mb-1'>{contact.Name}";
                     if (!string.IsNullOrEmpty(contact.Organization))
                     {
                         contactInfo += $" <span class='text-muted'>({contact.Organization})</span>";

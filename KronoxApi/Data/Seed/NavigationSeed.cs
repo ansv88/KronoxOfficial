@@ -1,14 +1,28 @@
-using KronoxApi.Data;
 using KronoxApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace KronoxApi.Data.Seed;
 
 public static class NavigationSeed
 {
+    /// <summary>
+    /// Seedar standardnavigationsposter (statiska/system/rollspecifika).
+    /// Körs endast om tabellen är tom (idempotent).
+    /// </summary>
+
     public static async Task SeedNavigationConfigAsync(ApplicationDbContext context)
     {
-        if (await context.NavigationConfigs.AnyAsync()) return;
+        // Försök hämta logger via DbContext-service provider (om tillgängligt)
+        var logger = context.GetService<ILogger<Program>>();
+
+        if (await context.NavigationConfigs.AnyAsync())
+        {
+            logger?.LogDebug("NavigationConfigs innehåller redan data. Hoppar över seeding.");
+            return;
+        }
+
+        logger?.LogDebug("Navigation seeding startar...");
 
         var configs = new List<NavigationConfig>
         {
@@ -39,7 +53,7 @@ public static class NavigationSeed
             new() { PageKey = "kontakt", DisplayName = "Kontakta oss", ItemType = "static", 
                    SortOrder = 17, IsVisibleToGuests = true, IsVisibleToMembers = true, IsSystemItem = false },
             
-            // SYSTEM-LÄNKAR
+            // SYSTEM-LÄNKAR (låsta)
             new() { PageKey = "admin", DisplayName = "Admin", ItemType = "system", 
                    SortOrder = 19, IsVisibleToGuests = false, IsVisibleToMembers = true, IsSystemItem = true,
                    RequiredRoles = "Admin" },
@@ -49,5 +63,7 @@ public static class NavigationSeed
 
         context.NavigationConfigs.AddRange(configs);
         await context.SaveChangesAsync();
+
+        logger?.LogDebug("Navigation seeding klar. Antal poster: {Count}", configs.Count);
     }
 }

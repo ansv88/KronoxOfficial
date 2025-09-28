@@ -1,5 +1,6 @@
 ﻿@page "/forstyrelsen"
 @using System.Text.Json
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
@@ -16,6 +17,9 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Forstyrelsen> Logger
+
+<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<RequirePageEnabled PageKey="forstyrelsen" FailClosed="true" />
 
 <HeadContent>
     <meta name="description" content="Information för styrelsemedlemmar i KronoX-konsortiet. Här hittar du dokument, protokoll och annan viktig information för styrelsen." />

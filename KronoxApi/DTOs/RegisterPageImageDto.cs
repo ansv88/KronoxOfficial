@@ -5,15 +5,16 @@ namespace KronoxApi.DTOs;
 // DTO för att registrera en befintlig bild som redan finns på servern. Används när en fil redan har laddats upp manuellt till servern.
 public class RegisterPageImageDto
 {
-    [Required]
+    [Required(ErrorMessage = "Källsökväg krävs.")]
+    [StringLength(500, ErrorMessage = "Källsökvägen är för lång.")]
     public string SourcePath { get; set; } = string.Empty; // Sökväg till källbilden på servern (relativ från wwwroot)
 
     [Required]
     public string PageKey { get; set; } = string.Empty;
 
     [Required]
+    [StringLength(200, ErrorMessage = "Alt-text får vara max 200 tecken.")]
     public string AltText { get; set; } = string.Empty;
 
     public bool PreserveFilename { get; set; } = false;
-
 }

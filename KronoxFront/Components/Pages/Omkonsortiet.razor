@@ -1,5 +1,6 @@
 ﻿@page "/omkonsortiet"
 @using System.Text.Json
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
@@ -14,8 +15,10 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Omkonsortiet> Logger
-
 @implements IDisposable
+
+<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<RequirePageEnabled PageKey="omkonsortiet" FailClosed="true" />
 
 <HeadContent>
     <meta name="description" content="Läs om KronoX-konsortiet - en sammanslutning av svenska högskolor och universitet för utveckling av schemaläggningssystem." />

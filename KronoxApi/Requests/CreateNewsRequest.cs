@@ -13,12 +13,11 @@ public class CreateNewsRequest
     public string Content { get; set; } = string.Empty; // HTML-innehåll från TinyMCE
 
     // Datum från vilket nyheten ska vara synlig (valfritt, standard är nu)
-    public DateTime? ScheduledPublishDate { get; set; }
-    
+    public DateTime? ScheduledPublishDate { get; set; } = DateTime.UtcNow;
+
     public bool IsArchived { get; set; } = false;
-    
+
     // Roller som får se nyheten (kommaseparerad sträng)
     [StringLength(500)]
     public string VisibleToRoles { get; set; } = "Medlem";
-    
 }

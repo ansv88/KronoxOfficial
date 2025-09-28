@@ -1,11 +1,15 @@
 ﻿using KronoxApi.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection.Emit;
 
 namespace KronoxApi.Data;
 
-// Databascontext för applikationen. Hanterar alla entiteter och deras konfiguration.
+/// <summary>
+/// Databascontext för applikationen (Identity + domänmodeller).
+/// Innehåller konfigurationer för CSV-konverteringar, index och relationer.
+/// Notera att CSV-konverterade listor (t.ex. AllowedRoles, SubCategories) har ValueComparer
+/// för korrekt change tracking i EF Core.
+/// </summary>
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
@@ -32,92 +36,93 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<CustomPage> CustomPages { get; set; } = null!;
     public DbSet<NavigationConfig> NavigationConfigs { get; set; } = null!;
 
-    // Konfigurerar entiteter och relationer i modellen.
+    /// <summary>
+    /// Konfigurerar entiteter, relationer, index och konverteringar i modellen.
+    /// </summary>
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
-        // Konfigurera MainCategory
+        // MainCategory
         builder.Entity<MainCategory>(entity =>
         {
             entity.HasKey(mc => mc.Id);
-            
+
             entity.Property(mc => mc.Name)
                   .IsRequired()
                   .HasMaxLength(255);
-            
-            // Konfigurera AllowedRoles som CSV-kolumn
+
+            // AllowedRoles lagras som CSV i databasen.
+            // ValueComparer krävs för korrekt change tracking av listor i EF Core.
             var allowedRolesProperty = entity.Property(mc => mc.AllowedRoles)
                   .HasConversion(
                       v => string.Join(',', v), // Till databas: "Admin,Styrelse,Medlem"
-                      v => string.IsNullOrEmpty(v) 
-                          ? new List<string>() 
+                      v => string.IsNullOrEmpty(v)
+                          ? new List<string>()
                           : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
                   )
                   .HasColumnType("nvarchar(max)");
 
-            // Konfigurera value comparer separat
             allowedRolesProperty.Metadata.SetValueComparer(
                 new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
                     (c1, c2) => c1!.SequenceEqual(c2!),
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
-            
+
             entity.Property(mc => mc.IsActive)
                   .HasDefaultValue(true);
-            
+
             entity.Property(mc => mc.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
         });
 
-        // Konfigurera Document
+        // Document
         builder.Entity<Document>(entity =>
         {
             entity.HasKey(d => d.Id);
-            
+
             entity.Property(d => d.FileName)
                   .IsRequired()
                   .HasMaxLength(255);
-            
+
             entity.Property(d => d.FilePath)
                   .IsRequired()
                   .HasMaxLength(500);
-            
-            // Konfigurera SubCategories som CSV
+
+            // SubCategories lagras som CSV (lista av int)
             var subCategoriesProperty = entity.Property(d => d.SubCategories)
                   .HasConversion(
                       v => string.Join(',', v.Select(id => id.ToString())),
-                      v => string.IsNullOrEmpty(v) 
-                          ? new List<int>() 
+                      v => string.IsNullOrEmpty(v)
+                          ? new List<int>()
                           : v.Split(',', StringSplitOptions.RemoveEmptyEntries)
                              .Select(int.Parse).ToList()
                   )
                   .HasColumnType("nvarchar(max)");
 
-            // Konfigurera value comparer separat
             subCategoriesProperty.Metadata.SetValueComparer(
                 new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<int>>(
                     (c1, c2) => c1!.SequenceEqual(c2!),
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
-            
+
             entity.Property(d => d.IsArchived)
                   .HasDefaultValue(false);
-            
+
             entity.Property(d => d.UploadedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
-            
+
             entity.Property(d => d.ArchivedBy)
                   .HasMaxLength(256);
-            
-            // Foreign Key till MainCategory
+
+            // Foreign key till MainCategory (Restrict för att skydda dokument)
             entity.HasOne(d => d.MainCategory)
                   .WithMany(mc => mc.Documents)
                   .HasForeignKey(d => d.MainCategoryId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Konfigurera CustomPage
+        // CustomPage
         builder.Entity<CustomPage>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -128,23 +133,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.NavigationType).HasMaxLength(20);
             entity.Property(e => e.ParentPageKey).HasMaxLength(100);
             entity.Property(e => e.CreatedBy).HasMaxLength(100);
-            
+
             var requiredRolesProperty = entity.Property(e => e.RequiredRoles)
                   .HasConversion(
                       v => string.Join(',', v),
                       v => string.IsNullOrEmpty(v) ? new List<string>() : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
                   );
-            
+
             requiredRolesProperty.Metadata.SetValueComparer(
                 new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
                     (c1, c2) => c1!.SequenceEqual(c2!),
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
-            
+
             entity.HasIndex(e => e.PageKey).IsUnique();
         });
 
-        // Konfigurera NavigationConfig
+        // NavigationConfig
         builder.Entity<NavigationConfig>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -154,13 +159,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.ItemType).IsRequired().HasMaxLength(20);
         });
 
-        // Indexes för prestanda
+        // Indexer för prestanda (vanliga queries)
         builder.Entity<MainCategory>()
                .HasIndex(mc => mc.IsActive);
-        
+
         builder.Entity<Document>()
                .HasIndex(d => new { d.MainCategoryId, d.IsArchived });
-        
+
         builder.Entity<Document>()
                .HasIndex(d => d.UploadedAt);
 
@@ -171,6 +176,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<PageImage>()
             .HasIndex(pi => pi.PageKey);
 
+        // ContentBlock → PageImages (via PageKey)
         builder.Entity<ContentBlock>()
             .HasMany(cb => cb.PageImages)
             .WithOne(pi => pi.ContentBlock)
@@ -181,14 +187,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<MemberLogo>()
             .HasIndex(l => l.SortOrd);
 
-        // FAQ-konfiguration
+        // FAQ
         builder.Entity<FaqSection>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.PageKey).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Description).HasMaxLength(1000);
-            
+
             entity.HasMany(e => e.FaqItems)
                   .WithOne(e => e.FaqSection)
                   .HasForeignKey(e => e.FaqSectionId)
@@ -204,7 +210,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.ImageAltText).HasMaxLength(200);
         });
 
-        // Postadress konfiguration
+        // PostalAddress
         builder.Entity<PostalAddress>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -216,7 +222,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Country).HasMaxLength(50);
         });
 
-        // Kontaktperson konfiguration
+        // ContactPerson
         builder.Entity<ContactPerson>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -227,7 +233,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.SortOrder);
         });
 
-        // E-postlista konfiguration
+        // EmailList
         builder.Entity<EmailList>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -237,7 +243,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.SortOrder);
         });
 
-        // Konfigurera NewsDocument relationer
+        // NewsDocument relationer
         builder.Entity<NewsDocument>(entity =>
         {
             entity.HasKey(nd => nd.Id);
@@ -256,7 +262,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .IsUnique();
         });
 
-        // ActionPlan konfiguration
+        // ActionPlan
         builder.Entity<ActionPlanTable>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -272,14 +278,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.DetailedDescription).HasColumnType("nvarchar(max)");
             entity.Property(e => e.PlannedDelivery).HasMaxLength(100);
             entity.Property(e => e.Completed).HasMaxLength(100);
-            
+
             entity.HasOne(e => e.ActionPlanTable)
                   .WithMany(t => t.Items)
                   .HasForeignKey(e => e.ActionPlanTableId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // DevelopmentSuggestion konfiguration
+        // DevelopmentSuggestion
         builder.Entity<DevelopmentSuggestion>(entity =>
         {
             entity.HasKey(e => e.Id);

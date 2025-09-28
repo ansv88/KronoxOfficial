@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace KronoxApi.Models;
 
+// Konfigurerbar sida (custom page) som kan visas i navigationen och styras av roller.
 public class CustomPage
 {
     public int Id { get; set; }

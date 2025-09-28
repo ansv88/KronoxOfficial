@@ -2,6 +2,7 @@
 @using KronoxFront.Components.Shared.Content
 @using KronoxFront.Components.Shared.Forms
 @using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.Components.Shared.UI
 @using KronoxFront.ViewModels
 @using KronoxFront.Services
@@ -13,6 +14,9 @@
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 @inject ILogger<Forvaltning> Logger
+
+<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<RequirePageEnabled PageKey="forvaltning" FailClosed="true" />
 
 <HeadContent>
     <meta name="description" content="Förvaltning av KronoX-systemet. Handlingsplan och utvecklingsförslag för medlemmar." />

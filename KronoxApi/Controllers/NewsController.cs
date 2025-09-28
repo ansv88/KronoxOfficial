@@ -8,6 +8,12 @@ using KronoxApi.Services;
 
 namespace KronoxApi.Controllers;
 
+/// <summary>
+/// API‑kontroller för nyheter (news): Admin‑CRUD, arkivering/avarkivering,
+/// rollbaserad listning för medlemmar och åtkomstkontroll för enskilda nyheter.
+/// Stöd för att koppla bort/ta bort dokument från nyheter. Skyddad med API‑nyckel.
+/// </summary>
+
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey] // Kräver API-nyckel för alla endpoints
@@ -33,6 +39,8 @@ public class NewsController : ControllerBase
     [RequireRole("Admin")]
     public async Task<IActionResult> CreateNewsPost([FromBody] CreateNewsRequest request)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         try
         {
             // Konvertera från lokal tid till UTC för lagring
@@ -52,8 +60,13 @@ public class NewsController : ControllerBase
 
             _dbContext.NewsModel.Add(post);
             await _dbContext.SaveChangesAsync();
-            _logger.LogInformation("Nytt nyhetsinlägg skapat med ID {Id}", post.Id);
+            _logger.LogDebug("Ny nyhet skapad med ID {Id}", post.Id);
             return Ok(post);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid skapande av nyhet");
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Försök igen." });
         }
         catch (Exception ex)
         {
@@ -67,6 +80,8 @@ public class NewsController : ControllerBase
     [RequireRole("Admin")]
     public async Task<IActionResult> UpdateNewsPost(int id, [FromBody] UpdateNewsRequest request)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         try
         {
             var post = await _dbContext.NewsModel.FindAsync(id);
@@ -85,8 +100,13 @@ public class NewsController : ControllerBase
             post.LastModified = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
-            _logger.LogInformation("Nyhetsinlägg med ID {Id} uppdaterat", id);
+            _logger.LogDebug("Nyhetsinlägg med ID {Id} uppdaterat", id);
             return Ok(post);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av nyhetsinlägg {Id}", id);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
         }
         catch (Exception ex)
         {
@@ -112,8 +132,13 @@ public class NewsController : ControllerBase
             _dbContext.NewsModel.Remove(post);
             await _dbContext.SaveChangesAsync();
 
-            _logger.LogInformation("Nyhetsinlägg med ID {Id} har raderats", id);
+            _logger.LogDebug("Nyhetsinlägg med ID {Id} har raderats", id);
             return Ok("Nyhetsinlägget har tagits bort");
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid borttagning av nyhetsinlägg {Id}", id);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Försök igen." });
         }
         catch (Exception ex)
         {
@@ -173,7 +198,7 @@ public class NewsController : ControllerBase
                 TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
             };
 
-            _logger.LogInformation("Medlemsnyheter hämtade: {Count} nyheter för roller {Roles}", posts.Count, string.Join(", ", userRoles));
+            _logger.LogDebug("Medlemsnyheter hämtade: {Count} nyheter för roller {Roles}", posts.Count, string.Join(", ", userRoles));
             return Ok(result);
         }
         catch (Exception ex)
@@ -212,7 +237,7 @@ public class NewsController : ControllerBase
             query = query.OrderByDescending(n => n.PublishedDate);
 
             var posts = await query.ToListAsync();
-            _logger.LogInformation("Filtrerad nyhetslista hämtad med {Count} träffar", posts.Count);
+            _logger.LogDebug("Filtrerad nyhetslista hämtad med {Count} träffar", posts.Count);
             return Ok(posts);
         }
         catch (Exception ex)
@@ -308,9 +333,14 @@ public class NewsController : ControllerBase
             await _dbContext.SaveChangesAsync();
             
             var status = post.IsArchived ? "arkiverad" : "avarkiverad";
-            _logger.LogInformation("Nyhetsinlägg med ID {Id} {Status}", id, status);
+            _logger.LogDebug("Nyhetsinlägg med ID {Id} {Status}", id, status);
             
             return Ok(new { message = $"Nyheten har {status}s", isArchived = post.IsArchived });
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid arkivering/avarkivering av nyhetsinlägg {Id}", id);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
@@ -406,6 +436,11 @@ public class NewsController : ControllerBase
 
             return Ok("Dokumentet har kopplats till nyheten");
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid koppling av dokument till nyhet {NewsId}", newsId);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Försök igen." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fel vid koppling av dokument till nyhet");
@@ -430,6 +465,11 @@ public class NewsController : ControllerBase
             await _dbContext.SaveChangesAsync();
 
             return Ok("Dokumentet har tagits bort från nyheten");
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid borttagning av dokumentkoppling {DocumentId} från nyhet {NewsId}", documentId, newsId);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Försök igen." });
         }
         catch (Exception ex)
         {

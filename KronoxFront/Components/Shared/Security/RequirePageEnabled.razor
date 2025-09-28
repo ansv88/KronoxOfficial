@@ -1,0 +1,41 @@
+@using KronoxFront.DTOs
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Nav
+
+@code {
+    [Parameter] public string PageKey { get; set; } = "";
+    [Parameter] public string RedirectTo { get; set; } = "/404";
+        [Parameter] public bool FailClosed { get; set; } = true;     // Sätt true för fail-closed (API-fel => 404), false för fail-open
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(PageKey))
+            return;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var resp = await http.GetAsync($"api/navigation/page/{PageKey}");
+
+            if (resp.IsSuccessStatusCode)
+            {
+                var dto = await resp.Content.ReadFromJsonAsync<NavigationConfigDto>();
+                if (dto is not null && dto.IsActive == false)
+                {
+                    Nav.NavigateTo(RedirectTo, replace: true);
+                }
+            }
+            else if (FailClosed)
+            {
+                Nav.NavigateTo(RedirectTo, replace: true);
+            }
+        }
+        catch
+        {
+            if (FailClosed)
+            {
+                Nav.NavigateTo(RedirectTo, replace: true);
+            }
+        }
+    }
+}

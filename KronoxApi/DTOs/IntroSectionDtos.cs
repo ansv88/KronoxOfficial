@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace KronoxApi.DTOs;
 
 // DTO för intro-sektioner med breadcrumb och navigeringsknappar.
@@ -16,8 +18,13 @@ public class IntroSectionDto
 // DTO för navigeringsknappar.
 public class NavigationButtonDto
 {
+    [Required, StringLength(100, ErrorMessage = "Text får vara max 100 tecken.")]
     public string Text { get; set; } = "";
+
+    [Required, Url(ErrorMessage = "Ogiltig webbadress.")]
+    [StringLength(2048, ErrorMessage = "URL är för lång.")]
     public string Url { get; set; } = "";
+
     public string IconClass { get; set; } = "fa-solid fa-arrow-right";
     public int SortOrder { get; set; }
 }

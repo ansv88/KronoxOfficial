@@ -3,6 +3,7 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@using KronoxFront.Requests.Suggestions
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
@@ -113,7 +114,13 @@
                                         else
                                         {
                                             <span class="badge bg-warning text-dark mb-1">Obehandlad</span>
-                                            <button class="btn btn-sm btn-success" @onclick="() => MarkAsProcessed(suggestion)">
+                                            <button class="btn btn-sm btn-success" 
+                                                    @onclick="() => MarkAsProcessed(suggestion)"
+                                                    disabled="@(processingSuggestionIds.Contains(suggestion.Id))">
+                                                @if (processingSuggestionIds.Contains(suggestion.Id))
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                                }
                                                 <i class="fa-solid fa-check me-1"></i>
                                                 Markera som behandlad
                                             </button>
@@ -181,6 +188,7 @@
     private bool isLoading = true;
     private bool showProcessed = false;
     private string currentUser = "";
+    private HashSet<int> processingSuggestionIds = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -236,8 +244,12 @@
     {
         try
         {
+            if (!processingSuggestionIds.Add(suggestion.Id)) return; // redan pågående
+
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-            var response = await httpClient.PutAsJsonAsync($"api/developmentsuggestion/{suggestion.Id}/process", new { ProcessedBy = currentUser });
+            var response = await httpClient.PutAsJsonAsync(
+                $"api/developmentsuggestion/{suggestion.Id}/process",
+                new ProcessSuggestionRequest { ProcessedBy = currentUser });
             
             if (response.IsSuccessStatusCode)
             {
@@ -247,7 +259,6 @@
                 
                 await Toast.Success("Förslag markerat som behandlat");
                 
-                // Ta bort från listan om vi inte visar behandlade
                 if (!showProcessed)
                 {
                     suggestions.Remove(suggestion);
@@ -265,6 +276,10 @@
         {
             Logger.LogError(ex, "Fel vid markering som behandlad");
             await Toast.Error("Ett fel uppstod");
+        }
+        finally
+        {
+            processingSuggestionIds.Remove(suggestion.Id);
         }
     }
 

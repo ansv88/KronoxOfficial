@@ -9,6 +9,13 @@ using System.Text.Json;
 
 namespace KronoxApi.Controllers;
 
+/// <summary>
+/// API‑kontroller för feature‑sektioner per sida (med stöd för privat innehåll).
+/// Publik läsning utan privat innehåll, autentiserad läsning inkluderar privat content.
+/// Admin kan ersätta hela uppsättningen sektioner atomiskt (transaktion, 409 vid konflikt).
+/// Skyddad med API‑nyckel och __EnableRateLimiting("API")__.
+/// </summary>
+
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey]
@@ -109,9 +116,14 @@ public class FeatureSectionsController : ControllerBase
     [RequireRole("Admin")]
     public async Task<IActionResult> UpdateFeatureSections(string pageKey, [FromBody] List<FeatureSectionWithPrivateDto> dtos)
     {
+        if (dtos is null)
+            return BadRequest("Listan med sektioner saknas.");
+
         try
         {
-            _logger.LogInformation("Uppdaterar feature-sektioner för {PageKey} med {Count} sektioner", pageKey, dtos.Count);
+            _logger.LogDebug("Uppdaterar feature-sektioner för {PageKey} med {Count} sektioner", pageKey, dtos.Count);
+
+            await using var tx = await _db.Database.BeginTransactionAsync();
 
             // Ta bort befintliga sektioner för denna sida
             var existingSections = await _db.FeatureSections
@@ -124,7 +136,7 @@ public class FeatureSectionsController : ControllerBase
             for (int i = 0; i < dtos.Count; i++)
             {
                 var dto = dtos[i];
-                
+
                 // Konvertera ContactPersons till JSON om det finns data där
                 string contactPersonsJson = dto.ContactPersonsJson;
                 if (dto.ContactPersons.Any() && string.IsNullOrEmpty(contactPersonsJson))
@@ -151,7 +163,14 @@ public class FeatureSectionsController : ControllerBase
             }
 
             await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+
             return Ok(new { message = "Feature-sektioner uppdaterade säkert" });
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av feature-sektioner för {PageKey}", pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
         }
         catch (Exception ex)
         {

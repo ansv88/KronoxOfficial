@@ -6,11 +6,11 @@
 @using KronoxFront.ViewModels
 @using KronoxFront.Extensions
 @inject AuthenticationStateProvider AuthStateProvider
-@inject IHttpContextAccessor HttpContextAccessor
 @inject IHttpClientFactory HttpFactory
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject NavigationEvents NavEvents
+@inject ILogger<NavMenu> Logger
 @implements IDisposable
 
 <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-custom bg-dark fixed-top" style="z-index: 1030;">
@@ -253,15 +253,23 @@
     private bool showLogin;
     private bool showLogout;
     private string? loginErrorMessage;
-    private string? returnUrl;
     private bool showPassword = false;
+    private System.Security.Claims.ClaimsPrincipal? currentUser;
+    private bool isAuthenticated;
 
     protected override async Task OnInitializedAsync()
     {
         Nav.LocationChanged += OnLocationChanged;
         NavEvents.NavigationUpdated += OnNavigationUpdated;
+        AuthStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
+
         await LoadNavigationPages();
         await LoadNavigationConfig();
+        
+        // Cache:a auth-state
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User;
+        isAuthenticated = authState.User?.Identity?.IsAuthenticated == true;
         
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
         var queryParams = QueryHelpers.ParseQuery(uri.Query);
@@ -271,19 +279,6 @@
             showLogin = true;
             loginErrorMessage = GetErrorMessage(errorValues.ToString());
         }
-
-        // if (queryParams.TryGetValue("returnUrl", out var returnUrlValues))
-        // {
-        //     returnUrl = System.Net.WebUtility.UrlDecode(returnUrlValues.ToString());
-            
-        //     if (!returnUrl.StartsWith("/"))
-        //         returnUrl = "/" + returnUrl;
-                
-        //     if (uri.AbsolutePath == "/" || uri.AbsolutePath == "/home")
-        //     {
-        //         showLogin = true;
-        //     }
-        // }
     }
 
     private async void OnNavigationUpdated()
@@ -315,15 +310,22 @@
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        if (e.Location.Contains("/admin/pages") ||
-            e.Location.Contains("/admin/navigation") ||
-            e.Location.EndsWith("/admin") ||
-            e.Location.Contains("/admin/") && e.Location.Contains("save"))
+        try
         {
-            await Task.Delay(300);
-            await LoadNavigationPages();
-            await LoadNavigationConfig();
-            await InvokeAsync(StateHasChanged);
+            if (e.Location.Contains("/admin/pages") ||
+                e.Location.Contains("/admin/navigation") ||
+                e.Location.EndsWith("/admin") ||
+                (e.Location.Contains("/admin/") && e.Location.Contains("save")))
+            {
+                await Task.Delay(300);
+                await LoadNavigationPages();
+                await LoadNavigationConfig();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Fel vid uppdatering av navigation efter URL-ändring");
         }
     }
 
@@ -339,9 +341,9 @@
                 navigationPages = await response.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Logga fel men fortsätt utan navigation pages
+            Logger.LogWarning(ex, "Kunde inte hämta navigationPages från API");
         }
     }
 
@@ -355,10 +357,18 @@
             if (response.IsSuccessStatusCode)
             {
                 navigationConfigs = await response.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
+
+                // Fallback om listan är tom
+                if (navigationConfigs.Count == 0)
+                {
+                    Logger.LogWarning("api/navigation returnerade tom lista - använder fallbacknavigation för att undvika tom meny.");
+                    navigationConfigs = GetFallbackNavigation();
+                }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Kunde inte hämta navigationConfigs från API, använder fallback");
             navigationConfigs = GetFallbackNavigation();
         }
     }
@@ -367,30 +377,38 @@
     {
         Nav.LocationChanged -= OnLocationChanged;
         NavEvents.NavigationUpdated -= OnNavigationUpdated;
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthStateChanged;
     }
 
-    private List<NavigationPageDto> GetCustomPagesForParent(string parentPageKey)
+    private void OnAuthStateChanged(Task<AuthenticationState> task)
     {
-        var authState = AuthStateProvider.GetAuthenticationStateAsync().Result;
-        var user = authState.User;
-        var isAuthenticated = user.Identity?.IsAuthenticated == true;
-        
-        return navigationPages
-            .Where(c => c.ParentPageKey == parentPageKey && 
-                       c.IsAuthorized(isAuthenticated, user))
-            .OrderBy(c => c.SortOrder)
-            .ToList();
+        _ = UpdateAuthStateAsync(task);
     }
 
-    private List<NavigationItemViewModel> GetAllNavigationItems(bool isAuthenticated)
+    private async Task UpdateAuthStateAsync(Task<AuthenticationState> task)
+    {
+        try
+        {
+            var state = await task;
+            currentUser = state.User;
+            isAuthenticated = state.User?.Identity?.IsAuthenticated == true;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Fel vid uppdatering av autentiseringstillstånd");
+        }
+    }
+
+    private List<NavigationItemViewModel> GetAllNavigationItems(bool isAuthenticatedParam)
     {
         var items = new List<NavigationItemViewModel>();
-        var authState = AuthStateProvider.GetAuthenticationStateAsync().Result;
-        var user = authState.User;
-        
+        var user = currentUser;
+        var isAuth = isAuthenticatedParam;
+
         var allConfigs = navigationConfigs
             .Where(n => n.IsActive)
-            .Where(n => isAuthenticated ? n.IsVisibleToMembers : n.IsVisibleToGuests);
+            .Where(n => isAuth ? n.IsVisibleToMembers : n.IsVisibleToGuests);
 
         foreach (var config in allConfigs)
         {
@@ -406,7 +424,7 @@
                 }
             }
             
-            var sortOrder = isAuthenticated 
+            var sortOrder = isAuth 
                 ? (config.MemberSortOrder ?? config.SortOrder)
                 : (config.GuestSortOrder ?? config.SortOrder);
             
@@ -415,7 +433,7 @@
             if (navPage != null)
             {
                 var authorizedChildren = navPage.Children
-                    .Where(c => c.IsAuthorized(isAuthenticated, user))
+                    .Where(c => c.IsAuthorized(isAuth, user))
                     .Select(c => c.ToNavigationViewModel())
                     .OrderBy(c => c.SortOrder)
                     .ToList();
@@ -497,7 +515,7 @@
                    SortOrder = 2, IsVisibleToGuests = true, IsVisibleToMembers = true, IsActive = true },
             new() { PageKey = "visioner", DisplayName = "Visioner & verksamhetsidé", ItemType = "static", 
                    SortOrder = 3, IsVisibleToGuests = true, IsVisibleToMembers = true, IsActive = true },
-            new() { PageKey = "kontakt", DisplayName = "Kontakta oss", ItemType = "static", 
+            new() { PageKey = "kontaktaoss", DisplayName = "Kontakta oss", ItemType = "static", 
                    SortOrder = 17, IsVisibleToGuests = true, IsVisibleToMembers = true, IsActive = true }
         };
     }

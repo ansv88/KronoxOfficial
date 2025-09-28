@@ -3,6 +3,7 @@
 @using KronoxFront.Components.Shared.Content
 @using KronoxFront.Components.Shared.Forms
 @using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.Components.Shared.UI
 @using KronoxFront.DTOs
 @using KronoxFront.Services
@@ -16,6 +17,9 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Forvnsg> Logger
+
+<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<RequirePageEnabled PageKey="forvnsg" FailClosed="true" />
 
 <HeadContent>
     <meta name="description" content="Information för VNSG (VerksamhetsNära StyrGrupp) inom KronoX-konsortiet. Här hittar du dokument, protokoll och annan viktig information för VNSG." />

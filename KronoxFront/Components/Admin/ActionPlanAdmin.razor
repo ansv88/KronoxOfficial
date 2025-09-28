@@ -623,7 +623,7 @@
         }
     }
 
-    private async void CloseEditModal()
+    private async Task CloseEditModal()
     {
         showEditModal = false;
         await DestroyDetailsEditorAsync();
@@ -640,7 +640,6 @@
         try
         {
             await SyncDetailsEditorAsync();
-
             var http = HttpClientFactory.CreateClient("KronoxAPI");
 
             HttpResponseMessage response;
@@ -659,7 +658,7 @@
 
                 await Toast.Success(editingItem.Id == 0 ? "Åtgärd har lagts till!" : "Åtgärd har uppdaterats!");
                 await LoadActionPlan();
-                CloseEditModal();
+                await CloseEditModal();
             }
             else
             {

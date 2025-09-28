@@ -14,11 +14,10 @@ public class UpdateNewsRequest
 
     // Datum från vilket nyheten ska vara synlig
     public DateTime? ScheduledPublishDate { get; set; }
-    
+
     public bool IsArchived { get; set; }
-    
+
     // Roller som får se nyheten (kommaseparerad sträng)
     [StringLength(500)]
     public string VisibleToRoles { get; set; } = "Medlem";
-    
 }

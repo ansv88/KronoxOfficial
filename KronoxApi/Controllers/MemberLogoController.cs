@@ -9,6 +9,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 
+/// <summary>
+/// API‑kontroller för medlemslogotyper: publik lista samt Admin‑åtgärder
+/// för registrering/uppladdning, uppdatering (alt‑text/länk), omordning och radering.
+/// Använder filservice för validering och lagring. Skyddad med API‑nyckel.
+/// </summary>
+
 [ApiController]
 [RequireApiKey]
 [Route("api/cms/logos")]
@@ -30,7 +36,6 @@ public class MemberLogoController : ControllerBase
         _env = env;
         _logger = logger;
     }
-
 
     // Hämtar alla medlemslogotyper sorterade efter visningsordning (tillgänglig för alla användare utan autentisering)
     [HttpGet]
@@ -103,7 +108,7 @@ public class MemberLogoController : ControllerBase
             _db.MemberLogos.Add(memberLogo);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Logotyp registrerad: {Url}", url);
+            _logger.LogDebug("Logotyp registrerad: {Url}", url);
             return Ok(new MemberLogoDto(memberLogo));
         }
         catch (Exception ex)
@@ -147,7 +152,7 @@ public class MemberLogoController : ControllerBase
             _db.MemberLogos.Add(memberLogo);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Ny logotyp uppladdad: {Url}", url);
+            _logger.LogDebug("Ny logotyp uppladdad: {Url}", url);
             return Ok(new MemberLogoDto(memberLogo));
         }
         catch (Exception ex)
@@ -180,7 +185,7 @@ public class MemberLogoController : ControllerBase
             memberLogo.AltText = dto.Description;
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Beskrivning uppdaterad för logotyp: {Id}", id);
+            _logger.LogDebug("Beskrivning uppdaterad för logotyp: {Id}", id);
             return Ok();
         }
         catch (Exception ex)
@@ -213,7 +218,7 @@ public class MemberLogoController : ControllerBase
             memberLogo.LinkUrl = dto.LinkUrl;
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Länk uppdaterad för logotyp: {Id}", id);
+            _logger.LogDebug("Länk uppdaterad för logotyp: {Id}", id);
             return Ok();
         }
         catch (Exception ex)
@@ -269,8 +274,7 @@ public class MemberLogoController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Logotyp {LogoId} flyttad {Direction}",
-                dto.LogoId, dto.Direction == -1 ? "upp" : "ner");
+            _logger.LogDebug("Logotyp {LogoId} flyttad {Direction}", dto.LogoId, dto.Direction == -1 ? "upp" : "ner");
             return Ok();
         }
         catch (Exception ex)
@@ -299,7 +303,7 @@ public class MemberLogoController : ControllerBase
             _db.MemberLogos.Remove(memberLogo);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Logotyp raderad: {Id}", id);
+            _logger.LogDebug("Logotyp raderad: {Id}", id);
             return Ok();
         }
         catch (Exception ex)

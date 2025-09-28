@@ -14,6 +14,7 @@ namespace KronoxApi.Controllers;
 /// API-kontroller för hantering av huvud- och underkategorier.
 /// Stöder rollbaserad åtkomst för kategorier.
 /// </summary>
+
 [ApiController]
 [Route("api/[controller]")]
 [RequireApiKey]
@@ -213,7 +214,7 @@ public class CategoryController : ControllerBase
                 IsActive = mainCategory.IsActive
             };
 
-            _log.LogInformation("Huvudkategori '{Name}' skapad med roller: {Roles}", 
+            _log.LogDebug("Huvudkategori '{Name}' skapad med roller: {Roles}", 
                 mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
 
             return CreatedAtAction(nameof(GetMainCategory), new { id = mainCategory.Id }, dto);
@@ -251,7 +252,7 @@ public class CategoryController : ControllerBase
                 Name = subCategory.Name
             };
 
-            _log.LogInformation("Underkategori '{Name}' skapad", subCategory.Name);
+            _log.LogDebug("Underkategori '{Name}' skapad", subCategory.Name);
 
             return CreatedAtAction(nameof(GetSubCategory), new { id = subCategory.Id }, dto);
         }
@@ -293,7 +294,7 @@ public class CategoryController : ControllerBase
 
             await _dbContext.SaveChangesAsync();
 
-            _log.LogInformation("Huvudkategori '{Name}' uppdaterad med roller: {Roles}", 
+            _log.LogDebug("Huvudkategori '{Name}' uppdaterad med roller: {Roles}", 
                 mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
 
             return Ok();
@@ -327,7 +328,7 @@ public class CategoryController : ControllerBase
             subCategory.Name = request.Name;
             await _dbContext.SaveChangesAsync();
 
-            _log.LogInformation("Underkategori '{Name}' uppdaterad", subCategory.Name);
+            _log.LogDebug("Underkategori '{Name}' uppdaterad", subCategory.Name);
 
             return Ok();
         }
@@ -370,7 +371,7 @@ public class CategoryController : ControllerBase
 
             await _dbContext.SaveChangesAsync();
 
-            _log.LogInformation("Huvudkategori '{Name}' inaktiverad", mainCategory.Name);
+            _log.LogDebug("Huvudkategori '{Name}' inaktiverad", mainCategory.Name);
 
             return Ok($"Huvudkategori '{mainCategory.Name}' har inaktiverats.");
         }
@@ -410,7 +411,7 @@ public class CategoryController : ControllerBase
             _dbContext.SubCategories.Remove(subCategory);
             await _dbContext.SaveChangesAsync();
 
-            _log.LogInformation("Underkategori '{Name}' borttagen", subCategory.Name);
+            _log.LogDebug("Underkategori '{Name}' borttagen", subCategory.Name);
 
             return Ok($"Underkategori '{subCategory.Name}' har tagits bort.");
         }

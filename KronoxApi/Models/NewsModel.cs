@@ -2,7 +2,7 @@
 
 namespace KronoxApi.Models;
 
-// Representerar ett nyhetsinlägg i systemet
+// Nyhetsinlägg (titel, HTML, publiceringsdatum, roller, arkivering) med kopplade dokument.
 public class NewsModel
 {
     public int Id { get; set; }

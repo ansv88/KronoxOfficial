@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace KronoxApi.Requests;
 
+// Request-modell för att uppdatera en befintlig anpassad sida (CustomPage) – PageKey ändras inte via denna modell.
 public class UpdateCustomPageRequest
 {
     [Required(ErrorMessage = "Titel är obligatoriskt")]
@@ -19,6 +20,7 @@ public class UpdateCustomPageRequest
     public bool ShowInNavigation { get; set; } = true;
 
     [StringLength(20, ErrorMessage = "Navigationstyp får vara max 20 tecken")]
+    [RegularExpression("^(main|dropdown|hidden)$", ErrorMessage = "Navigationstyp måste vara en av: main, dropdown, hidden.")]
     public string NavigationType { get; set; } = "main";
 
     [StringLength(100, ErrorMessage = "Föräldrasida får vara max 100 tecken")]

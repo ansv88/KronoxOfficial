@@ -2,7 +2,7 @@
 
 namespace KronoxApi.Models;
 
-// Representerar en sektion med innehåll och eventuell bild på en sida (t.ex. startsidans feature-sektion).
+// Sektion med innehåll och ev. bild på en sida (t.ex. startsida). Stöd för privat innehåll och kontakter.
 public class FeatureSection
 {
     public int Id { get; set; }

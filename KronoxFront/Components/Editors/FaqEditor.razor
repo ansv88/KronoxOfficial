@@ -2,6 +2,7 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.Components.Shared.Admin
+@using KronoxFront.ViewModels.Faq
 @inject IJSRuntime JS
 @inject ILogger<FaqEditor> Logger
 @inject IToastService Toast
@@ -232,14 +233,6 @@
     private bool libraryLoading;
     private List<PageImageViewModel> allImages = new();
     private (int sectionIndex, int itemIndex)? targetItem;
-
-    public class FaqImageUploadInfo
-    {
-        public IBrowserFile? File { get; set; }
-        public int SectionIndex { get; set; }
-        public int ItemIndex { get; set; }
-        public FaqItemViewModel? Item { get; set; }
-    }
 
     private async Task AddFaqSection()
     {

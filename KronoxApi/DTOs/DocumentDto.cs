@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace KronoxApi.DTOs;
 
 // DTO för att representera ett dokument i API-responses

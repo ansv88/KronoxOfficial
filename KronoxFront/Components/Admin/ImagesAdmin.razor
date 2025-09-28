@@ -9,6 +9,7 @@
 @inject CmsService Cms
 @inject IToastService Toast
 @inject IJSRuntime JS
+@inject ILogger<ImagesAdmin> Logger
 
 <h1 class="h5 mb-2"><i class="fa-solid fa-images me-2"></i>Hantera bilder</h1>
 
@@ -90,7 +91,7 @@ else
 
 <ImageModal ImageUrl="@previewUrl" OnClose="@ClosePreview" />
 
-@* Usage/Delete-modal *@
+@* Användar/Delete-modal *@
 @if (usageOpen)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);" role="dialog" aria-modal="true">
@@ -188,6 +189,7 @@ else
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Kunde inte hämta PageKeys");
             await Toast.Warning($"Kunde inte hämta PageKeys: {ex.Message}");
         }
     }
@@ -201,6 +203,7 @@ else
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Kunde inte hämta bilder");
             await Toast.Error($"Kunde inte hämta bilder: {ex.Message}");
         }
         finally

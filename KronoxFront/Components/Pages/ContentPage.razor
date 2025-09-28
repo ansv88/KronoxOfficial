@@ -1,6 +1,7 @@
 ﻿@page "/{PageKey}"
 @using KronoxFront.Components.Shared.Content
 @using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.Components.Shared.UI
 @using KronoxFront.DTOs
 @using KronoxFront.Services
@@ -14,6 +15,9 @@
 @*
    Dynamisk sidkomponent som visar innehåll baserat på PageKey från CMS.
 *@
+
+<!-- Blockera direktbesök om NavigationConfig finns och är inaktiv. Fail-open om config saknas. -->
+<RequirePageEnabled PageKey="@PageKey" FailClosed="false" />
 
 <HeadContent>
     <meta name="description" content="@(pageContent?.Title ?? "Informationssida inom KronoX")" />
@@ -77,8 +81,10 @@ else
                         <div class="wrapper-div py-3">
                             <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                                 <div style="max-width:800px; margin: 0 auto;">
-                                    <FeatureSections Sections="@featureSections" IsAdmin="@isAdmin" 
-                                                   PageKey="@PageKey" OnImageClick="@ShowImage" />
+                                    <FeatureSections IsAdmin="@isAdmin"
+                                                     PageKey="@PageKey"
+                                                     IsCustomPage="true"
+                                                     OnImageClick="@ShowImage" />
                                 </div>
                             </section>
                         </div>

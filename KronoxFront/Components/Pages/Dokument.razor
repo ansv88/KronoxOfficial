@@ -1,6 +1,7 @@
 @page "/dokument"
 @using KronoxFront.Components.Shared.Content
 @using KronoxFront.Components.Shared.Layout
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.Components.Shared.UI
 @using KronoxFront.DTOs
 @using KronoxFront.Services
@@ -16,6 +17,9 @@
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
 @attribute [Authorize]
+
+<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<RequirePageEnabled PageKey="dokument" FailClosed="true" />
 
 <HeadContent>
     <meta name="description" content="Ladda ner och läs viktiga dokument, manualer och riktlinjer för KronoX-systemet och dess användning." />

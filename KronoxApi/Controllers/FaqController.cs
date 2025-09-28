@@ -1,4 +1,4 @@
-using KronoxApi.Attributes;
+Ôªøusing KronoxApi.Attributes;
 using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
@@ -7,6 +7,12 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
+
+/// <summary>
+/// API‚Äëkontroller f√∂r FAQ‚Äëinneh√•ll per sida (sektioner och fr√•gor/svar).
+/// Publik l√§sning av FAQ; Admin kan skapa/uppdatera/radera sektioner och poster
+/// samt massuppdatera per sida.
+/// </summary>
 
 [ApiController]
 [Route("api/[controller]")]
@@ -59,8 +65,8 @@ public class FaqController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid h‰mtning av FAQ-sektioner fˆr {PageKey}", pageKey);
-            return StatusCode(500, "Ett fel uppstod vid h‰mtning av FAQ-innehÂll");
+            _logger.LogError(ex, "Fel vid h√§mtning av FAQ-sektioner f√∂r {PageKey}", pageKey);
+            return StatusCode(500, "Ett fel uppstod vid h√§mtning av FAQ-inneh√•ll");
         }
     }
 
@@ -294,7 +300,7 @@ public class FaqController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid borttagning av FAQ-sektioner fˆr {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid borttagning av FAQ-sektioner f√∂r {PageKey}", pageKey);
             return StatusCode(500, "Ett fel uppstod vid borttagning av FAQ-sektioner");
         }
     }
@@ -306,7 +312,7 @@ public class FaqController : ControllerBase
     {
         try
         {
-            // Ta bort alla befintliga FAQ-sektioner fˆr sidan
+            // Ta bort alla befintliga FAQ-sektioner f√∂r sidan
             var existingSections = await _context.FaqSections
                 .Where(fs => fs.PageKey == pageKey)
                 .Include(fs => fs.FaqItems)
@@ -318,7 +324,7 @@ public class FaqController : ControllerBase
             }
             _context.FaqSections.RemoveRange(existingSections);
 
-            // L‰gg till nya sektioner
+            // L√§gg till nya sektioner
             foreach (var sectionDto in sectionsDto)
             {
                 var section = new FaqSection
@@ -346,7 +352,7 @@ public class FaqController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppdatering av FAQ-sektioner fˆr {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid uppdatering av FAQ-sektioner f√∂r {PageKey}", pageKey);
             return StatusCode(500, "Ett fel uppstod vid uppdatering av FAQ-sektioner");
         }
     }

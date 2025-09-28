@@ -1,6 +1,6 @@
 namespace KronoxApi.Models;
 
-// Kopplingsmodell mellan nyheter och dokument
+// Kopplingsmodell mellan nyheter och dokument (visningsnamn och sortering)
 public class NewsDocument
 {
     public int Id { get; set; }

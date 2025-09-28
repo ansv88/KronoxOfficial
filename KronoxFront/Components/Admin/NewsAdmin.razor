@@ -361,8 +361,12 @@
                                                     </div>
                                                     <button type="button" class="btn btn-sm btn-outline-danger" 
                                                             @onclick="() => DetachDocument(doc.Id)"
-                                                            disabled="@(editingNews?.Id == 0)">
-                                                        <i class="fa-solid fa-times"></i>
+                                                            disabled="@(editingNews?.Id == 0 || detachingDocumentIds.Contains(doc.Id))">
+                                                            @if (detachingDocumentIds.Contains(doc.Id))
+                                                            {
+                                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                                            }
+                                                            <i class="fa-solid fa-times"></i>
                                                     </button>
                                                 </div>
                                             }
@@ -436,7 +440,11 @@
                                         
                                         <button type="button" class="btn btn-outline-primary btn-sm" 
                                                 @onclick="AttachSelectedDocument" 
-                                                disabled="@(selectedDocumentId == 0)">
+                                                disabled="@(selectedDocumentId == 0 || isAttachingDocument)">
+                                            @if (isAttachingDocument)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
                                             <i class="fa-solid fa-plus me-1"></i> Bifoga valt dokument
                                         </button>
                                     }
@@ -569,6 +577,8 @@
     private List<NewsDocumentViewModel> selectedNewsDocuments = new();
     private int selectedDocumentId = 0;
     private List<int> pendingDocumentIds = new(); // För nya nyheter
+    private bool isAttachingDocument = false;
+    private List<int> detachingDocumentIds = new(); // För borttagning av dokument
 
     // Förhandsgranskning
     private bool showPreviewModal = false;
@@ -1003,9 +1013,10 @@
     {
         try
         {
+            isAttachingDocument = true;
+
             if (editingNews?.Id == 0)
             {
-                // För nya nyheter, lägg bara till i listan
                 var doc = availableDocuments.FirstOrDefault(d => d.Id == documentId);
                 if (doc != null && !pendingDocumentIds.Contains(documentId))
                 {
@@ -1038,15 +1049,20 @@
             Logger.LogError(ex, "Fel vid koppling av dokument");
             await Toast.Error("Ett fel inträffade.");
         }
+        finally
+        {
+            isAttachingDocument = false;
+        }
     }
 
     private async Task DetachDocument(int documentId)
     {
         try
         {
+            detachingDocumentIds.Add(documentId);
+
             if (editingNews?.Id == 0)
             {
-                // För nya nyheter, ta bara bort från listan
                 pendingDocumentIds.Remove(documentId);
                 selectedNewsDocuments.RemoveAll(d => d.Id == documentId);
                 StateHasChanged();
@@ -1067,6 +1083,10 @@
         {
             Logger.LogError(ex, "Fel vid borttagning av dokumentkoppling");
             await Toast.Error("Ett fel inträffade.");
+        }
+        finally
+        {
+            detachingDocumentIds.Remove(documentId);
         }
     }
 
@@ -1106,8 +1126,8 @@
         var doc = availableDocuments.FirstOrDefault(d => d.Id == documentId);
         if (doc == null) return null;
         
-        var categoryName = doc.MainCategoryDto.Name;
-        var categoryRoles = doc.MainCategoryDto.AllowedRoles ?? new List<string>();
+        var categoryName = doc.MainCategoryDto?.Name ?? "Okategoriserad";
+        var categoryRoles = doc.MainCategoryDto?.AllowedRoles ?? new List<string>();
         var newsRoles = editModel.SelectedRoles ?? new List<string>();
         
         // Kontrollera om det finns konflikter
@@ -1180,13 +1200,14 @@
             .ToList();
     }
     
-    private async Task OnDocumentSelectionChanged(ChangeEventArgs e)
+    private Task OnDocumentSelectionChanged(ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out int documentId))
         {
             selectedDocumentId = documentId;
         }
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     // Hjälpmetod för att få rätt ikon baserat på filtyp

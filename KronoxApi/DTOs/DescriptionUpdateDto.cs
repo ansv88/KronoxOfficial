@@ -6,5 +6,6 @@ namespace KronoxApi.DTOs;
 public class DescriptionUpdateDto
 {
     [Required(ErrorMessage = "Beskrivning är obligatorisk.")]
+    [StringLength(200, ErrorMessage = "Beskrivning får vara max 200 tecken.")]
     public string Description { get; set; } = string.Empty;
 }

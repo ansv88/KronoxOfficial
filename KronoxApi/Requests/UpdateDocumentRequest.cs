@@ -6,6 +6,9 @@ namespace KronoxApi.Requests;
 public class UpdateDocumentRequest
 {
     [Required(ErrorMessage = "Huvudkategori måste anges")]
+    [Range(1, int.MaxValue, ErrorMessage = "Ogiltig huvudkategori.")]
     public int MainCategoryId { get; set; }
-    public List<int>? SubCategoryIds { get; set; } = new();
+
+    // Gör listan icke-null för enklare hantering i controller
+    public List<int> SubCategoryIds { get; set; } = new();
 }

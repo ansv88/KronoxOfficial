@@ -1,6 +1,5 @@
 @using KronoxFront.Services
 @using KronoxFront.Components.Shared.Admin
-@inject CmsService Cms
 
 <AdminSectionFrame Title="Dokumentsektion"
                    IconClass="fa-solid fa-file-alt"
@@ -59,16 +58,16 @@
         };
     }
     
-    private string GetPageDisplayName()
-    {
-        return PageKey.ToLowerInvariant() switch
-        {
-            "home" => "Startsida",
-            "medlemsnytt" => "Medlemsnytt",
-            "forstyrelsen" => "Styrelse",
-            "forvnsg" => "VNSG",
-            "dokument" => "Dokument",
-            _ => PageKey
-        };
-    }
+    // private string GetPageDisplayName()
+    // {
+    //     return PageKey.ToLowerInvariant() switch
+    //     {
+    //         "home" => "Startsida",
+    //         "medlemsnytt" => "Medlemsnytt",
+    //         "forstyrelsen" => "Styrelse",
+    //         "forvnsg" => "VNSG",
+    //         "dokument" => "Dokument",
+    //         _ => PageKey
+    //     };
+    // }
 }

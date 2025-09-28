@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace KronoxApi.Models;
 
+// Navigationspost (visningsnamn, typ, synlighet för gäst/medlem, roller, sortering).
 public class NavigationConfig
 {
     public int Id { get; set; }

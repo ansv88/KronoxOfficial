@@ -36,7 +36,7 @@
             </button>
         </div>
     </div>
-    
+
     @if (showSettings)
     {
         <div class="card-body">
@@ -44,7 +44,7 @@
             {
                 <EditForm Model="navigationConfig" OnValidSubmit="SaveNavigationSettings">
                     <DataAnnotationsValidator />
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -65,33 +65,99 @@
                         <div class="col-md-3">
                             <div class="mb-3">
                                 <label class="form-label fw-medium">Status</label>
-                                <div class="form-check">
-                                    <InputCheckbox class="form-check-input" @bind-Value="navigationConfig.IsActive" />
-                                    <label class="form-check-label">Aktiv i navigation</label>
-                                </div>
-                                
-                                @if (!navigationConfig.IsActive)
+
+                                @if (IsFixedPage())
                                 {
-                                    <div class="alert alert-danger py-2 mt-2 mb-0">
-                                        <small>
-                                            <i class="fa-solid fa-exclamation-triangle me-1"></i>
-                                            <strong>KRITISKT:</strong> Sidan är inaktiverad och går inte att besöka!
-                                        </small>
+                                    <!-- Fasta sidor: aktiv/inaktiv sida (startsidan kan ej inaktiveras) -->
+                                    <div class="form-check mb-1">
+                                        <InputCheckbox class="form-check-input"
+                                                       @bind-Value="navigationConfig.IsActive"
+                                                       @onchange="OnFixedIsActiveChanged"
+                                                       disabled="@IsHomePage()" />
+                                        <label class="form-check-label">Aktiv/Inaktiv sida</label>
+                                    </div>
+                                    @if (IsHomePage())
+                                    {
+                                        <div class="form-text text-muted mb-2">
+                                            Startsidan kan inte inaktiveras och visas inte som länk i navigationen.
+                                        </div>
+                                    }
+
+                                    <!-- Förtydligad info för fasta sidor -->
+                                    <div class="mb-2">
+                                        @if (!navigationConfig.IsActive)
+                                        {
+                                            <div class="alert alert-warning py-2 mb-0">
+                                                <small>
+                                                    <i class="fa-solid fa-eye-slash me-1"></i>
+                                                    Inaktiverad: Länken tas bort från navigationen och direktbesök ger 404.
+                                                </small>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="alert alert-success py-2 mb-0">
+                                                <small>
+                                                    <i class="fa-solid fa-eye me-1"></i>
+                                                    @if (IsHomePage())
+                                                    {
+                                                        <span>Aktiv: Startsidan är alltid tillgänglig via /. Den visas inte som länk i navigationen.</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>Aktiv: Länken visas i navigationen. Åtkomst styrs av sidans behörighet.</span>
+                                                    }
+                                                </small>
+                                            </div>
+                                        }
                                     </div>
                                 }
                                 else
                                 {
-                                    <div class="alert alert-success py-2 mt-2 mb-0">
-                                        <small>
-                                            <i class="fa-solid fa-check-circle me-1"></i>
-                                            <strong>Aktiv:</strong> Sidan är tillgänglig för användare.
-                                        </small>
+                                    <!-- Anpassade sidor: Visa i navigation + aktiv/inaktiv sida -->
+                                    <div class="form-check mb-1">
+                                        <InputCheckbox class="form-check-input"
+                                                       @bind-Value="showInNavigation"
+                                                       @onchange="OnShowInNavigationChanged" />
+                                        <label class="form-check-label">Visa i navigation</label>
                                     </div>
+                                    <div class="form-text mb-2">
+                                        Styr endast synligheten i menyn. Direktlänk kräver att sidan är aktiv.
+                                    </div>
+
+                                    <div class="form-check">
+                                        <InputCheckbox class="form-check-input"
+                                                       @bind-Value="navigationConfig.IsActive"
+                                                       @onchange="OnIsActiveChanged" />
+                                        <label class="form-check-label">Aktiv/Inaktiv sida</label>
+                                    </div>
+                                    <div class="form-text">
+                                        Inaktiverad sida går inte att besöka (404) och tas bort från navigationen.
+                                    </div>
+
+                                    @if (!navigationConfig.IsActive)
+                                    {
+                                        <div class="alert alert-danger py-2 mt-2 mb-0">
+                                            <small>
+                                                <i class="fa-solid fa-exclamation-triangle me-1"></i>
+                                                <strong>Inaktiverad:</strong> Sidan är avpublicerad, ger 404 vid direktlänk och är borttagen från navigationen.
+                                            </small>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="alert alert-success py-2 mt-2 mb-0">
+                                            <small>
+                                                <i class="fa-solid fa-check-circle me-1"></i>
+                                                <strong>Aktiv:</strong> Sidan är tillgänglig för användare och kan visas i navigationen.
+                                            </small>
+                                        </div>
+                                    }
                                 }
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Åtkomstinformation (alltid synlig) -->
                     <div class="row mb-3">
                         <div class="col-12">
@@ -112,11 +178,11 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     @{
                         bool isFixedPageCheck = IsFixedPage();
                     }
-                    
+
                     @if (isFixedPageCheck)
                     {
                         <div class="card border-info mb-3">
@@ -127,11 +193,21 @@
                                 </h6>
                             </div>
                             <div class="card-body">
-                                <p class="mb-3 text-muted">
-                                    Detta är en fast systemsida med fördefinierade behörighetsregler. 
-                                    Synlighetsinställningar styrs automatiskt av sidans kod och kan inte ändras.
-                                </p>
-                                
+                                @if (IsHomePage())
+                                {
+                                    <p class="mb-3 text-muted">
+                                        Detta är startsidan. Den kan inte inaktiveras och visas inte som länk i navigationen.
+                                        Åtkomst styrs av sidans kod/behörighet.
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p class="mb-3 text-muted">
+                                        Detta är en fast systemsida. När du inaktiverar sidan tas länken bort från navigationen
+                                        och direktbesök ger 404. Åtkomstregler styrs av sidans kod.
+                                    </p>
+                                }
+
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -145,10 +221,10 @@
                                                     <small>
                                                         <i class="fa-solid fa-check-circle me-1"></i>
                                                         <strong>Tillgänglig:</strong> Sidan kan besökas av oinloggade användare.
-
                                                         @if (!HasAnyRestrictions())
                                                         {
-                                                            <br><em>Observera: Vissa sektioner kan ha rollbaserad åtkomst.</em>
+                                                            <br>
+                                                            <em>Observera: Vissa sektioner kan ha rollbaserad åtkomst.</em>
                                                         }
                                                     </small>
                                                 </div>
@@ -173,31 +249,39 @@
                                             <div class="alert alert-info py-2 mb-0">
                                                 <small>
                                                     <i class="fa-solid fa-info-circle me-1"></i>
-                                                    <strong>Automatisk:</strong> Alla inloggade användare ser länken i navigationen.
+                                                    <strong>Automatisk:</strong> Alla inloggade användare ser länken i navigationen (om aktiv).
                                                 </small>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="alert alert-light border-info mt-3">
                                     <small class="text-muted">
                                         <i class="fa-solid fa-lightbulb me-2"></i>
-                                        <strong>Förklaring:</strong> För fasta systemsidor styrs åtkomstbehörigheter av 
-                                        <code>[Authorize]</code>-attribut eller policies i sidans kod. 
+                                        <strong>Förklaring:</strong> Åtkomst styrs av <code>[Authorize]</code>-attribut eller policies i sidans kod.
                                         @if (PageKey.Equals("dokument", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <text>Dokumentsidan har dessutom rollbaserad innehållsfiltrering per kategori.</text>
                                         }
-                                        @if (!HasAnyRestrictions())
+                                        @if (!IsHomePage())
                                         {
-                                            <text><br><strong>Innehållsobservation:</strong> Även om sidan är öppen för alla kan enskilda sektioner
-                                                (t.ex. feature-sektioner eller privat innehåll) vara konfigurerade att endast visas för inloggade användare eller specifika roller.
+                                            <text>
+                                                <br><strong>Inaktiverad fast sida:</strong> Döljer länken i navigationen och ger 404 vid direktbesök.
                                             </text>
                                         }
-                                        <text>
-                                            <br><strong>Du kan endast aktivera/inaktivera sidan i navigation, men inte ändra vilka som har åtkomst till innehållet.</strong>
-                                         </text>
+                                        @if (!HasAnyRestrictions())
+                                        {
+                                            <text>
+                                                <br><strong>Innehållsobservation:</strong> Enskilda sektioner kan vara rollstyrda.
+                                            </text>
+                                        }
+                                        @if (IsHomePage())
+                                        {
+                                            <text>
+                                                <br><strong>Begränsning:</strong> Startsidan kan inte inaktiveras.
+                                            </text>
+                                        }
                                     </small>
                                 </div>
                             </div>
@@ -215,38 +299,25 @@
                             </div>
                             <div class="card-body">
                                 <p class="mb-3 text-muted">
-                                    Detta är en anpassad sida som du kan konfigurera fritt. 
-                                    Du har full kontroll över synlighetsinställningar och behörigheter.
+                                    Detta är en anpassad sida. När du inaktiverar sidan blir den inte besökbar (404) och tas bort från navigationen.
                                 </p>
-                                
+
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-12">
                                         <div class="mb-3">
                                             <label class="form-label fw-medium">
                                                 <i class="fa-solid fa-globe me-1"></i>
-                                                Synlighet för gäster
+                                                Publik synlighet
                                             </label>
                                             <div class="form-check">
-                                                <InputCheckbox class="form-check-input" @bind-Value="navigationConfig.IsVisibleToGuests" />
-                                                <label class="form-check-label">Visa för oinloggade användare</label>
+                                                <InputCheckbox class="form-check-input"
+                                                               @bind-Value="navigationConfig.IsVisibleToGuests"
+                                                               @onchange="OnPublicVisibilityChanged" />
+                                                <label class="form-check-label">Gör sidan publik (synlig för oinloggade)</label>
                                             </div>
                                             <div class="form-text">
-                                                Avgör om gäster (oinloggade användare) ska kunna se denna sida.
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-medium">
-                                                <i class="fa-solid fa-user-check me-1"></i>
-                                                Synlighet för medlemmar
-                                            </label>
-                                            <div class="form-check">
-                                                <InputCheckbox class="form-check-input" @bind-Value="navigationConfig.IsVisibleToMembers" />
-                                                <label class="form-check-label">Visa för inloggade användare</label>
-                                            </div>
-                                            <div class="form-text">
-                                                Hantera fullständiga rollbegränsningar via <a href="/admin/pages" class="text-decoration-none">Hantera sidor</a>.
+                                                Rollbehörigheter för inloggade ändras i
+                                                <a href="/admin/pages" class="text-decoration-none">Hantera sidor</a>.
                                             </div>
                                         </div>
                                     </div>
@@ -255,14 +326,13 @@
                                 <div class="alert alert-light border-success mt-3">
                                     <small class="text-muted">
                                         <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Anpassad sida:</strong> Du kan fritt konfigurera alla inställningar för denna sida. 
-                                        Ändringar här påverkar både navigation och sidåtkomst.
+                                        <strong>Anpassad sida:</strong> Ändringar här påverkar både navigation och sidåtkomst.
                                     </small>
                                 </div>
                             </div>
                         </div>
                     }
-                    
+
                     <div class="d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary btn-sm" disabled="@isSaving">
                             @if (isSaving)
@@ -294,36 +364,37 @@
     [Parameter] public string PageKey { get; set; } = "";
     [Parameter] public string? InitialDisplayName { get; set; }
     [Parameter] public EventCallback<string> OnDisplayNameChanged { get; set; }
-    
+
     private NavigationConfigViewModel? navigationConfig;
     private bool showSettings = false;
     private bool isSaving = false;
+
+    private CustomPageDto? customPage;
+    private bool hasNavigationConfig = false;
+
+    private bool showInNavigation = true;
+
     private List<string> pageAuthorizeRoles = new();
 
-    // Lista över ALLA fasta sidor med fördefinierade behörighetsregler, alla dessa har låsta synlighetsinställningar som styrs av kod
     private static readonly HashSet<string> FixedPages = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Publika fasta sidor (ingen [Authorize]) - synlighet låst till publik
-        "home", 
-        "omkonsortiet", 
-        "omsystemet", 
-        "visioner", 
+        "home",
+        "omkonsortiet",
+        "omsystemet",
+        "visioner",
         "kontaktaoss",
-        
-        // Begränsade fasta sidor (med [Authorize]) - synlighet låst enligt auktorisering
-        "dokument",         // [Authorize(Policy = "ExcludeNewUser")] + rollbaserad innehållsfiltrering
-        "medlemsnytt",      // [Authorize]
-        "forvaltning",      // [Authorize] 
-        "forvnsg",          // [Authorize(Roles = "Admin,Styrelse")]
-        "forstyrelsen"      // [Authorize(Roles = "Admin,Styrelse")]
+        "dokument",
+        "medlemsnytt",
+        "forvaltning",
+        "forvnsg",
+        "forstyrelsen"
     };
 
     protected override async Task OnInitializedAsync()
     {
         DetectPageAuthorizeRoles();
         await LoadNavigationConfig();
-        
-        // För fasta sidor: sätt synlighetsinställningar baserat på rollbegränsningar
+
         if (navigationConfig != null && IsFixedPage())
         {
             SyncVisibilityWithRoleRestrictions();
@@ -335,11 +406,13 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-            var response = await httpClient.GetAsync($"api/navigation/page/{PageKey}");
-            
-            if (response.IsSuccessStatusCode)
+
+            // Försök hämta NavigationConfig (om den finns)
+            var navResponse = await httpClient.GetAsync($"api/navigation/page/{PageKey}");
+            if (navResponse.IsSuccessStatusCode)
             {
-                var dto = await response.Content.ReadFromJsonAsync<NavigationConfigDto>();
+                hasNavigationConfig = true;
+                var dto = await navResponse.Content.ReadFromJsonAsync<NavigationConfigDto>();
                 if (dto != null)
                 {
                     navigationConfig = new NavigationConfigViewModel
@@ -357,18 +430,45 @@
                     };
                 }
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            else if (navResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
+                hasNavigationConfig = false;
                 navigationConfig = new NavigationConfigViewModel
                 {
                     PageKey = PageKey,
                     DisplayName = InitialDisplayName ?? PageKey,
-                    ItemType = "static",
+                    ItemType = IsFixedPage() ? "static" : "custom",
                     SortOrder = 50,
-                    IsVisibleToGuests = !HasAnyRestrictions(),
+                    IsVisibleToGuests = true,
                     IsVisibleToMembers = true,
                     IsActive = true
                 };
+            }
+
+            // Hämta CustomPage (om anpassad sida)
+            var pageResponse = await httpClient.GetAsync($"api/custompage/{PageKey}");
+            if (pageResponse.IsSuccessStatusCode)
+            {
+                customPage = await pageResponse.Content.ReadFromJsonAsync<CustomPageDto>();
+
+                if (customPage != null)
+                {
+                    navigationConfig ??= new NavigationConfigViewModel();
+
+                    navigationConfig.PageKey = customPage.PageKey;
+                    navigationConfig.DisplayName = customPage.DisplayName ?? navigationConfig.DisplayName ?? customPage.PageKey;
+                    navigationConfig.SortOrder = customPage.SortOrder;
+
+                    // IsActive speglar sidans publiceringsstatus för custom pages
+                    navigationConfig.IsActive = customPage.IsActive;
+
+                    // Separat toggle för synlighet i navigation
+                    showInNavigation = customPage.ShowInNavigation;
+
+                    var roles = customPage.RequiredRoles ?? new List<string>();
+                    navigationConfig.IsVisibleToGuests = roles.Count == 0;
+                    navigationConfig.RequiredRoles = roles.Count > 0 ? string.Join(",", roles) : null;
+                }
             }
         }
         catch (Exception)
@@ -381,10 +481,8 @@
     {
         try
         {
-            // Speciell hantering för dokumentsidan som har Policy = "ExcludeNewUser"
             if (PageKey.Equals("dokument", StringComparison.OrdinalIgnoreCase))
             {
-                // Dokument har Policy = "ExcludeNewUser" vilket betyder att alla utom "Ny användare" kan komma åt Plus rollbaserad innehållsfiltrering per kategori
                 pageAuthorizeRoles.Add("RequiresAuthentication");
                 pageAuthorizeRoles.Add("ExcludeNewUser");
                 return;
@@ -392,14 +490,11 @@
 
             var componentType = PageKey switch
             {
-                // Publika sidor (ingen [Authorize])
                 "home" => typeof(KronoxFront.Components.Pages.Home),
                 "omkonsortiet" => typeof(KronoxFront.Components.Pages.Omkonsortiet),
                 "omsystemet" => typeof(KronoxFront.Components.Pages.Omsystemet),
                 "visioner" => typeof(KronoxFront.Components.Pages.Visionerverksamhetside),
                 "kontaktaoss" => typeof(KronoxFront.Components.Pages.Kontaktaoss),
-                
-                // Begränsade sidor (med [Authorize])
                 "medlemsnytt" => typeof(KronoxFront.Components.Pages.Medlemsnytt),
                 "forvaltning" => typeof(KronoxFront.Components.Pages.Forvaltning),
                 "forvnsg" => typeof(KronoxFront.Components.Pages.Forvnsg),
@@ -421,7 +516,6 @@
                     }
                     else
                     {
-                        // [Authorize] utan roller betyder "kräver inloggning"
                         pageAuthorizeRoles.Add("RequiresAuthentication");
                     }
                 }
@@ -429,7 +523,7 @@
         }
         catch
         {
-            // Ignore errors in reflection
+            // Ignorera reflektionfel
         }
     }
 
@@ -438,24 +532,24 @@
         return !string.IsNullOrEmpty(PageKey) && FixedPages.Contains(PageKey);
     }
 
-    // Synkronisera synlighetsinställningar med rollbegränsningar för fasta sidor
+    private bool IsHomePage()
+    {
+        return string.Equals(PageKey, "home", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void SyncVisibilityWithRoleRestrictions()
     {
         if (navigationConfig == null || !IsFixedPage()) return;
-
-        // För fasta sidor: sätt automatiskt synlighet baserat på rollbegränsningar
         navigationConfig.IsVisibleToGuests = !HasAnyRestrictions();
-        navigationConfig.IsVisibleToMembers = true; // Inloggade kan alltid se länken i navigation
+        navigationConfig.IsVisibleToMembers = true;
     }
 
-    // Kontrollera om sidan har NÅGRA begränsningar (roller ELLER inloggningskrav)
     private bool HasAnyRestrictions()
     {
         var effectiveRoles = GetEffectiveRoles();
         return effectiveRoles.Any();
     }
 
-    // Kontrollera om sidan har specifika rollbegränsningar (inte bara inloggningskrav)
     private bool HasRestrictedRoles()
     {
         var effectiveRoles = GetEffectiveRoles();
@@ -466,12 +560,15 @@
     {
         if (pageAuthorizeRoles.Any())
             return pageAuthorizeRoles;
-            
+
+        if (customPage?.RequiredRoles is { } cpRoles && cpRoles.Any())
+            return cpRoles;
+
         if (!string.IsNullOrEmpty(navigationConfig?.RequiredRoles))
             return navigationConfig.RequiredRoles.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                                  .Select(r => r.Trim())
-                                                  .ToList();
-        
+                                                 .Select(r => r.Trim())
+                                                 .ToList();
+
         return new List<string>();
     }
 
@@ -480,22 +577,20 @@
         var roles = GetEffectiveRoles();
         if (!roles.Any())
             return "Tillgänglig för alla besökare";
-        
-        // Speciell hantering för dokument med Policy = "ExcludeNewUser"
+
         if (roles.Contains("ExcludeNewUser"))
             return "Kräver inloggning med rollbaserad innehållsfiltrering";
-        
-        // Hantera [Authorize] utan specifika roller
+
         if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
             return "Kräver inloggning";
-        
+
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         if (!specificRoles.Any())
             return "Kräver inloggning";
-        
+
         var roleNames = specificRoles.Select(GetRoleDisplayName);
-        return specificRoles.Count == 1 
-            ? $"Endast tillgänglig för {roleNames.First()}" 
+        return specificRoles.Count == 1
+            ? $"Endast tillgänglig för {roleNames.First()}"
             : $"Endast tillgänglig för {string.Join(" och ", roleNames)}-roller";
     }
 
@@ -506,19 +601,17 @@
         {
             return "Denna sida är öppen för alla besökare, inklusive oinloggade användare, men vissa sektioner kan ha rollbaserad åtkomst";
         }
-        
-        // Speciell hantering för dokument med Policy = "ExcludeNewUser"
+
         if (roles.Contains("ExcludeNewUser"))
             return "Sidan kräver inloggning (utom nya användare) och filtrerar innehåll baserat på användarens roller";
-        
-        // Hantera [Authorize] utan specifika roller
+
         if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
             return "Sidan kräver inloggning men har inga specifika rollbegränsningar";
-        
+
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         if (!specificRoles.Any())
             return "Sidan kräver inloggning men har inga specifika rollbegränsningar";
-        
+
         return $"Endast användare med {(specificRoles.Count == 1 ? "denna roll" : "dessa roller")} kan komma åt sidan";
     }
 
@@ -527,13 +620,13 @@
         var roles = GetEffectiveRoles();
         if (!roles.Any())
             return "fa-solid fa-globe text-success";
-        
+
         if (roles.Contains("ExcludeNewUser"))
             return "fa-solid fa-user-shield text-warning";
-        
+
         if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
             return "fa-solid fa-user text-info";
-            
+
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         return specificRoles.Any() ? "fa-solid fa-user-shield text-warning" : "fa-solid fa-user text-info";
     }
@@ -543,13 +636,13 @@
         var roles = GetEffectiveRoles();
         if (!roles.Any())
             return "bg-success bg-opacity-10 border-success";
-        
+
         if (roles.Contains("ExcludeNewUser"))
             return "bg-warning bg-opacity-10 border-warning";
-        
+
         if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
             return "bg-info bg-opacity-10 border-info";
-            
+
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         return specificRoles.Any() ? "bg-warning bg-opacity-10 border-warning" : "bg-info bg-opacity-10 border-info";
     }
@@ -559,13 +652,13 @@
         var roles = GetEffectiveRoles();
         if (!roles.Any())
             return "text-success-emphasis";
-        
+
         if (roles.Contains("ExcludeNewUser"))
             return "text-warning-emphasis";
-        
+
         if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
             return "text-info-emphasis";
-            
+
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         return specificRoles.Any() ? "text-warning-emphasis" : "text-info-emphasis";
     }
@@ -575,7 +668,7 @@
         return role switch
         {
             "Admin" => "Administratör",
-            "Styrelse" => "Styrelse", 
+            "Styrelse" => "Styrelse",
             "Medlem" => "Medlem",
             "Ny användare" => "Ny användare",
             "RequiresAuthentication" => "Inloggade användare",
@@ -589,24 +682,120 @@
         showSettings = !showSettings;
     }
 
+    // Auto-spara när togglar ändras
+    private async Task OnFixedIsActiveChanged(ChangeEventArgs _)
+    {
+        if (navigationConfig == null) return;
+        SyncVisibilityWithRoleRestrictions();
+        await SaveNavigationConfigOnly();
+    }
+
+    private async Task OnShowInNavigationChanged(ChangeEventArgs _)
+    {
+        await SaveNavigationSettings();
+    }
+
+    private async Task OnIsActiveChanged(ChangeEventArgs _)
+    {
+        await SaveNavigationSettings();
+    }
+
+    private async Task OnPublicVisibilityChanged(ChangeEventArgs _)
+    {
+        await SaveNavigationSettings();
+    }
+
     private async Task SaveNavigationSettings()
     {
         if (navigationConfig == null) return;
 
-        // För fasta sidor: synkronisera synlighetsinställningar innan sparning
+        // Fasta sidor: spara endast NavigationConfig
         if (IsFixedPage())
         {
             SyncVisibilityWithRoleRestrictions();
+            await SaveNavigationConfigOnly();
+            return;
         }
 
+        // Anpassade sidor: spara mot CustomPage (IsActive + ShowInNavigation + roller)
+        if (customPage is null)
+        {
+            await Toast.Error("Kunde inte hitta sidans grunddata (CustomPage).");
+            return;
+        }
+
+        if (isSaving) return; // skydda mot spam vid snabba togglar
         isSaving = true;
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-            
+
+            var currentRoles = customPage.RequiredRoles ?? new List<string>();
+            List<string> updatedRoles = navigationConfig.IsVisibleToGuests
+                ? new List<string>()
+                : (currentRoles.Any() ? new List<string>(currentRoles) : new List<string> { "Medlem" });
+
+            var updateRequest = new
+            {
+                Title = customPage.Title,
+                DisplayName = navigationConfig.DisplayName,
+                Description = customPage.Description,
+                IsActive = navigationConfig.IsActive,     // Aktiv/inaktiv sida
+                ShowInNavigation = showInNavigation,      // Visa/dölj i navigation
+                NavigationType = customPage.NavigationType,
+                ParentPageKey = customPage.ParentPageKey,
+                SortOrder = navigationConfig.SortOrder,
+                RequiredRoles = updatedRoles
+            };
+
+            var resp = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", updateRequest);
+            if (!resp.IsSuccessStatusCode)
+            {
+                await Toast.Error("Fel vid sparning av sidinställningar");
+                return;
+            }
+
+            // Uppdatera lokalt tillstånd
+            customPage.DisplayName = navigationConfig.DisplayName;
+            customPage.SortOrder = navigationConfig.SortOrder;
+            customPage.IsActive = navigationConfig.IsActive;
+            customPage.ShowInNavigation = showInNavigation;
+            customPage.RequiredRoles = updatedRoles;
+
+            navigationConfig.IsVisibleToGuests = updatedRoles.Count == 0;
+            navigationConfig.RequiredRoles = updatedRoles.Count > 0 ? string.Join(",", updatedRoles) : null;
+
+            Cache.InvalidateGroup("navigation");
+            await Toast.Success("Navigationsinställningar sparade!");
+
+            if (OnDisplayNameChanged.HasDelegate)
+                await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
+
+            NavEvents.NotifyUpdated();
+        }
+        catch (Exception)
+        {
+            await Toast.Error("Fel vid sparning av navigationsinställningar");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task SaveNavigationConfigOnly()
+    {
+        if (navigationConfig == null) return;
+
+        if (isSaving) return;
+        isSaving = true;
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+
             if (navigationConfig.Id == 0)
             {
-                var createRequest = new
+                var createRequest = new NavigationConfigDto
                 {
                     PageKey = navigationConfig.PageKey,
                     DisplayName = navigationConfig.DisplayName,
@@ -618,36 +807,56 @@
                     IsSystemItem = navigationConfig.IsSystemItem,
                     RequiredRoles = navigationConfig.RequiredRoles
                 };
-                await httpClient.PostAsJsonAsync("api/navigation", createRequest);
+
+                var postResp = await httpClient.PostAsJsonAsync("api/navigation", createRequest);
+                if (!postResp.IsSuccessStatusCode)
+                {
+                    var err = await postResp.Content.ReadAsStringAsync();
+                    await Toast.Error($"Kunde inte skapa navigation: {err}");
+                    return;
+                }
+
+                // Hämta tillbaka config för att få Id
+                var getResp = await httpClient.GetAsync($"api/navigation/page/{navigationConfig.PageKey}");
+                if (getResp.IsSuccessStatusCode)
+                {
+                    var dto = await getResp.Content.ReadFromJsonAsync<NavigationConfigDto>();
+                    if (dto != null)
+                    {
+                        navigationConfig.Id = dto.Id;
+                    }
+                }
             }
             else
             {
-                var updateRequest = new
+                var updateRequest = new NavigationUpdateDto
                 {
                     DisplayName = navigationConfig.DisplayName,
                     SortOrder = navigationConfig.SortOrder,
+                    GuestSortOrder = navigationConfig.GuestSortOrder,
+                    MemberSortOrder = navigationConfig.MemberSortOrder,
                     IsVisibleToGuests = navigationConfig.IsVisibleToGuests,
                     IsVisibleToMembers = navigationConfig.IsVisibleToMembers,
                     IsActive = navigationConfig.IsActive,
                     RequiredRoles = navigationConfig.RequiredRoles
                 };
-                await httpClient.PutAsJsonAsync($"api/navigation/{navigationConfig.Id}", updateRequest);
+
+                var putResp = await httpClient.PutAsJsonAsync($"api/navigation/{navigationConfig.Id}", updateRequest);
+                if (!putResp.IsSuccessStatusCode)
+                {
+                    var err = await putResp.Content.ReadAsStringAsync();
+                    await Toast.Error($"Kunde inte uppdatera navigation: {err}");
+                    return;
+                }
             }
 
-            // Invalidera navigation cache
             Cache.InvalidateGroup("navigation");
-
             await Toast.Success("Navigationsinställningar sparade!");
-            
             if (OnDisplayNameChanged.HasDelegate)
-            {
                 await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
-            }
-
-            // Informera NavMenu att hämta om navigationen
             NavEvents.NotifyUpdated();
         }
-        catch (Exception)
+        catch
         {
             await Toast.Error("Fel vid sparning av navigationsinställningar");
         }

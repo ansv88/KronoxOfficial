@@ -9,6 +9,8 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using KronoxFront.ViewModels.Features
+@using KronoxFront.ViewModels.Faq
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
@@ -124,13 +126,13 @@ else
                 @* ---------- Navigeringsinställningar ----------- *@
                 <NavigationSettings PageKey="@PageKey"
                                     InitialDisplayName="@customPage.DisplayName"
-                                    OnDisplayNameChanged="OnNavigationNameChanged" />
+                                    OnDisplayNameChanged="@(EventCallback.Factory.Create<string>(this, OnNavigationNameChanged))" />
 
                 @* ---------- Section Configuration Manager ----------- *@
                 <PageSectionConfigurator PageKey="@PageKey"
                                          AvailableSections="sectionConfigItems"
-                                         OnConfigurationChanged="OnSectionConfigurationChanged"
-                                         OnSave="SaveSectionConfiguration" />
+                                         OnConfigurationChanged="@(EventCallback.Factory.Create(this, OnSectionConfigurationChanged))"
+                                         OnSave="@(EventCallback.Factory.Create<List<SectionConfigItem>>(this, SaveSectionConfiguration))" />
 
                 @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
@@ -138,7 +140,7 @@ else
                     @switch (sectionConfig.Type)
                     {
                         case SectionType.Banner:
-                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" OnSaveRequested="SaveContent" />
+                            <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" />
                             break;
 
                         case SectionType.Intro:
@@ -752,7 +754,7 @@ else
 
     private void OnFeatureSectionsChanged() { }
 
-    private async Task OnFeatureImageUploaded(FeatureSectionEditor.ImageUploadInfo info)
+    private async Task OnFeatureImageUploaded(ImageUploadInfo info)
     {
         if (info.File != null && info.Section != null)
         {
@@ -771,11 +773,11 @@ else
         }
     }
 
-    private void OnFeatureImageDeleted(FeatureSectionEditor.ImageDeleteInfo info) { }
+    private void OnFeatureImageDeleted(ImageDeleteInfo info) { }
 
     private void OnFaqSectionsChanged() { }
 
-    private async Task OnFaqImageUploaded(FaqEditor.FaqImageUploadInfo info)
+    private async Task OnFaqImageUploaded(FaqImageUploadInfo info)
     {
         if (info.File != null && info.Item != null)
         {

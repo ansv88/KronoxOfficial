@@ -205,7 +205,7 @@
 								  !item.PageKey.Equals("logout", StringComparison.OrdinalIgnoreCase))
 					.ToList();
 
-				// Separera för gäster och medlemmar
+				// Separera för sitemap
 				guestSitemapPages = sitemapItems
 					.Where(item => item.IsVisibleToGuests)
 					.OrderBy(item => item.GuestSortOrder ?? item.SortOrder)
@@ -215,6 +215,21 @@
 					.Where(item => item.IsVisibleToMembers)
 					.OrderBy(item => item.MemberSortOrder ?? item.SortOrder)
 					.ToList();
+
+				// Fallback om det blev tomt
+				if (guestSitemapPages.Count == 0 && memberSitemapPages.Count == 0)
+				{
+					// använd enkla defaults så sidfoten inte blir tom
+					var fb = new List<NavigationConfigDto>
+					{
+						new() { PageKey = "omkonsortiet", DisplayName = "Om konsortiet", SortOrder = 1, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
+						new() { PageKey = "omsystemet", DisplayName = "Om systemet", SortOrder = 2, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
+						new() { PageKey = "visioner", DisplayName = "Visioner & Verksamhetsidé", SortOrder = 3, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
+						new() { PageKey = "kontaktaoss", DisplayName = "Kontakta oss", SortOrder = 17, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true }
+					};
+					guestSitemapPages = fb;
+					memberSitemapPages = fb;
+				}
 			}
 
 			// Ladda custom pages för att komplettera med eventuella sidor som bara finns där

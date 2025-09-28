@@ -8,6 +8,7 @@
 @layout AdminLayout
 @inject IHttpClientFactory HttpClientFactory
 @inject IToastService Toast
+@inject ILogger<NavigationAdmin> Logger
 
 <PageTitle>KronoX - Navigationshantering</PageTitle>
 
@@ -328,9 +329,10 @@
                 navigationPages = await response.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-
+            Logger.LogError(ex, "Kunde inte ladda navigationssidor");
+            await Toast.Error("Kunde inte ladda navigationssidor");
         }
     }
 
@@ -412,18 +414,14 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-            
             foreach (var itemId in changedItems)
             {
-                // Hitta objektet i båda listorna
                 var guestItem = guestNavigationItems.FirstOrDefault(i => i.Id == itemId);
                 var memberItem = memberNavigationItems.FirstOrDefault(i => i.Id == itemId);
-                
-                // Bestäm vilken sortordning som ska användas för varje typ
+
                 var guestSortOrder = guestItem?.SortOrder;
                 var memberSortOrder = memberItem?.SortOrder;
-                
-                // Använd det första objektet vi hittar för de gemensamma fälten
+
                 var item = guestItem ?? memberItem;
                 if (item != null)
                 {
@@ -437,9 +435,8 @@
                         IsVisibleToMembers = item.IsVisibleToMembers,
                         IsActive = item.IsActive
                     };
-                    
+
                     var response = await httpClient.PutAsJsonAsync($"api/navigation/{item.Id}", updateDto);
-                    
                     if (!response.IsSuccessStatusCode)
                     {
                         var error = await response.Content.ReadAsStringAsync();
@@ -447,14 +444,14 @@
                     }
                 }
             }
-            
+
             changedItems.Clear();
             await Toast.Success($"Alla ändringar sparade! Navigationen kommer att uppdateras.");
-            
             await LoadNavigationData();
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid sparande av navigation");
             await Toast.Error($"Fel vid sparande: {ex.Message}");
         }
         finally

@@ -7,35 +7,42 @@ namespace KronoxApi.DTOs;
 public class RegisterDto
 {
     [Required(ErrorMessage = "Användarnamn krävs")]
+    [StringLength(100, ErrorMessage = "Användarnamnet är för långt.")]
     public required string UserName { get; set; }
 
     [Required(ErrorMessage = "Vänligen ange en e-postadress.")]
     [EmailAddress(ErrorMessage = "Ange en giltig e-postadress.")]
+    [StringLength(100, ErrorMessage = "E-post får vara max 100 tecken.")]
     public required string Email { get; set; }
 
     [Required(ErrorMessage = "Vänligen ange ett lösenord")]
+    [StringLength(256, ErrorMessage = "Lösenordet är för långt.")]
     public required string Password { get; set; }
 
     [Required(ErrorMessage = "Vänligen bekräfta ditt lösenord.")]
     [Compare("Password", ErrorMessage = "Lösenorden matchar inte.")]
+    [StringLength(256, ErrorMessage = "Lösenordet är för långt.")]
     public required string ConfirmPassword { get; set; }
 
     [Required(ErrorMessage = "Vänligen ange ditt förnamn.")]
+    [StringLength(100, ErrorMessage = "Förnamnet är för långt.")]
     public required string FirstName { get; set; }
 
     [Required(ErrorMessage = "Vänligen ange ditt efternamn.")]
+    [StringLength(100, ErrorMessage = "Efternamnet är för långt.")]
     public required string LastName { get; set; }
 
     [Required(ErrorMessage = "Vänligen ange ditt lärosäte.")]
+    [StringLength(200, ErrorMessage = "Lärosäte är för långt.")]
     public required string Academy { get; set; }
 
     // Genererar en användarvänlig beskrivning av lösenordskraven baserat på Identity-inställningarna
     public static string GetPasswordRequirements(PasswordOptions options)
     {
         var requirements = new List<string>
-    {
-        $"Minst {options.RequiredLength} tecken"
-    };
+        {
+            $"Minst {options.RequiredLength} tecken"
+        };
 
         if (options.RequireUppercase)
             requirements.Add("Minst en stor bokstav");

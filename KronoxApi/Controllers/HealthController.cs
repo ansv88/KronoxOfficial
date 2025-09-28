@@ -2,7 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace KronoxApi.Controllers;
 
-// API-kontroller för hälsokontroll av tjänsten.
+/// <summary>
+/// Enkel hälsokontroll för tjänsten (health check).
+/// Returnerar status, tidsstämpel och version; loggar fel vid problem.
+/// </summary>
+
 [ApiController]
 [Route("api/[controller]")]
 public class HealthController : ControllerBase
@@ -14,7 +18,6 @@ public class HealthController : ControllerBase
         _logger = logger;
     }
 
-
     // Returnerar status för tjänsten.
     [HttpGet]
     [ProducesResponseType(200)]
@@ -22,7 +25,7 @@ public class HealthController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("Health check anropad: {Time}", DateTime.UtcNow);
+            _logger.LogDebug("Health check anropad: {Time}", DateTime.UtcNow);
 
             return Ok(new
             {

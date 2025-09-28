@@ -3,10 +3,18 @@ using KronoxApi.Models;
 
 namespace KronoxApi.Extensions;
 
+/// <summary>
+/// Extensions för att konvertera mellan NavigationConfig och dess DTO.
+/// Håller mappningen ren utan logik eller sidoeffekter.
+/// </summary>
 public static class NavigationConfigExtensions
 {
+    // Mappar NavigationConfig till NavigationConfigDto.
+    // <exception cref="ArgumentNullException">Om config är null.</exception>
     public static NavigationConfigDto ToDto(this NavigationConfig config)
     {
+        ArgumentNullException.ThrowIfNull(config);
+
         return new NavigationConfigDto
         {
             Id = config.Id,
@@ -26,13 +34,20 @@ public static class NavigationConfigExtensions
         };
     }
 
-    public static List<NavigationConfigDto> ToDtos(this List<NavigationConfig> configs)
+    // Mappar en sekvens av NavigationConfig till en lista av DTO:er.
+    // Returnerar tom lista om input är null.
+    public static List<NavigationConfigDto> ToDtos(this IEnumerable<NavigationConfig>? configs)
     {
+        if (configs is null) return new();
         return configs.Select(config => config.ToDto()).ToList();
     }
 
+    // Mappar NavigationConfigDto till NavigationConfig-modell.
+    // <exception cref="ArgumentNullException">Om dto är null.</exception>
     public static NavigationConfig ToModel(this NavigationConfigDto dto)
     {
+        ArgumentNullException.ThrowIfNull(dto);
+
         return new NavigationConfig
         {
             Id = dto.Id,
@@ -52,8 +67,11 @@ public static class NavigationConfigExtensions
         };
     }
 
-    public static List<NavigationConfig> ToModels(this List<NavigationConfigDto> dtos)
+    // Mappar en sekvens av NavigationConfigDto till en lista av modeller.
+    // Returnerar tom lista om input är null.
+    public static List<NavigationConfig> ToModels(this IEnumerable<NavigationConfigDto>? dtos)
     {
+        if (dtos is null) return new();
         return dtos.Select(dto => dto.ToModel()).ToList();
     }
 }

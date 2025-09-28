@@ -1,8 +1,10 @@
 ﻿@page "/admin/memberlogos"
 @using KronoxFront.ViewModels
++@using KronoxFront.ViewModels.MemberLogos
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.Services
+@using KronoxFront.Requests.Suggestions
 @inject CmsService Cms
 @inject IToastService Toast
 @inject IJSRuntime JS
@@ -306,8 +308,8 @@
     private bool showAddLogoModal = false;
     private bool showDeleteLogoModal = false;
 
-    // Form models
-    private EditLogoModel editLogoModel = new();
+    // Formulärmodeller
+    private EditLogoViewModel editLogoModel = new();
     private MemberLogoUploadDto addLogoModel = new();
     private IBrowserFile? selectedFile;
     private string selectedFileName = "";
@@ -343,7 +345,7 @@
 
         if (logo != null)
         {
-            editLogoModel = new EditLogoModel
+            editLogoModel = new EditLogoViewModel
             {
                 AltText = logo.AltText,
                 LinkUrl = logo.LinkUrl ?? ""
@@ -435,7 +437,7 @@
         isEditMode = false;
         if (selectedLogo != null)
         {
-            editLogoModel = new EditLogoModel
+            editLogoModel = new EditLogoViewModel
             {
                 AltText = selectedLogo.AltText,
                 LinkUrl = selectedLogo.LinkUrl ?? ""
@@ -514,12 +516,5 @@
             Logger.LogError(ex, "Fel vid borttagning av logotyp");
             await Toast.Error("Kunde inte ta bort logotypen");
         }
-    }
-
-    // Model för redigering
-    public class EditLogoModel
-    {
-        public string AltText { get; set; } = "";
-        public string LinkUrl { get; set; } = "";
     }
 }

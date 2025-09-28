@@ -6,9 +6,16 @@ namespace KronoxApi.Services;
 
 public interface IRoleValidationService
 {
+    // Validerar att rollerna existerar i systemet.
     Task<bool> ValidateRolesAsync(IEnumerable<string> roles);
+
+    // Returnerar alla giltiga rollnamn.
     Task<List<string>> GetValidRolesAsync();
+
+    // Kontrollerar om användarroller ger åtkomst till given kategori.
     Task<bool> UserHasAccessToCategoryAsync(int categoryId, string[] userRoles);
+
+    // Returnerar id:n för kategorier som användarroller har åtkomst till.
     Task<List<int>> GetAccessibleCategoryIdsAsync(string[] userRoles);
 }
 
@@ -47,7 +54,8 @@ public class RoleValidationService : IRoleValidationService
         try
         {
             return await _roleManager.Roles
-                .Select(r => r.Name)
+                .Where(r => r.Name != null)
+                .Select(r => r.Name!)
                 .ToListAsync();
         }
         catch (Exception ex)
@@ -72,7 +80,7 @@ public class RoleValidationService : IRoleValidationService
             if (!category.AllowedRoles.Any())
                 return userRoles.Contains("Medlem", StringComparer.OrdinalIgnoreCase);
 
-            return category.AllowedRoles.Any(role => 
+            return category.AllowedRoles.Any(role =>
                 userRoles.Contains(role, StringComparer.OrdinalIgnoreCase));
         }
         catch (Exception ex)
@@ -110,7 +118,7 @@ public class RoleValidationService : IRoleValidationService
                 }
 
                 // Kontrollera om användaren har någon av de tillåtna rollerna
-                if (category.AllowedRoles.Any(role => 
+                if (category.AllowedRoles.Any(role =>
                     userRoles.Contains(role, StringComparer.OrdinalIgnoreCase)))
                 {
                     accessibleIds.Add(category.Id);

@@ -49,13 +49,6 @@
             </button>
         </div>
     </ChildContent>
-
-    <FooterContent>
-        <button type="button" class="btn btn-primary" @onclick="SaveBannerSection">
-            <i class="fa-solid fa-save me-1"></i>
-            Spara banner
-        </button>
-    </FooterContent>
 </AdminSectionFrame>
 
 @if (libraryOpen)
@@ -107,6 +100,7 @@
 @code {
     [Parameter] public string PageKey { get; set; } = "home";
     [Parameter] public EventCallback<PageImageViewModel?> OnUploaded { get; set; }
+    [Obsolete("Använd OnUploaded istället.")]
     [Parameter] public EventCallback OnSaveRequested { get; set; }
 
     private PageImageViewModel? CurrentBanner { get; set; }
@@ -242,29 +236,24 @@
         }
     }
 
-    private async Task SaveBannerSection()
-    {
-        try
-        {
-            if (OnSaveRequested.HasDelegate)
-                await OnSaveRequested.InvokeAsync();
-            else
-                await Toast.Info("Inget att spara – ändringar är uppdaterade.");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid sparknapp för banner {PageKey}", PageKey);
-            await Toast.Error("Ett fel inträffade vid sparning av banner");
-        }
-    }
-
     private async Task OpenLibrary()
     {
         libraryOpen = true;
         libraryLoading = true;
         StateHasChanged();
-        allImages = await Cms.GetAllImagesAsync(); // ev. filtrera på pageKey
-        libraryLoading = false;
+        try
+        {
+            allImages = await Cms.GetAllImagesAsync(); // ev. filtrera på pageKey
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte ladda bildbiblioteket");
+            await Toast.Error("Kunde inte ladda bildbiblioteket");
+        }
+        finally
+        {
+            libraryLoading = false;
+        }
     }
 
     private void CloseLibrary()

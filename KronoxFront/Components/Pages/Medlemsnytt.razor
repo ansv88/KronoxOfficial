@@ -1,5 +1,6 @@
 ﻿@page "/medlemsnytt"
 @using KronoxFront.Components.Admin
+@using KronoxFront.Components.Shared.Security
 @using KronoxFront.ViewModels
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
@@ -14,6 +15,9 @@
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 @inject ILogger<Medlemsnytt> Logger
+
+<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<RequirePageEnabled PageKey="medlemsnytt" FailClosed="true" />
 
 <HeadContent>
     <meta name="description" content="Senaste nyheterna och uppdateringarna för KronoX-konsortiet. Information för medlemmar." />

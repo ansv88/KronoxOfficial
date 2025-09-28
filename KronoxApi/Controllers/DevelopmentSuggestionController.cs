@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+ï»¿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using KronoxApi.Data;
 using KronoxApi.DTOs;
@@ -7,6 +7,12 @@ using KronoxApi.Services;
 using KronoxApi.Attributes;
 
 namespace KronoxApi.Controllers;
+
+/// <summary>
+/// APIâ€‘kontroller fÃ¶r inlÃ¤mning och administration av utvecklingsfÃ¶rslag.
+/// Tar emot nya fÃ¶rslag (skickar eâ€‘post), listar samt markerar fÃ¶rslag som behandlade (Admin).
+/// Skyddad med APIâ€‘nyckel.
+/// </summary>
 
 [ApiController]
 [Route("api/[controller]")]
@@ -28,7 +34,7 @@ public class DevelopmentSuggestionController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> SubmitSuggestion(DevelopmentSuggestionDto dto)
+    public async Task<IActionResult> SubmitSuggestion([FromBody] DevelopmentSuggestionDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -54,19 +60,18 @@ public class DevelopmentSuggestionController : ControllerBase
             // Skicka e-post
             await SendDevelopmentSuggestionEmail(suggestion);
 
-            return Ok(new { message = "Utvecklingsförslaget har skickats." });
+            return Ok(new { message = "UtvecklingsfÃ¶rslaget har skickats." });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid skickande av utvecklingsförslag");
-            return StatusCode(500, "Ett fel uppstod vid skickande av förslaget");
+            _logger.LogError(ex, "Fel vid skickande av utvecklingsfÃ¶rslag");
+            return StatusCode(500, "Ett fel uppstod vid skickande av fÃ¶rslaget");
         }
     }
 
     [HttpGet]
     [RequireRole("Admin")]
-    public async Task<ActionResult<List<DevelopmentSuggestion>>> GetSuggestions(
-        [FromQuery] bool includeProcessed = false)
+    public async Task<ActionResult<List<DevelopmentSuggestion>>> GetSuggestions([FromQuery] bool includeProcessed = false)
     {
         var suggestions = await _context.DevelopmentSuggestions
             .Where(s => includeProcessed || !s.IsProcessed)
@@ -91,7 +96,7 @@ public class DevelopmentSuggestionController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Utvecklingsförslag {Id} markerat som behandlat av {ProcessedBy}", id, request.ProcessedBy);
+        _logger.LogDebug("UtvecklingsfÃ¶rslag {Id} markerat som behandlat av {ProcessedBy}", id, request.ProcessedBy);
 
         return Ok();
     }
@@ -100,18 +105,18 @@ public class DevelopmentSuggestionController : ControllerBase
     {
         try
         {
-            var subject = "Nytt utvecklingsförslag från förvaltningssidan";
+            var subject = "Nytt utvecklingsfÃ¶rslag frÃ¥n fÃ¶rvaltningssidan";
             var body = $@"
-Ett nytt utvecklingsförslag har skickats via förvaltningssidan:
+Ett nytt utvecklingsfÃ¶rslag har skickats via fÃ¶rvaltningssidan:
 
-Lärosäte/Organisation: {suggestion.Organization}
+LÃ¤rosÃ¤te/Organisation: {suggestion.Organization}
 Namn: {suggestion.Name}
 E-post: {suggestion.Email}
 
-Vad är behovet?
+Vad Ã¤r behovet?
 {suggestion.Requirement}
 
-Vilken effekt/nytta förväntas?
+Vilken effekt/nytta fÃ¶rvÃ¤ntas?
 {suggestion.ExpectedBenefit}
 
 Ytterligare information:
@@ -121,11 +126,11 @@ Skickat: {suggestion.SubmittedAt:yyyy-MM-dd HH:mm}
 ";
 
             await _emailService.SendEmailAsync("support@kronox.se", subject, body);
-            _logger.LogInformation("Utvecklingsförslag-e-post skickad för förslag från {Organization}", suggestion.Organization);
+            _logger.LogDebug("E-post om utvecklingsfÃ¶rslag skickad fÃ¶r fÃ¶rslag frÃ¥n {Organization}", suggestion.Organization);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Kunde inte skicka e-post för utvecklingsförslag från {Organization}", suggestion.Organization);
+            _logger.LogError(ex, "Kunde inte skicka e-post fÃ¶r utvecklingsfÃ¶rslag frÃ¥n {Organization}", suggestion.Organization);
         }
     }
 
