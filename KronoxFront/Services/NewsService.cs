@@ -1,7 +1,7 @@
-using KronoxFront.ViewModels;
 using KronoxFront.DTOs;
-using System.Text.Json;
+using KronoxFront.ViewModels;
 using System.Text;
+using System.Text.Json;
 
 namespace KronoxFront.Services;
 
@@ -9,9 +9,9 @@ public class NewsService
 {
     private readonly HttpClient _http;
     private readonly ILogger<NewsService> _logger;
-    private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions 
-    { 
-        PropertyNameCaseInsensitive = true 
+    private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true
     };
 
     public NewsService(HttpClient http, ILogger<NewsService> logger)
@@ -26,12 +26,12 @@ public class NewsService
         try
         {
             var response = await _http.GetAsync($"api/news/member-news?includeArchived={includeArchived}&page={page}&pageSize={pageSize}");
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var newsResponse = JsonSerializer.Deserialize<NewsApiResponse>(json, _jsonOptions);
-                
+
                 if (newsResponse != null)
                 {
                     return new NewsListViewModel
@@ -44,7 +44,7 @@ public class NewsService
                     };
                 }
             }
-            
+
             _logger.LogWarning("Kunde inte hämta medlemsnyheter: {StatusCode}", response.StatusCode);
         }
         catch (Exception ex)
@@ -61,15 +61,15 @@ public class NewsService
         try
         {
             var response = await _http.GetAsync("api/news/all");
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var newsItems = JsonSerializer.Deserialize<List<NewsApiItem>>(json, _jsonOptions);
-                
+
                 return newsItems?.Select(MapToViewModel).ToList() ?? new List<NewsItemViewModel>();
             }
-            
+
             _logger.LogWarning("Kunde inte hämta alla nyheter: {StatusCode}", response.StatusCode);
         }
         catch (Exception ex)
@@ -86,15 +86,15 @@ public class NewsService
         try
         {
             var response = await _http.GetAsync($"api/news/{id}");
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var newsItem = JsonSerializer.Deserialize<NewsApiItem>(json, _jsonOptions);
-                
+
                 return newsItem != null ? MapToViewModel(newsItem) : null;
             }
-            
+
             _logger.LogWarning("Kunde inte hämta nyhet {Id}: {StatusCode}", id, response.StatusCode);
         }
         catch (Exception ex)
@@ -121,17 +121,17 @@ public class NewsService
 
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            
+
             var response = await _http.PostAsync("api/news/create", content);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var responseJson = await response.Content.ReadAsStringAsync();
                 var newsItem = JsonSerializer.Deserialize<NewsApiItem>(responseJson, _jsonOptions);
-                
+
                 return newsItem != null ? MapToViewModel(newsItem) : null;
             }
-            
+
             _logger.LogWarning("Kunde inte skapa nyhet: {StatusCode}", response.StatusCode);
         }
         catch (Exception ex)
@@ -158,17 +158,17 @@ public class NewsService
 
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            
+
             var response = await _http.PutAsync($"api/news/update/{id}", content);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var responseJson = await response.Content.ReadAsStringAsync();
                 var newsItem = JsonSerializer.Deserialize<NewsApiItem>(responseJson, _jsonOptions);
-                
+
                 return newsItem != null ? MapToViewModel(newsItem) : null;
             }
-            
+
             _logger.LogWarning("Kunde inte uppdatera nyhet {Id}: {StatusCode}", id, response.StatusCode);
         }
         catch (Exception ex)
@@ -214,14 +214,14 @@ public class NewsService
         try
         {
             var response = await _http.GetAsync($"api/news/{newsId}/documents");
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var documents = JsonSerializer.Deserialize<List<NewsDocumentViewModel>>(json, _jsonOptions);
                 return documents ?? new List<NewsDocumentViewModel>();
             }
-            
+
             _logger.LogWarning("Kunde inte hämta dokument för nyhet {NewsId}: {StatusCode}", newsId, response.StatusCode);
         }
         catch (Exception ex)
@@ -245,7 +245,7 @@ public class NewsService
 
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            
+
             var response = await _http.PostAsync($"api/news/{newsId}/documents", content);
             return response.IsSuccessStatusCode;
         }

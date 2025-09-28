@@ -18,7 +18,7 @@ public class NavigationConfigDto
     public DateTime LastModified { get; set; }
 }
 
-public class NavigationUpdateDto  
+public class NavigationUpdateDto
 {
     public string DisplayName { get; set; } = "";
     public int SortOrder { get; set; }

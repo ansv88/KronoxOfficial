@@ -2,8 +2,6 @@
 using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Extensions;
-using KronoxApi.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;

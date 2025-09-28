@@ -8,7 +8,7 @@ public class IntroSectionViewModel
     public string ImageUrl { get; set; } = "";
     public string ImageAltText { get; set; } = "";
     public bool HasImage { get; set; } = false;
-    
+
     // Nya fält för breadcrumb och navigation
     public string BreadcrumbTitle { get; set; } = "";
     public bool ShowNavigationButtons { get; set; } = false;

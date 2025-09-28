@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using KronoxApi.DTOs;
-using KronoxApi.Services;
+﻿using KronoxApi.Attributes;
 using KronoxApi.Data;
+using KronoxApi.DTOs;
 using KronoxApi.Models;
-using KronoxApi.Attributes;
+using KronoxApi.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 

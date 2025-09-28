@@ -25,7 +25,7 @@ public class FeatureSectionDto
 
     // Hjälpkonstruktor för enkel mappning från Entity
     public FeatureSectionDto() { }
-    
+
     public FeatureSectionDto(Models.FeatureSection f)
     {
         Id = f.Id;

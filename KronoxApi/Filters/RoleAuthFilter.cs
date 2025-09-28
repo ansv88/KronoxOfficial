@@ -26,7 +26,7 @@ public class RoleAuthFilter : IAuthorizationFilter
             _logger.LogWarning("Åtkomst nekad: Rollinformation saknas i anrop till {Path} från {IP}",
                 context.HttpContext.Request.Path.ToString(),
                 context.HttpContext.Connection.RemoteIpAddress);
-                
+
             context.Result = new ForbidResult();
             return;
         }
@@ -49,14 +49,14 @@ public class RoleAuthFilter : IAuthorizationFilter
         var userRoles = userRolesHeader.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries);
 
         // Kontrollera om användaren har minst en av de nödvändiga rollerna
-        if (!_requiredRoles.Any(requiredRole => 
+        if (!_requiredRoles.Any(requiredRole =>
             userRoles.Contains(requiredRole, StringComparer.OrdinalIgnoreCase)))
         {
             _logger.LogWarning("Åtkomst nekad: Användaren har inte rätt roll för {Path}. Användarroller: {Roles}, behöver: {RequiredRoles}",
                 context.HttpContext.Request.Path,
                 string.Join(", ", userRoles),
                 string.Join(", ", _requiredRoles));
-                
+
             context.Result = new ForbidResult();
             return;
         }

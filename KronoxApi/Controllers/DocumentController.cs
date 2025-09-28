@@ -179,7 +179,7 @@ public class DocumentController : ControllerBase
             // Filtrera dokument baserat på kategoriroller och mappa till DTO
             var accessibleDocuments = await _db.Documents
                 .Include(d => d.MainCategory)
-                .Where(d => !d.IsArchived && 
+                .Where(d => !d.IsArchived &&
                            accessibleCategoryIds.Contains(d.MainCategoryId))
                 .Select(d => new DocumentDto
                 {
@@ -294,7 +294,7 @@ public class DocumentController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            _log.LogDebug("Dokument arkiverat: {FileName} (ID: {Id}) av {User}", 
+            _log.LogDebug("Dokument arkiverat: {FileName} (ID: {Id}) av {User}",
                 document.FileName, document.Id, document.ArchivedBy);
 
             return Ok("Dokumentet har arkiverats.");
@@ -336,7 +336,7 @@ public class DocumentController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            _log.LogDebug("Dokument återställt: {FileName} (ID: {Id})", 
+            _log.LogDebug("Dokument återställt: {FileName} (ID: {Id})",
                 document.FileName, document.Id);
 
             return Ok("Dokumentet har återställts.");

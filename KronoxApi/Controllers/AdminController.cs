@@ -1,4 +1,5 @@
 ﻿using KronoxApi.Attributes;
+using KronoxApi.DTOs;
 using KronoxApi.Models;
 using KronoxApi.Requests;
 using KronoxApi.Services;
@@ -6,7 +7,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
-using KronoxApi.DTOs;
 
 namespace KronoxApi.Controllers;
 

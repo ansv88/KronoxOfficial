@@ -5,37 +5,37 @@ namespace KronoxFront.ViewModels;
 public class NewsItemViewModel
 {
     public int Id { get; set; }
-    
+
     [Required(ErrorMessage = "Titel är obligatorisk")]
     [StringLength(200, ErrorMessage = "Titeln får inte överstiga 200 tecken")]
     public string Title { get; set; } = string.Empty;
-    
+
     [Required(ErrorMessage = "Innehåll är obligatoriskt")]
     public string Content { get; set; } = string.Empty;
-    
+
     public DateTime PublishedDate { get; set; }
-    
+
     public DateTime? ScheduledPublishDate { get; set; }
-    
+
     public bool IsArchived { get; set; }
-    
+
     public string VisibleToRoles { get; set; } = "Medlem";
-    
+
     public DateTime CreatedDate { get; set; }
-    
+
     public DateTime LastModified { get; set; }
-    
-    
+
+
     // Helper properties för UI
     public bool IsScheduled => ScheduledPublishDate.HasValue && ScheduledPublishDate > DateTime.Now;
     public string FormattedPublishDate => FormatSwedishDateTime(PublishedDate);
     public string FormattedCreatedDate => FormatSwedishDateTime(CreatedDate);
     public List<string> RolesList => VisibleToRoles.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
-    
+
     private string FormatSwedishDateTime(DateTime dateTime)
     {
         // Konvertera till svensk tid
-        var swedishTime = TimeZoneInfo.ConvertTimeFromUtc(dateTime, 
+        var swedishTime = TimeZoneInfo.ConvertTimeFromUtc(dateTime,
             TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"));
         return swedishTime.ToString("yyyy-MM-dd HH:mm");
     }
@@ -57,17 +57,17 @@ public class CreateNewsViewModel
     [Required(ErrorMessage = "Titel är obligatorisk")]
     [StringLength(200, ErrorMessage = "Titeln får inte överstiga 200 tecken")]
     public string Title { get; set; } = string.Empty;
-    
+
     [Required(ErrorMessage = "Innehåll är obligatoriskt")]
     public string Content { get; set; } = string.Empty;
-    
+
     public DateTime? ScheduledPublishDate { get; set; }
-    
+
     public bool IsArchived { get; set; }
-    
+
     public List<string> SelectedRoles { get; set; } = new() { "Member" };
-    
-    
+
+
     // Available roles for selection
     public List<RoleOption> AvailableRoles { get; set; } = new()
     {

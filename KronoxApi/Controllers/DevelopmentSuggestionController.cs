@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using KronoxApi.Attributes;
 using KronoxApi.Data;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
 using KronoxApi.Services;
-using KronoxApi.Attributes;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace KronoxApi.Controllers;
 
@@ -24,7 +24,7 @@ public class DevelopmentSuggestionController : ControllerBase
     private readonly ILogger<DevelopmentSuggestionController> _logger;
 
     public DevelopmentSuggestionController(
-        ApplicationDbContext context, 
+        ApplicationDbContext context,
         IEmailService emailService,
         ILogger<DevelopmentSuggestionController> logger)
     {

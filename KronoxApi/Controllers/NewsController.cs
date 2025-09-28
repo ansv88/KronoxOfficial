@@ -1,10 +1,10 @@
-﻿using KronoxApi.Data;
+﻿using KronoxApi.Attributes;
+using KronoxApi.Data;
 using KronoxApi.Models;
 using KronoxApi.Requests;
-using KronoxApi.Attributes;
+using KronoxApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using KronoxApi.Services;
 
 namespace KronoxApi.Controllers;
 
@@ -25,7 +25,7 @@ public class NewsController : ControllerBase
     private const string RoleHeader = "X-User-Roles";
 
     public NewsController(
-        ApplicationDbContext dbContext, 
+        ApplicationDbContext dbContext,
         ILogger<NewsController> logger,
         IRoleValidationService roleValidationService)
     {
@@ -45,7 +45,7 @@ public class NewsController : ControllerBase
         {
             // Konvertera från lokal tid till UTC för lagring
             var publishDate = request.ScheduledPublishDate?.ToUniversalTime() ?? DateTime.UtcNow;
-            
+
             var post = new NewsModel
             {
                 Title = request.Title,
@@ -157,13 +157,13 @@ public class NewsController : ControllerBase
             // Hämta användarroller från header
             var userRolesHeader = Request.Headers[RoleHeader].ToString();
             var userRoles = userRolesHeader.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
-            
+
             // Lägg till grundläggande Member-roll om den inte finns
             if (!userRoles.Contains("Member") && !userRoles.Contains("Medlem"))
             {
                 userRoles.Add("Member");
             }
-            
+
             var now = DateTime.UtcNow;
             var query = _dbContext.NewsModel.AsQueryable();
 
@@ -263,7 +263,7 @@ public class NewsController : ControllerBase
             // Kontrollera om användaren har rätt att se denna nyhet
             var userRolesHeader = Request.Headers[RoleHeader].ToString();
             var userRoles = userRolesHeader.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
-            
+
             // Lägg till grundläggande Member-roll om den inte finns
             if (!userRoles.Contains("Member") && !userRoles.Contains("Medlem"))
             {
@@ -272,10 +272,10 @@ public class NewsController : ControllerBase
 
             var isAdmin = userRoles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
             var hasAccess = isAdmin || userRoles.Any(role => post.VisibleToRoles.Contains(role));
-            
+
             if (!hasAccess)
             {
-                _logger.LogWarning("Användare utan behörighet försökte läsa nyhet {Id}. Användarroller: {Roles}, krävda roller: {RequiredRoles}", 
+                _logger.LogWarning("Användare utan behörighet försökte läsa nyhet {Id}. Användarroller: {Roles}, krävda roller: {RequiredRoles}",
                     id, string.Join(", ", userRoles), post.VisibleToRoles);
                 return Forbid("Du har inte behörighet att visa denna nyhet.");
             }
@@ -329,12 +329,12 @@ public class NewsController : ControllerBase
 
             post.IsArchived = !post.IsArchived;
             post.LastModified = DateTime.UtcNow;
-            
+
             await _dbContext.SaveChangesAsync();
-            
+
             var status = post.IsArchived ? "arkiverad" : "avarkiverad";
             _logger.LogDebug("Nyhetsinlägg med ID {Id} {Status}", id, status);
-            
+
             return Ok(new { message = $"Nyheten har {status}s", isArchived = post.IsArchived });
         }
         catch (DbUpdateConcurrencyException ex)
@@ -374,7 +374,7 @@ public class NewsController : ControllerBase
 
             // Filtrera dokument baserat på användarens roller
             var accessibleDocuments = new List<object>();
-            
+
             foreach (var newsDoc in newsItem.NewsDocuments.OrderBy(nd => nd.SortOrder))
             {
                 // Kontrollera om användaren har tillgång till dokumentet

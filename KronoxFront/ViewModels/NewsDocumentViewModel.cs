@@ -7,9 +7,9 @@ public class NewsDocumentViewModel
     public string FileName { get; set; } = string.Empty;
     public long FileSize { get; set; }
     public int SortOrder { get; set; }
-    
+
     public string FormattedFileSize => FormatFileSize(FileSize);
-    
+
     private static string FormatFileSize(long bytes)
     {
         if (bytes >= 1073741824)

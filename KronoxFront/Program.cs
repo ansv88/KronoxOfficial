@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Caching.Memory;
-using System.Security.Claims;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 
 namespace KronoxFront;
 
@@ -140,7 +140,8 @@ public class Program
 
         builder.Services.AddScoped<NavigationEvents>();
 
-        builder.Services.AddResponseCompression(options => {
+        builder.Services.AddResponseCompression(options =>
+        {
             options.EnableForHttps = true;
             options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
                 new[] { "application/javascript", "text/css", "image/svg+xml" });
@@ -241,7 +242,7 @@ public class Program
 
                 // Hämta returnUrl från formuläret
                 var returnUrl = form["returnUrl"].ToString();
-                
+
                 // Om ingen returnUrl finns eller om den inte är lokal, använd /medlemsnytt
                 if (string.IsNullOrEmpty(returnUrl) || !IsLocalUrl(ctx, returnUrl))
                 {

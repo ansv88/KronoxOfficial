@@ -14,7 +14,7 @@ public class ActionPlanItem
 {
     public int Id { get; set; }
     public int Priority { get; set; }
-    
+
     [Required(ErrorMessage = "Modul/del är obligatorisk")]
     [StringLength(200, ErrorMessage = "Modul/del får vara max 200 tecken")]
     public string Module { get; set; } = string.Empty;

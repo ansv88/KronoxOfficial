@@ -1,6 +1,6 @@
-﻿using System.Net.Mime;
+﻿using KronoxApi.Utilities;
+using System.Net.Mime;
 using System.Text.RegularExpressions;
-using KronoxApi.Utilities;
 
 namespace KronoxApi.Services;
 

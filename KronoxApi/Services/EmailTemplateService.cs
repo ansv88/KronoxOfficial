@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Options;
-using KronoxApi.Models;
+﻿using KronoxApi.Models;
+using Microsoft.Extensions.Options;
 
 namespace KronoxApi.Services;
 

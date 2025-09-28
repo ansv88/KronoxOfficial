@@ -24,7 +24,7 @@ public static class DocumentExtensions
             ArchivedBy = dto.ArchivedBy
         };
     }
-    
+
     // Mappar lista av DTOs till ViewModels
     public static List<DocumentViewModel> ToViewModels(this List<DocumentDto> dtos)
     {

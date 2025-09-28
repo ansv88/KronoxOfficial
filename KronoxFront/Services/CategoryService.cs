@@ -38,7 +38,7 @@ public class CategoryService
                 .ContinueWith(t => t.Result.IsSuccessStatusCode);
 
     public Task<bool> EditSubCategoryAsync(int id, string name)
-        => _http.PutAsJsonAsync($"api/category/sub/{id}", new { Name = name})
+        => _http.PutAsJsonAsync($"api/category/sub/{id}", new { Name = name })
                 .ContinueWith(t => t.Result.IsSuccessStatusCode);
 
     public Task<bool> DeleteMainCategoryAsync(int id)

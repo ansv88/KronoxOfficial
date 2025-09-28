@@ -1,6 +1,6 @@
-using System.Text.Json;
-using KronoxFront.ViewModels;
 using KronoxFront.DTOs;
+using KronoxFront.ViewModels;
+using System.Text.Json;
 
 namespace KronoxFront.Extensions;
 
@@ -18,7 +18,7 @@ public static class DtoExtensions
     {
         if (string.IsNullOrEmpty(json))
             return null;
-            
+
         try
         {
             var apiDto = JsonSerializer.Deserialize<PageContentViewModel>(json, _jsonOptions);
@@ -34,7 +34,7 @@ public static class DtoExtensions
     {
         if (string.IsNullOrEmpty(json))
             return null;
-            
+
         try
         {
             var viewModels = JsonSerializer.Deserialize<List<MemberLogoViewModel>>(json, _jsonOptions);
@@ -50,7 +50,7 @@ public static class DtoExtensions
     {
         if (string.IsNullOrEmpty(json))
             return null;
-            
+
         try
         {
             var viewModel = JsonSerializer.Deserialize<MemberLogoViewModel>(json, _jsonOptions);
@@ -127,12 +127,12 @@ public static class DtoExtensions
     public static List<FaqSectionViewModel> ToFaqSectionViewModels(this string json)
     {
         if (string.IsNullOrEmpty(json)) return new List<FaqSectionViewModel>();
-        
+
         try
         {
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var dtos = JsonSerializer.Deserialize<List<FaqSectionDto>>(json, options);
-            
+
             return dtos?.Select(dto => new FaqSectionViewModel
             {
                 Id = dto.Id,

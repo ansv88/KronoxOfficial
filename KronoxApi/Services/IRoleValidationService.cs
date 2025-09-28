@@ -1,6 +1,6 @@
+using KronoxApi.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using KronoxApi.Data;
 
 namespace KronoxApi.Services;
 

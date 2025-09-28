@@ -1,5 +1,5 @@
-using System.ComponentModel.DataAnnotations;
 using KronoxFront.Validators;
+using System.ComponentModel.DataAnnotations;
 
 namespace KronoxFront.ViewModels;
 

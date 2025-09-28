@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Threading;
 
 namespace KronoxFront.Services;
 
@@ -76,7 +75,7 @@ public class HealthService
             return false;
         }
     }
-    
+
     private class ApiHealth
     {
         public string Status { get; set; } = string.Empty;

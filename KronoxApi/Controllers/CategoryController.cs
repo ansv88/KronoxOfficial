@@ -6,7 +6,6 @@ using KronoxApi.Requests;
 using KronoxApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 
 namespace KronoxApi.Controllers;
 
@@ -72,7 +71,7 @@ public class CategoryController : ControllerBase
                 .Split(',', StringSplitOptions.RemoveEmptyEntries);
 
             var accessibleCategoryIds = await _roleValidationService.GetAccessibleCategoryIdsAsync(userRoles);
-            
+
             var categories = await _dbContext.MainCategories
                 .Where(mc => accessibleCategoryIds.Contains(mc.Id))
                 .Select(mc => new MainCategoryDto
@@ -214,7 +213,7 @@ public class CategoryController : ControllerBase
                 IsActive = mainCategory.IsActive
             };
 
-            _log.LogDebug("Huvudkategori '{Name}' skapad med roller: {Roles}", 
+            _log.LogDebug("Huvudkategori '{Name}' skapad med roller: {Roles}",
                 mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
 
             return CreatedAtAction(nameof(GetMainCategory), new { id = mainCategory.Id }, dto);
@@ -294,7 +293,7 @@ public class CategoryController : ControllerBase
 
             await _dbContext.SaveChangesAsync();
 
-            _log.LogDebug("Huvudkategori '{Name}' uppdaterad med roller: {Roles}", 
+            _log.LogDebug("Huvudkategori '{Name}' uppdaterad med roller: {Roles}",
                 mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
 
             return Ok();
@@ -360,7 +359,7 @@ public class CategoryController : ControllerBase
 
             if (activeDocuments > 0)
             {
-                _log.LogWarning("Försök att ta bort huvudkategori {Id} som används av {Count} aktiva dokument", 
+                _log.LogWarning("Försök att ta bort huvudkategori {Id} som används av {Count} aktiva dokument",
                     id, activeDocuments);
                 return BadRequest($"Kategorin används av {activeDocuments} aktiva dokument och kan inte tas bort.");
             }
@@ -403,7 +402,7 @@ public class CategoryController : ControllerBase
 
             if (documentsUsingCategory > 0)
             {
-                _log.LogWarning("Försök att ta bort underkategori {Id} som används av {Count} dokument", 
+                _log.LogWarning("Försök att ta bort underkategori {Id} som används av {Count} dokument",
                     id, documentsUsingCategory);
                 return BadRequest($"Underkategorin används av {documentsUsingCategory} dokument och kan inte tas bort.");
             }

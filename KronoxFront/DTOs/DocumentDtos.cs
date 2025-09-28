@@ -11,21 +11,21 @@ public class DocumentDto
     public List<int> SubCategories { get; set; } = new();
     public MainCategoryDto MainCategory { get; set; } = new();
     public List<SubCategoryDto> SubCategoryDtos { get; set; } = new();
-    
+
     // Fält för arkivering
     public bool IsArchived { get; set; } = false;
     public DateTime? ArchivedAt { get; set; }
     public string? ArchivedBy { get; set; }
-    
+
     // Hjälpmetod för formaterad filstorlek (samma som API)
     public string FormattedFileSize => FormatFileSize(FileSize);
-    
+
     private static string FormatFileSize(long bytes)
     {
         const int scale = 1024;
         string[] orders = { "GB", "MB", "KB", "Bytes" };
         long max = (long)Math.Pow(scale, orders.Length - 1);
-        
+
         foreach (string order in orders)
         {
             if (bytes > max)

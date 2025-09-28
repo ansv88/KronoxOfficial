@@ -1,10 +1,9 @@
-﻿using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Components.Forms;
-using KronoxFront.DTOs;
-using KronoxFront.ViewModels;
-using KronoxFront.Requests;
+﻿using KronoxFront.DTOs;
 using KronoxFront.Extensions;
-using Microsoft.Extensions.Logging;
+using KronoxFront.Requests;
+using KronoxFront.ViewModels;
+using Microsoft.AspNetCore.Components.Forms;
+using System.Net.Http.Headers;
 
 namespace KronoxFront.Services;
 
@@ -44,7 +43,7 @@ public class DocumentService
         var cachedDocs = await _cache.GetDocumentsAsync(async () =>
         {
             _logger.LogInformation("Fetching accessible documents from API");
-            
+
             try
             {
                 var response = await _http.GetAsync("api/documents/accessible");
@@ -58,10 +57,10 @@ public class DocumentService
             {
                 _logger.LogError(ex, "Error fetching accessible documents");
             }
-            
+
             return new List<DocumentViewModel>();
         });
-        
+
         return cachedDocs ?? new List<DocumentViewModel>();
     }
 

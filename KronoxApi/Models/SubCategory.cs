@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace KronoxApi.Models;
 
 // Underkategori för dokument (namn).
-public class SubCategory 
+public class SubCategory
 {
     public int Id { get; set; }
     [Required]

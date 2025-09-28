@@ -8,12 +8,12 @@ public class CacheService
 {
     private readonly IMemoryCache _cache;
     private readonly ILogger<CacheService> _logger;
-    
+
     // Cache-tider för säkerhet
     private static readonly TimeSpan ShortCache = TimeSpan.FromMinutes(3);    // Auktorisering
     private static readonly TimeSpan MediumCache = TimeSpan.FromMinutes(8);   // Sidinnehåll
     private static readonly TimeSpan LongCache = TimeSpan.FromMinutes(15);    // Statiskt innehåll
-    
+
     // Thread-safe tracking av cache-grupper för säker invalidering
     private readonly ConcurrentDictionary<string, ConcurrentBag<string>> _cacheGroups = new();
 
@@ -24,7 +24,7 @@ public class CacheService
     }
 
     // ============ CORE CACHE FUNCTIONALITY ============
-    
+
     // Hämtar data från cache eller kör factory-funktion
     public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T?>> factory, TimeSpan expiration, string? group = null)
     {
@@ -36,7 +36,7 @@ public class CacheService
 
         _logger.LogDebug("Cache miss: {CacheKey}", key);
         var item = await factory();
-        
+
         if (item != null)
         {
             var options = new MemoryCacheEntryOptions()
@@ -46,15 +46,15 @@ public class CacheService
                 .SetSize(1); // Hjälper med memory management
 
             _cache.Set(key, item, options);
-            
+
             // Lägg till i grupp för enkel invalidering
             if (!string.IsNullOrEmpty(group))
             {
-                _cacheGroups.AddOrUpdate(group, 
+                _cacheGroups.AddOrUpdate(group,
                     new ConcurrentBag<string> { key },
                     (_, existing) => { existing.Add(key); return existing; });
             }
-            
+
             _logger.LogDebug("Cached: {CacheKey} for {Expiration}", key, expiration);
         }
 
@@ -62,7 +62,7 @@ public class CacheService
     }
 
     // ============ SPECIFIKA CACHE-METODER ============
-    
+
     // Cache för publikt sidinnehåll (säkert att dela mellan användare)
     public async Task<T?> GetPageContentAsync<T>(string pageKey, Func<Task<T?>> factory)
     {
@@ -90,7 +90,7 @@ public class CacheService
     }
 
     // ============ DOKUMENTFUNKTIONALITET ============
-    
+
     public async Task<List<DocumentViewModel>?> GetDocumentsAsync(Func<Task<List<DocumentViewModel>?>> factory)
     {
         return await GetOrSetAsync("DocumentsWithCategories", factory, LongCache, "documents");
@@ -110,15 +110,15 @@ public class CacheService
             .SetSize(documents.Count);
 
         _cache.Set("DocumentsWithCategories", documents, options);
-        
+
         // Lägg till i grupp
-        _cacheGroups.AddOrUpdate("documents", 
+        _cacheGroups.AddOrUpdate("documents",
             new ConcurrentBag<string> { "DocumentsWithCategories" },
             (_, existing) => { existing.Add("DocumentsWithCategories"); return existing; });
     }
 
     // ============ SÄKER INVALIDERING ============
-    
+
     // Invalidera alla cache-poster i en grupp
     public void InvalidateGroup(string group)
     {
@@ -175,7 +175,7 @@ public class CacheService
     {
         // Invalidera själva sidans cache
         InvalidatePageCache(pageKey);
-        
+
         // Om det är kontaktaoss, rensa eventuella gamla kontakt-cacher
         if (pageKey == "kontaktaoss")
         {
@@ -186,7 +186,7 @@ public class CacheService
             InvalidateKey("features_private_kontakt");
             InvalidateKey("faq_kontakt");
         }
-        
+
         _logger.LogInformation("Invalidated caches for {PageKey} and related pages", pageKey);
     }
 }

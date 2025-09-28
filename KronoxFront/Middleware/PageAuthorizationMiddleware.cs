@@ -34,7 +34,7 @@ public class PageAuthorizationMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path.Value?.TrimStart('/').ToLower() ?? "";
-        
+
         if (ShouldSkipPath(path))
         {
             await _next(context);
@@ -53,15 +53,15 @@ public class PageAuthorizationMiddleware
         {
             var httpClient = _httpClientFactory.CreateClient("KronoxAPI");
             var customPageResponse = await httpClient.GetAsync($"api/custompage/{path}");
-            
+
             if (customPageResponse.IsSuccessStatusCode)
             {
                 var customPageJson = await customPageResponse.Content.ReadAsStringAsync();
-                var customPage = JsonSerializer.Deserialize<CustomPageDto>(customPageJson, new JsonSerializerOptions 
-                { 
-                    PropertyNameCaseInsensitive = true 
+                var customPage = JsonSerializer.Deserialize<CustomPageDto>(customPageJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
                 });
-                
+
                 if (customPage != null)
                 {
                     // Kontrollera om sidan är aktiv
@@ -71,16 +71,16 @@ public class PageAuthorizationMiddleware
                         context.Response.Redirect("/404");
                         return;
                     }
-                    
+
                     // Kontrollera rollbegränsningar
                     if (customPage.RequiredRoles.Any())
                     {
                         var user = context.User;
                         var isAuthenticated = user?.Identity?.IsAuthenticated == true;
-                        
+
                         if (!isAuthenticated || !customPage.RequiredRoles.Any(role => user.IsInRole(role)))
                         {
-                            _logger.LogInformation("User {User} lacks access to restricted custom page {Path}", 
+                            _logger.LogInformation("User {User} lacks access to restricted custom page {Path}",
                                 user?.Identity?.Name ?? "Anonymous", path);
                             context.Response.Redirect("/404");
                             return;
@@ -99,15 +99,15 @@ public class PageAuthorizationMiddleware
             {
                 // Inte en custom page - kontrollera navigation config
                 var navResponse = await httpClient.GetAsync($"api/navigation/page/{path}");
-                
+
                 if (navResponse.IsSuccessStatusCode)
                 {
                     var json = await navResponse.Content.ReadAsStringAsync();
-                    var config = JsonSerializer.Deserialize<NavigationConfigDto>(json, new JsonSerializerOptions 
-                    { 
-                        PropertyNameCaseInsensitive = true 
+                    var config = JsonSerializer.Deserialize<NavigationConfigDto>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
                     });
-                    
+
                     if (config != null && !config.IsActive)
                     {
                         _logger.LogInformation("Page {Path} is disabled", path);
@@ -138,7 +138,7 @@ public class PageAuthorizationMiddleware
             {
                 // Andra HTTP-fel från API
                 _logger.LogWarning("Unexpected API response for {Path}: {StatusCode}", path, customPageResponse.StatusCode);
-                
+
                 // Vid oväntat API-fel, blockera åtkomst till okända sidor
                 context.Response.Redirect("/404");
                 return;
@@ -162,7 +162,7 @@ public class PageAuthorizationMiddleware
         // Endast om allt är OK - fortsätt till Blazor
         await _next(context);
     }
-    
+
     private static bool ShouldSkipPath(string path)
     {
         return string.IsNullOrEmpty(path) ||

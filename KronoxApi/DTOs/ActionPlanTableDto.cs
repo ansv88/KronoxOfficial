@@ -27,7 +27,7 @@ public class CreateActionPlanItemDto
     [Required]
     [StringLength(200)]
     public string Module { get; set; } = "";
-    
+
     [Required]
     [StringLength(1000)]
     public string Activity { get; set; } = "";
@@ -37,9 +37,9 @@ public class CreateActionPlanItemDto
 
     [StringLength(100)]
     public string PlannedDelivery { get; set; } = "";
-    
+
     [StringLength(100)]
     public string Completed { get; set; } = "";
-    
+
     public int Priority { get; set; }
 }

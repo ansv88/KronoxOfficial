@@ -292,7 +292,7 @@ public class FaqController : ControllerBase
             {
                 _context.FaqItems.RemoveRange(section.FaqItems);
             }
-            
+
             _context.FaqSections.RemoveRange(sections);
             await _context.SaveChangesAsync();
 

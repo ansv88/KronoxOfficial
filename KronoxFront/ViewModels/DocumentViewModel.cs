@@ -15,38 +15,38 @@ public class DocumentViewModel
     public MainCategoryViewModel? MainCategory { get; set; }
     public MainCategoryDto MainCategoryDto { get; set; } = new();
     public List<SubCategoryDto>? SubCategoryDtos { get; set; } = new();
-    
+
     // Fält för arkivering
     public bool IsArchived { get; set; } = false;
     public DateTime? ArchivedAt { get; set; }
     public string? ArchivedBy { get; set; }
-    
+
     // UI-specifika hjälpmetoder
     public string FormattedFileSize => FormatFileSize(FileSize);
     public string FileExtension => Path.GetExtension(FileName).ToLowerInvariant();
     public string FileIconClass => GetFileIconClass();
-    
+
     // Säkerhetshjälpmetoder för UI
     public bool IsAccessibleByRole(string role)
     {
         if (!MainCategoryDto.AllowedRoles.Any()) return true; // Öppen för alla
         return MainCategoryDto.AllowedRoles.Contains(role, StringComparer.OrdinalIgnoreCase);
     }
-    
+
     public bool IsAccessibleByRoles(IEnumerable<string> roles)
     {
         if (!MainCategoryDto.AllowedRoles.Any()) return true; // Öppen för alla
-        return MainCategoryDto.AllowedRoles.Any(allowedRole => 
+        return MainCategoryDto.AllowedRoles.Any(allowedRole =>
             roles.Contains(allowedRole, StringComparer.OrdinalIgnoreCase));
     }
-    
+
     public string GetAccessibilityDescription()
     {
         if (!MainCategoryDto.AllowedRoles.Any())
             return "Alla användare";
         return $"Begränsad till: {string.Join(", ", MainCategoryDto.AllowedRoles)}";
     }
-    
+
     private string GetFileIconClass()
     {
         return FileExtension switch
@@ -61,13 +61,13 @@ public class DocumentViewModel
             _ => "fa-solid fa-file text-muted"
         };
     }
-    
+
     private static string FormatFileSize(long bytes)
     {
         const int scale = 1024;
         string[] orders = { "GB", "MB", "KB", "Bytes" };
         long max = (long)Math.Pow(scale, orders.Length - 1);
-        
+
         foreach (string order in orders)
         {
             if (bytes > max)

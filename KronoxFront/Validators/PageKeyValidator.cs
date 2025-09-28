@@ -5,10 +5,10 @@ namespace KronoxFront.Validators;
 public static class PageKeyValidator
 {
     // Komplett lista över reserverade routes
-    private static readonly string[] ReservedRoutes = 
+    private static readonly string[] ReservedRoutes =
     {
         // Admin-specifika routes (kolliderar med /admin/{PageKey})
-        "pages", "users", "news", "memberlogos", "suggestions", 
+        "pages", "users", "news", "memberlogos", "suggestions",
         "documents", "manage", "dashboard", "home",
         
         // Befintliga publik sidor (kolliderar med /{PageKey})  
@@ -24,9 +24,9 @@ public static class PageKeyValidator
         "profile", "settings", "config", "test", "demo"
     };
 
-    private static readonly string[] ReservedPrefixes = 
-    { 
-        "admin", "api", "auth", "for-" 
+    private static readonly string[] ReservedPrefixes =
+    {
+        "admin", "api", "auth", "for-"
     };
 
     public static ValidationResult? ValidatePageKey(string pageKey, ValidationContext context)
@@ -35,20 +35,20 @@ public static class PageKeyValidator
             return ValidationResult.Success; // Hanteras av Required-attributet
 
         var lowerPageKey = pageKey.ToLower();
-        
+
         // Kontrollera reserverade routes
         if (ReservedRoutes.Contains(lowerPageKey))
         {
             return new ValidationResult($"PageKey '{pageKey}' är reserverat för systemfunktioner. Välj ett annat namn.");
         }
-        
+
         // Kontrollera reserverade prefix
         if (ReservedPrefixes.Any(prefix => lowerPageKey.StartsWith(prefix)))
         {
             var conflictingPrefix = ReservedPrefixes.First(prefix => lowerPageKey.StartsWith(prefix));
             return new ValidationResult($"PageKey '{pageKey}' får inte börja med '{conflictingPrefix}'. Välj ett annat namn.");
         }
-        
+
         return ValidationResult.Success;
     }
 
@@ -61,7 +61,7 @@ public static class PageKeyValidator
             return false;
 
         var lowerPageKey = pageKey.ToLower();
-        return !ReservedRoutes.Contains(lowerPageKey) && 
+        return !ReservedRoutes.Contains(lowerPageKey) &&
                !ReservedPrefixes.Any(prefix => lowerPageKey.StartsWith(prefix));
     }
 

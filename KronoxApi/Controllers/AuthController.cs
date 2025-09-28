@@ -1,8 +1,8 @@
-﻿using KronoxApi.Models;
+﻿using KronoxApi.Attributes;
 using KronoxApi.DTOs;
+using KronoxApi.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using KronoxApi.Attributes;
 
 namespace KronoxApi.Controllers;
 
