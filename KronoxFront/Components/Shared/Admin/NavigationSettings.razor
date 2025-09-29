@@ -1,7 +1,10 @@
-@using KronoxFront.ViewModels
+ï»¿@using KronoxFront.ViewModels
 @using KronoxFront.Services
 @using KronoxFront.DTOs
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Json
 @using System.Reflection
 @inject IHttpClientFactory HttpClientFactory
 @inject IToastService Toast
@@ -12,18 +15,18 @@
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h5 class="h5 mb-0">
             <i class="fa-solid fa-globe me-2"></i>
-            Sidtillgänglighet & navigation
+            SidtillgÃ¤nglighet & navigation
         </h5>
         <div class="d-flex align-items-center gap-2">
             @if (navigationConfig != null)
             {
-                @if (navigationConfig.IsActive == false)
+                if (!navigationConfig.IsActive)
                 {
                     <span class="badge bg-danger fs-6">INAKTIVERAD</span>
                 }
                 else if (HasAnyRestrictions())
                 {
-                    <span class="badge bg-warning text-dark fs-6">AKTIV - BEGRÄNSAD</span>
+                    <span class="badge bg-warning text-dark fs-6">AKTIV - BEGRÃ„NSAD</span>
                 }
                 else
                 {
@@ -32,7 +35,7 @@
             }
             <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ToggleSettings">
                 <i class="fa-solid fa-@(showSettings ? "eye-slash" : "cog")"></i>
-                @(showSettings ? "Dölj" : "Visa") inställningar
+                @(showSettings ? "DÃ¶lj" : "Visa") instÃ¤llningar
             </button>
         </div>
     </div>
@@ -44,293 +47,315 @@
             {
                 <EditForm Model="navigationConfig" OnValidSubmit="SaveNavigationSettings">
                     <DataAnnotationsValidator />
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-medium">Länktext i navigation</label>
-                                <InputText class="form-control" @bind-Value="navigationConfig.DisplayName" />
-                                <ValidationMessage For="() => navigationConfig.DisplayName" />
-                                <div class="form-text">Detta namn visas i navigationsmenyn</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label fw-medium">Sorteringsordning</label>
-                                <InputNumber class="form-control" @bind-Value="navigationConfig.SortOrder" />
-                                <ValidationMessage For="() => navigationConfig.SortOrder" />
-                                <div class="form-text">Lägre nummer = högre upp</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label fw-medium">Status</label>
-
-                                @if (IsFixedPage())
-                                {
-                                    <!-- Fasta sidor: aktiv/inaktiv sida (startsidan kan ej inaktiveras) -->
-                                    <div class="form-check mb-1">
-                                        <InputCheckbox class="form-check-input"
-                                                       @bind-Value="navigationConfig.IsActive"
-                                                       @onchange="OnFixedIsActiveChanged"
-                                                       disabled="@IsHomePage()" />
-                                        <label class="form-check-label">Aktiv/Inaktiv sida</label>
-                                    </div>
-                                    @if (IsHomePage())
-                                    {
-                                        <div class="form-text text-muted mb-2">
-                                            Startsidan kan inte inaktiveras och visas inte som länk i navigationen.
-                                        </div>
-                                    }
-
-                                    <!-- Förtydligad info för fasta sidor -->
-                                    <div class="mb-2">
-                                        @if (!navigationConfig.IsActive)
-                                        {
-                                            <div class="alert alert-warning py-2 mb-0">
-                                                <small>
-                                                    <i class="fa-solid fa-eye-slash me-1"></i>
-                                                    Inaktiverad: Länken tas bort från navigationen och direktbesök ger 404.
-                                                </small>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="alert alert-success py-2 mb-0">
-                                                <small>
-                                                    <i class="fa-solid fa-eye me-1"></i>
-                                                    @if (IsHomePage())
-                                                    {
-                                                        <span>Aktiv: Startsidan är alltid tillgänglig via /. Den visas inte som länk i navigationen.</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span>Aktiv: Länken visas i navigationen. Åtkomst styrs av sidans behörighet.</span>
-                                                    }
-                                                </small>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                                else
-                                {
-                                    <!-- Anpassade sidor: Visa i navigation + aktiv/inaktiv sida -->
-                                    <div class="form-check mb-1">
-                                        <InputCheckbox class="form-check-input"
-                                                       @bind-Value="showInNavigation"
-                                                       @onchange="OnShowInNavigationChanged" />
-                                        <label class="form-check-label">Visa i navigation</label>
-                                    </div>
-                                    <div class="form-text mb-2">
-                                        Styr endast synligheten i menyn. Direktlänk kräver att sidan är aktiv.
-                                    </div>
-
-                                    <div class="form-check">
-                                        <InputCheckbox class="form-check-input"
-                                                       @bind-Value="navigationConfig.IsActive"
-                                                       @onchange="OnIsActiveChanged" />
-                                        <label class="form-check-label">Aktiv/Inaktiv sida</label>
-                                    </div>
-                                    <div class="form-text">
-                                        Inaktiverad sida går inte att besöka (404) och tas bort från navigationen.
-                                    </div>
-
-                                    @if (!navigationConfig.IsActive)
-                                    {
-                                        <div class="alert alert-danger py-2 mt-2 mb-0">
-                                            <small>
-                                                <i class="fa-solid fa-exclamation-triangle me-1"></i>
-                                                <strong>Inaktiverad:</strong> Sidan är avpublicerad, ger 404 vid direktlänk och är borttagen från navigationen.
-                                            </small>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="alert alert-success py-2 mt-2 mb-0">
-                                            <small>
-                                                <i class="fa-solid fa-check-circle me-1"></i>
-                                                <strong>Aktiv:</strong> Sidan är tillgänglig för användare och kan visas i navigationen.
-                                            </small>
-                                        </div>
-                                    }
-                                }
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Åtkomstinformation (alltid synlig) -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="card @GetAccessCardClass()">
-                                <div class="card-body py-3">
-                                    <div class="d-flex align-items-center">
-                                        <i class="@GetAccessIcon() fa-lg me-3"></i>
-                                        <div>
-                                            <h6 class="mb-1 @GetAccessTextClass()">
-                                                @GetAccessTitle()
-                                            </h6>
-                                            <small class="@GetAccessTextClass()">
-                                                @GetAccessDescription()
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    @{
-                        bool isFixedPageCheck = IsFixedPage();
-                    }
-
-                    @if (isFixedPageCheck)
+                    @if (PageKey.Equals("home", StringComparison.OrdinalIgnoreCase))
                     {
-                        <div class="card border-info mb-3">
-                            <div class="card-header bg-info bg-opacity-10">
-                                <h6 class="mb-0 text-info-emphasis">
-                                    <i class="fa-solid fa-info-circle me-2"></i>
-                                    Fast systemsida
-                                </h6>
+                        <div class="alert alert-warning d-flex align-items-center" role="alert">
+                            <i class="fa-solid fa-shield-halved me-2"></i>
+                            <div>
+                                Startsidan Ã¤r en systemâ€‘sida. Den Ã¤r alltid aktiv, synlig fÃ¶r alla och kan inte avaktiveras.
                             </div>
-                            <div class="card-body">
-                                @if (IsHomePage())
-                                {
-                                    <p class="mb-3 text-muted">
-                                        Detta är startsidan. Den kan inte inaktiveras och visas inte som länk i navigationen.
-                                        Åtkomst styrs av sidans kod/behörighet.
-                                    </p>
-                                }
-                                else
-                                {
-                                    <p class="mb-3 text-muted">
-                                        Detta är en fast systemsida. När du inaktiverar sidan tas länken bort från navigationen
-                                        och direktbesök ger 404. Åtkomstregler styrs av sidans kod.
-                                    </p>
-                                }
+                        </div>
 
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <h6 class="fw-medium text-muted mb-2">
-                                                <i class="fa-solid fa-globe me-2"></i>
-                                                Synlighet för gäster
-                                            </h6>
-                                            @if (navigationConfig.IsVisibleToGuests)
-                                            {
-                                                <div class="alert alert-success py-2 mb-0">
-                                                    <small>
-                                                        <i class="fa-solid fa-check-circle me-1"></i>
-                                                        <strong>Tillgänglig:</strong> Sidan kan besökas av oinloggade användare.
-                                                        @if (!HasAnyRestrictions())
-                                                        {
-                                                            <br>
-                                                            <em>Observera: Vissa sektioner kan ha rollbaserad åtkomst.</em>
-                                                        }
-                                                    </small>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <div class="alert alert-warning py-2 mb-0">
-                                                    <small>
-                                                        <i class="fa-solid fa-shield-alt me-1"></i>
-                                                        <strong>Begränsad:</strong> Sidan kräver inloggning eller specifika roller.
-                                                    </small>
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <h6 class="fw-medium text-muted mb-2">
-                                                <i class="fa-solid fa-user-check me-2"></i>
-                                                Synlighet för medlemmar
-                                            </h6>
-                                            <div class="alert alert-info py-2 mb-0">
-                                                <small>
-                                                    <i class="fa-solid fa-info-circle me-1"></i>
-                                                    <strong>Automatisk:</strong> Alla inloggade användare ser länken i navigationen (om aktiv).
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Visningsnamn</label>
+                                <input class="form-control" value="@(InitialDisplayName ?? "Startsida")" disabled />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Ordning</label>
+                                <input type="number" class="form-control" value="0" disabled />
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fa-solid fa-shield-halved me-1"></i> System
+                                </span>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked disabled />
+                                    <label class="form-check-label">Aktiv</label>
                                 </div>
-
-                                <div class="alert alert-light border-info mt-3">
-                                    <small class="text-muted">
-                                        <i class="fa-solid fa-lightbulb me-2"></i>
-                                        <strong>Förklaring:</strong> Åtkomst styrs av <code>[Authorize]</code>-attribut eller policies i sidans kod.
-                                        @if (PageKey.Equals("dokument", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            <text>Dokumentsidan har dessutom rollbaserad innehållsfiltrering per kategori.</text>
-                                        }
-                                        @if (!IsHomePage())
-                                        {
-                                            <text>
-                                                <br><strong>Inaktiverad fast sida:</strong> Döljer länken i navigationen och ger 404 vid direktbesök.
-                                            </text>
-                                        }
-                                        @if (!HasAnyRestrictions())
-                                        {
-                                            <text>
-                                                <br><strong>Innehållsobservation:</strong> Enskilda sektioner kan vara rollstyrda.
-                                            </text>
-                                        }
-                                        @if (IsHomePage())
-                                        {
-                                            <text>
-                                                <br><strong>Begränsning:</strong> Startsidan kan inte inaktiveras.
-                                            </text>
-                                        }
-                                    </small>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked disabled />
+                                    <label class="form-check-label">Synlig fÃ¶r gÃ¤ster</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked disabled />
+                                    <label class="form-check-label">Synlig fÃ¶r medlemmar</label>
                                 </div>
                             </div>
                         </div>
                     }
                     else
                     {
-                        <!-- Full redigeringskontroll ENDAST för custom pages -->
-                        <div class="card border-success mb-3">
-                            <div class="card-header bg-success bg-opacity-10">
-                                <h6 class="mb-0 text-success-emphasis">
-                                    <i class="fa-solid fa-edit me-2"></i>
-                                    Anpassad sida - Full kontroll
-                                </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">LÃ¤nktext i navigation</label>
+                                    <InputText class="form-control" @bind-Value="navigationConfig.DisplayName" />
+                                    <ValidationMessage For="() => navigationConfig.DisplayName" />
+                                    <div class="form-text">Detta namn visas i navigationsmenyn</div>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <p class="mb-3 text-muted">
-                                    Detta är en anpassad sida. När du inaktiverar sidan blir den inte besökbar (404) och tas bort från navigationen.
-                                </p>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Sorteringsordning</label>
+                                    <InputNumber class="form-control" @bind-Value="navigationConfig.SortOrder" />
+                                    <ValidationMessage For="() => navigationConfig.SortOrder" />
+                                    <div class="form-text">LÃ¤gre nummer = hÃ¶gre upp</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Status</label>
 
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-medium">
-                                                <i class="fa-solid fa-globe me-1"></i>
-                                                Publik synlighet
-                                            </label>
-                                            <div class="form-check">
-                                                <InputCheckbox class="form-check-input"
-                                                               @bind-Value="navigationConfig.IsVisibleToGuests"
-                                                               @onchange="OnPublicVisibilityChanged" />
-                                                <label class="form-check-label">Gör sidan publik (synlig för oinloggade)</label>
+                                    @if (IsFixedPage())
+                                    {
+                                        <div class="form-check mb-1">
+                                            <InputCheckbox class="form-check-input"
+                                                           @bind-Value="navigationConfig.IsActive"
+                                                           @onchange="OnFixedIsActiveChanged"
+                                                           disabled="@IsHomePage()" />
+                                            <label class="form-check-label">Aktiv/Inaktiv sida</label>
+                                        </div>
+                                        @if (IsHomePage())
+                                        {
+                                            <div class="form-text text-muted mb-2">
+                                                Startsidan kan inte inaktiveras och visas inte som lÃ¤nk i navigationen.
                                             </div>
-                                            <div class="form-text">
-                                                Rollbehörigheter för inloggade ändras i
-                                                <a href="/admin/pages" class="text-decoration-none">Hantera sidor</a>.
+                                        }
+
+                                        <div class="mb-2">
+                                            @if (!navigationConfig.IsActive)
+                                            {
+                                                <div class="alert alert-warning py-2 mb-0">
+                                                    <small>
+                                                        <i class="fa-solid fa-eye-slash me-1"></i>
+                                                        Inaktiverad: LÃ¤nken tas bort frÃ¥n navigationen och direktbesÃ¶k ger 404.
+                                                    </small>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="alert alert-success py-2 mb-0">
+                                                    <small>
+                                                        <i class="fa-solid fa-eye me-1"></i>
+                                                        @if (IsHomePage())
+                                                        {
+                                                            <span>Aktiv: Startsidan Ã¤r alltid tillgÃ¤nglig via /. Den visas inte som lÃ¤nk i navigationen.</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>Aktiv: LÃ¤nken visas i navigationen. Ã…tkomst styrs av sidans behÃ¶righet.</span>
+                                                        }
+                                                    </small>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="form-check mb-1">
+                                            <InputCheckbox class="form-check-input"
+                                                           @bind-Value="showInNavigation"
+                                                           @onchange="OnShowInNavigationChanged" />
+                                            <label class="form-check-label">Visa i navigation</label>
+                                        </div>
+                                        <div class="form-text mb-2">
+                                            Styr endast synligheten i menyn. DirektlÃ¤nk krÃ¤ver att sidan Ã¤r aktiv.
+                                        </div>
+
+                                        <div class="form-check">
+                                            <InputCheckbox class="form-check-input"
+                                                           @bind-Value="navigationConfig.IsActive"
+                                                           @onchange="OnIsActiveChanged" />
+                                            <label class="form-check-label">Aktiv/Inaktiv sida</label>
+                                        </div>
+                                        <div class="form-text">
+                                            Inaktiverad sida gÃ¥r inte att besÃ¶ka (404) och tas bort frÃ¥n navigationen.
+                                        </div>
+
+                                        @if (!navigationConfig.IsActive)
+                                        {
+                                            <div class="alert alert-danger py-2 mt-2 mb-0">
+                                                <small>
+                                                    <i class="fa-solid fa-exclamation-triangle me-1"></i>
+                                                    <strong>Inaktiverad:</strong> Sidan Ã¤r avpublicerad, ger 404 vid direktlÃ¤nk och Ã¤r borttagen frÃ¥n navigationen.
+                                                </small>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="alert alert-success py-2 mt-2 mb-0">
+                                                <small>
+                                                    <i class="fa-solid fa-check-circle me-1"></i>
+                                                    <strong>Aktiv:</strong> Sidan Ã¤r tillgÃ¤nglig fÃ¶r anvÃ¤ndare och kan visas i navigationen.
+                                                </small>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="card @GetAccessCardClass()">
+                                    <div class="card-body py-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="@GetAccessIcon() fa-lg me-3"></i>
+                                            <div>
+                                                <h6 class="mb-1 @GetAccessTextClass()">@GetAccessTitle()</h6>
+                                                <small class="@GetAccessTextClass()">@GetAccessDescription()</small>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="alert alert-light border-success mt-3">
-                                    <small class="text-muted">
-                                        <i class="fa-solid fa-info-circle me-2"></i>
-                                        <strong>Anpassad sida:</strong> Ändringar här påverkar både navigation och sidåtkomst.
-                                    </small>
-                                </div>
                             </div>
                         </div>
+
+                        @if (IsFixedPage())
+                        {
+                            <div class="card border-info mb-3">
+                                <div class="card-header bg-info bg-opacity-10">
+                                    <h6 class="mb-0 text-info-emphasis">
+                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        Fast systemsida
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    @if (IsHomePage())
+                                    {
+                                        <p class="mb-3 text-muted">
+                                            Detta Ã¤r startsidan. Den kan inte inaktiveras och visas inte som lÃ¤nk i navigationen.
+                                            Ã…tkomst styrs av sidans kod/behÃ¶righet.
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-3 text-muted">
+                                            Detta Ã¤r en fast systemsida. NÃ¤r du inaktiverar sidan tas lÃ¤nken bort frÃ¥n navigationen
+                                            och direktbesÃ¶k ger 404. Ã…tkomstregler styrs av sidans kod.
+                                        </p>
+                                    }
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <h6 class="fw-medium text-muted mb-2">
+                                                    <i class="fa-solid fa-globe me-2"></i>
+                                                    Synlighet fÃ¶r gÃ¤ster
+                                                </h6>
+                                                @if (navigationConfig.IsVisibleToGuests)
+                                                {
+                                                    <div class="alert alert-success py-2 mb-0">
+                                                        <small>
+                                                            <i class="fa-solid fa-check-circle me-1"></i>
+                                                            <strong>TillgÃ¤nglig:</strong> Sidan kan besÃ¶kas av oinloggade anvÃ¤ndare.
+                                                            @if (!HasAnyRestrictions())
+                                                            {
+                                                                <br />
+                                                                <em>Observera: Vissa sektioner kan ha rollbaserad Ã¥tkomst.</em>
+                                                            }
+                                                        </small>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="alert alert-warning py-2 mb-0">
+                                                        <small>
+                                                            <i class="fa-solid fa-shield-alt me-1"></i>
+                                                            <strong>BegrÃ¤nsad:</strong> Sidan krÃ¤ver inloggning eller specifika roller.
+                                                        </small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <h6 class="fw-medium text-muted mb-2">
+                                                    <i class="fa-solid fa-user-check me-2"></i>
+                                                    Synlighet fÃ¶r medlemmar
+                                                </h6>
+                                                <div class="alert alert-info py-2 mb-0">
+                                                    <small>
+                                                        <i class="fa-solid fa-info-circle me-1"></i>
+                                                        <strong>Automatisk:</strong> Alla inloggade anvÃ¤ndare ser lÃ¤nken i navigationen (om aktiv).
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-light border-info mt-3">
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-lightbulb me-2"></i>
+                                            <strong>FÃ¶rklaring:</strong> Ã…tkomst styrs av <code>[Authorize]</code>-attribut eller policies i sidans kod.
+                                            @if (PageKey.Equals("dokument", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <text>Dokumentsidan har dessutom rollbaserad innehÃ¥llsfiltrering per kategori.</text>
+                                            }
+                                            @if (!IsHomePage())
+                                            {
+                                                <text><br /><strong>Inaktiverad fast sida:</strong> DÃ¶ljer lÃ¤nken i navigationen och ger 404 vid direktbesÃ¶k.</text>
+                                            }
+                                            @if (!HasAnyRestrictions())
+                                            {
+                                                <text><br /><strong>InnehÃ¥llsobservation:</strong> Enskilda sektioner kan vara rollstyrda.</text>
+                                            }
+                                            @if (IsHomePage())
+                                            {
+                                                <text><br /><strong>BegrÃ¤nsning:</strong> Startsidan kan inte inaktiveras.</text>
+                                            }
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card border-success mb-3">
+                                <div class="card-header bg-success bg-opacity-10">
+                                    <h6 class="mb-0 text-success-emphasis">
+                                        <i class="fa-solid fa-edit me-2"></i>
+                                        Anpassad sida - Full kontroll
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-3 text-muted">
+                                        Detta Ã¤r en anpassad sida. NÃ¤r du inaktiverar sidan blir den inte besÃ¶kbar (404) och tas bort frÃ¥n navigationen.
+                                    </p>
+
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-medium">
+                                                    <i class="fa-solid fa-globe me-1"></i>
+                                                    Publik synlighet
+                                                </label>
+                                                <div class="form-check">
+                                                    <InputCheckbox class="form-check-input"
+                                                                   @bind-Value="navigationConfig.IsVisibleToGuests"
+                                                                   @onchange="OnPublicVisibilityChanged" />
+                                                    <label class="form-check-label">GÃ¶r sidan publik (synlig fÃ¶r oinloggade)</label>
+                                                </div>
+                                                <div class="form-text">
+                                                    RollbehÃ¶righeter fÃ¶r inloggade Ã¤ndras i
+                                                    <a href="/admin/pages" class="text-decoration-none">Hantera sidor</a>.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-light border-success mt-3">
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-info-circle me-2"></i>
+                                            <strong>Anpassad sida:</strong> Ã„ndringar hÃ¤r pÃ¥verkar bÃ¥de navigation och sidÃ¥tkomst.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     }
 
                     <div class="d-flex justify-content-end">
@@ -343,7 +368,7 @@
                             else
                             {
                                 <i class="fa-solid fa-save me-1"></i>
-                                <text>Spara navigationsinställningar</text>
+                                <text>Spara navigationsinstÃ¤llningar</text>
                             }
                         </button>
                     </div>
@@ -353,7 +378,7 @@
             {
                 <div class="alert alert-info">
                     <i class="fa-solid fa-info-circle me-2"></i>
-                    Laddar navigationsinställningar...
+                    Laddar navigationsinstÃ¤llningar...
                 </div>
             }
         </div>
@@ -371,23 +396,14 @@
 
     private CustomPageDto? customPage;
     private bool hasNavigationConfig = false;
-
     private bool showInNavigation = true;
 
-    private List<string> pageAuthorizeRoles = new();
+    private readonly List<string> pageAuthorizeRoles = new();
 
     private static readonly HashSet<string> FixedPages = new(StringComparer.OrdinalIgnoreCase)
     {
-        "home",
-        "omkonsortiet",
-        "omsystemet",
-        "visioner",
-        "kontaktaoss",
-        "dokument",
-        "medlemsnytt",
-        "forvaltning",
-        "forvnsg",
-        "forstyrelsen"
+        "home","omkonsortiet","omsystemet","visioner","kontaktaoss",
+        "dokument","medlemsnytt","forvaltning","forvnsg","forstyrelsen"
     };
 
     protected override async Task OnInitializedAsync()
@@ -407,7 +423,6 @@
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
 
-            // Försök hämta NavigationConfig (om den finns)
             var navResponse = await httpClient.GetAsync($"api/navigation/page/{PageKey}");
             if (navResponse.IsSuccessStatusCode)
             {
@@ -445,12 +460,10 @@
                 };
             }
 
-            // Hämta CustomPage (om anpassad sida)
             var pageResponse = await httpClient.GetAsync($"api/custompage/{PageKey}");
             if (pageResponse.IsSuccessStatusCode)
             {
                 customPage = await pageResponse.Content.ReadFromJsonAsync<CustomPageDto>();
-
                 if (customPage != null)
                 {
                     navigationConfig ??= new NavigationConfigViewModel();
@@ -459,10 +472,7 @@
                     navigationConfig.DisplayName = customPage.DisplayName ?? navigationConfig.DisplayName ?? customPage.PageKey;
                     navigationConfig.SortOrder = customPage.SortOrder;
 
-                    // IsActive speglar sidans publiceringsstatus för custom pages
                     navigationConfig.IsActive = customPage.IsActive;
-
-                    // Separat toggle för synlighet i navigation
                     showInNavigation = customPage.ShowInNavigation;
 
                     var roles = customPage.RequiredRoles ?? new List<string>();
@@ -471,9 +481,9 @@
                 }
             }
         }
-        catch (Exception)
+        catch
         {
-            await Toast.Error("Kunde inte ladda navigationsinställningar");
+            await Toast.Error("Kunde inte ladda navigationsinstÃ¤llningar");
         }
     }
 
@@ -509,9 +519,7 @@
                 {
                     if (!string.IsNullOrEmpty(attr.Roles))
                     {
-                        var roles = attr.Roles.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                             .Select(r => r.Trim())
-                                             .ToList();
+                        var roles = attr.Roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                         pageAuthorizeRoles.AddRange(roles);
                     }
                     else
@@ -527,15 +535,8 @@
         }
     }
 
-    private bool IsFixedPage()
-    {
-        return !string.IsNullOrEmpty(PageKey) && FixedPages.Contains(PageKey);
-    }
-
-    private bool IsHomePage()
-    {
-        return string.Equals(PageKey, "home", StringComparison.OrdinalIgnoreCase);
-    }
+    private bool IsFixedPage() => !string.IsNullOrEmpty(PageKey) && FixedPages.Contains(PageKey);
+    private bool IsHomePage() => string.Equals(PageKey, "home", StringComparison.OrdinalIgnoreCase);
 
     private void SyncVisibilityWithRoleRestrictions()
     {
@@ -550,24 +551,13 @@
         return effectiveRoles.Any();
     }
 
-    private bool HasRestrictedRoles()
-    {
-        var effectiveRoles = GetEffectiveRoles();
-        return effectiveRoles.Any(role => role != "RequiresAuthentication" && role != "ExcludeNewUser");
-    }
-
     private List<string> GetEffectiveRoles()
     {
-        if (pageAuthorizeRoles.Any())
-            return pageAuthorizeRoles;
-
-        if (customPage?.RequiredRoles is { } cpRoles && cpRoles.Any())
-            return cpRoles;
+        if (pageAuthorizeRoles.Any()) return pageAuthorizeRoles;
+        if (customPage?.RequiredRoles is { } cpRoles && cpRoles.Any()) return cpRoles;
 
         if (!string.IsNullOrEmpty(navigationConfig?.RequiredRoles))
-            return navigationConfig.RequiredRoles.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                                 .Select(r => r.Trim())
-                                                 .ToList();
+            return navigationConfig.RequiredRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
         return new List<string>();
     }
@@ -575,58 +565,43 @@
     private string GetAccessTitle()
     {
         var roles = GetEffectiveRoles();
-        if (!roles.Any())
-            return "Tillgänglig för alla besökare";
-
-        if (roles.Contains("ExcludeNewUser"))
-            return "Kräver inloggning med rollbaserad innehållsfiltrering";
-
-        if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
-            return "Kräver inloggning";
+        if (!roles.Any()) return "TillgÃ¤nglig fÃ¶r alla besÃ¶kare";
+        if (roles.Contains("ExcludeNewUser")) return "KrÃ¤ver inloggning med rollbaserad innehÃ¥llsfiltrering";
+        if (roles.Contains("RequiresAuthentication") && roles.Count == 1) return "KrÃ¤ver inloggning";
 
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
-        if (!specificRoles.Any())
-            return "Kräver inloggning";
+        if (!specificRoles.Any()) return "KrÃ¤ver inloggning";
 
         var roleNames = specificRoles.Select(GetRoleDisplayName);
         return specificRoles.Count == 1
-            ? $"Endast tillgänglig för {roleNames.First()}"
-            : $"Endast tillgänglig för {string.Join(" och ", roleNames)}-roller";
+            ? $"Endast tillgÃ¤nglig fÃ¶r {roleNames.First()}"
+            : $"Endast tillgÃ¤nglig fÃ¶r {string.Join(" och ", roleNames)}-roller";
     }
 
     private string GetAccessDescription()
     {
         var roles = GetEffectiveRoles();
         if (!roles.Any())
-        {
-            return "Denna sida är öppen för alla besökare, inklusive oinloggade användare, men vissa sektioner kan ha rollbaserad åtkomst";
-        }
+            return "Denna sida Ã¤r Ã¶ppen fÃ¶r alla besÃ¶kare, inklusive oinloggade anvÃ¤ndare, men vissa sektioner kan ha rollbaserad Ã¥tkomst";
 
         if (roles.Contains("ExcludeNewUser"))
-            return "Sidan kräver inloggning (utom nya användare) och filtrerar innehåll baserat på användarens roller";
+            return "Sidan krÃ¤ver inloggning (utom nya anvÃ¤ndare) och filtrerar innehÃ¥ll baserat pÃ¥ anvÃ¤ndarens roller";
 
         if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
-            return "Sidan kräver inloggning men har inga specifika rollbegränsningar";
+            return "Sidan krÃ¤ver inloggning men har inga specifika rollbegrÃ¤nsningar";
 
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
-        if (!specificRoles.Any())
-            return "Sidan kräver inloggning men har inga specifika rollbegränsningar";
+        if (!specificRoles.Any()) return "Sidan krÃ¤ver inloggning men har inga specifika rollbegrÃ¤nsningar";
 
-        return $"Endast användare med {(specificRoles.Count == 1 ? "denna roll" : "dessa roller")} kan komma åt sidan";
+        return $"Endast anvÃ¤ndare med {(specificRoles.Count == 1 ? "denna roll" : "dessa roller")} kan komma Ã¥t sidan";
     }
 
     private string GetAccessIcon()
     {
         var roles = GetEffectiveRoles();
-        if (!roles.Any())
-            return "fa-solid fa-globe text-success";
-
-        if (roles.Contains("ExcludeNewUser"))
-            return "fa-solid fa-user-shield text-warning";
-
-        if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
-            return "fa-solid fa-user text-info";
-
+        if (!roles.Any()) return "fa-solid fa-globe text-success";
+        if (roles.Contains("ExcludeNewUser")) return "fa-solid fa-user-shield text-warning";
+        if (roles.Contains("RequiresAuthentication") && roles.Count == 1) return "fa-solid fa-user text-info";
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         return specificRoles.Any() ? "fa-solid fa-user-shield text-warning" : "fa-solid fa-user text-info";
     }
@@ -634,15 +609,9 @@
     private string GetAccessCardClass()
     {
         var roles = GetEffectiveRoles();
-        if (!roles.Any())
-            return "bg-success bg-opacity-10 border-success";
-
-        if (roles.Contains("ExcludeNewUser"))
-            return "bg-warning bg-opacity-10 border-warning";
-
-        if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
-            return "bg-info bg-opacity-10 border-info";
-
+        if (!roles.Any()) return "bg-success bg-opacity-10 border-success";
+        if (roles.Contains("ExcludeNewUser")) return "bg-warning bg-opacity-10 border-warning";
+        if (roles.Contains("RequiresAuthentication") && roles.Count == 1) return "bg-info bg-opacity-10 border-info";
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         return specificRoles.Any() ? "bg-warning bg-opacity-10 border-warning" : "bg-info bg-opacity-10 border-info";
     }
@@ -650,39 +619,26 @@
     private string GetAccessTextClass()
     {
         var roles = GetEffectiveRoles();
-        if (!roles.Any())
-            return "text-success-emphasis";
-
-        if (roles.Contains("ExcludeNewUser"))
-            return "text-warning-emphasis";
-
-        if (roles.Contains("RequiresAuthentication") && roles.Count == 1)
-            return "text-info-emphasis";
-
+        if (!roles.Any()) return "text-success-emphasis";
+        if (roles.Contains("ExcludeNewUser")) return "text-warning-emphasis";
+        if (roles.Contains("RequiresAuthentication") && roles.Count == 1) return "text-info-emphasis";
         var specificRoles = roles.Where(r => r != "RequiresAuthentication" && r != "ExcludeNewUser").ToList();
         return specificRoles.Any() ? "text-warning-emphasis" : "text-info-emphasis";
     }
 
-    private string GetRoleDisplayName(string role)
+    private string GetRoleDisplayName(string role) => role switch
     {
-        return role switch
-        {
-            "Admin" => "Administratör",
-            "Styrelse" => "Styrelse",
-            "Medlem" => "Medlem",
-            "Ny användare" => "Ny användare",
-            "RequiresAuthentication" => "Inloggade användare",
-            "ExcludeNewUser" => "Verifierade användare",
-            _ => role
-        };
-    }
+        "Admin" => "AdministratÃ¶r",
+        "Styrelse" => "Styrelse",
+        "Medlem" => "Medlem",
+        "Ny anvÃ¤ndare" => "Ny anvÃ¤ndare",
+        "RequiresAuthentication" => "Inloggade anvÃ¤ndare",
+        "ExcludeNewUser" => "Verifierade anvÃ¤ndare",
+        _ => role
+    };
 
-    private void ToggleSettings()
-    {
-        showSettings = !showSettings;
-    }
+    private void ToggleSettings() => showSettings = !showSettings;
 
-    // Auto-spara när togglar ändras
     private async Task OnFixedIsActiveChanged(ChangeEventArgs _)
     {
         if (navigationConfig == null) return;
@@ -690,26 +646,14 @@
         await SaveNavigationConfigOnly();
     }
 
-    private async Task OnShowInNavigationChanged(ChangeEventArgs _)
-    {
-        await SaveNavigationSettings();
-    }
-
-    private async Task OnIsActiveChanged(ChangeEventArgs _)
-    {
-        await SaveNavigationSettings();
-    }
-
-    private async Task OnPublicVisibilityChanged(ChangeEventArgs _)
-    {
-        await SaveNavigationSettings();
-    }
+    private Task OnShowInNavigationChanged(ChangeEventArgs _) => SaveNavigationSettings();
+    private Task OnIsActiveChanged(ChangeEventArgs _) => SaveNavigationSettings();
+    private Task OnPublicVisibilityChanged(ChangeEventArgs _) => SaveNavigationSettings();
 
     private async Task SaveNavigationSettings()
     {
         if (navigationConfig == null) return;
 
-        // Fasta sidor: spara endast NavigationConfig
         if (IsFixedPage())
         {
             SyncVisibilityWithRoleRestrictions();
@@ -717,21 +661,20 @@
             return;
         }
 
-        // Anpassade sidor: spara mot CustomPage (IsActive + ShowInNavigation + roller)
         if (customPage is null)
         {
             await Toast.Error("Kunde inte hitta sidans grunddata (CustomPage).");
             return;
         }
 
-        if (isSaving) return; // skydda mot spam vid snabba togglar
+        if (isSaving) return;
         isSaving = true;
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
 
             var currentRoles = customPage.RequiredRoles ?? new List<string>();
-            List<string> updatedRoles = navigationConfig.IsVisibleToGuests
+            var updatedRoles = navigationConfig.IsVisibleToGuests
                 ? new List<string>()
                 : (currentRoles.Any() ? new List<string>(currentRoles) : new List<string> { "Medlem" });
 
@@ -740,8 +683,8 @@
                 Title = customPage.Title,
                 DisplayName = navigationConfig.DisplayName,
                 Description = customPage.Description,
-                IsActive = navigationConfig.IsActive,     // Aktiv/inaktiv sida
-                ShowInNavigation = showInNavigation,      // Visa/dölj i navigation
+                IsActive = navigationConfig.IsActive,
+                ShowInNavigation = showInNavigation,
                 NavigationType = customPage.NavigationType,
                 ParentPageKey = customPage.ParentPageKey,
                 SortOrder = navigationConfig.SortOrder,
@@ -751,11 +694,10 @@
             var resp = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", updateRequest);
             if (!resp.IsSuccessStatusCode)
             {
-                await Toast.Error("Fel vid sparning av sidinställningar");
+                await Toast.Error("Fel vid sparning av sidinstÃ¤llningar");
                 return;
             }
 
-            // Uppdatera lokalt tillstånd
             customPage.DisplayName = navigationConfig.DisplayName;
             customPage.SortOrder = navigationConfig.SortOrder;
             customPage.IsActive = navigationConfig.IsActive;
@@ -766,16 +708,16 @@
             navigationConfig.RequiredRoles = updatedRoles.Count > 0 ? string.Join(",", updatedRoles) : null;
 
             Cache.InvalidateGroup("navigation");
-            await Toast.Success("Navigationsinställningar sparade!");
+            await Toast.Success("NavigationsinstÃ¤llningar sparade!");
 
             if (OnDisplayNameChanged.HasDelegate)
                 await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
 
             NavEvents.NotifyUpdated();
         }
-        catch (Exception)
+        catch
         {
-            await Toast.Error("Fel vid sparning av navigationsinställningar");
+            await Toast.Error("Fel vid sparning av navigationsinstÃ¤llningar");
         }
         finally
         {
@@ -816,7 +758,6 @@
                     return;
                 }
 
-                // Hämta tillbaka config för att få Id
                 var getResp = await httpClient.GetAsync($"api/navigation/page/{navigationConfig.PageKey}");
                 if (getResp.IsSuccessStatusCode)
                 {
@@ -851,14 +792,14 @@
             }
 
             Cache.InvalidateGroup("navigation");
-            await Toast.Success("Navigationsinställningar sparade!");
+            await Toast.Success("NavigationsinstÃ¤llningar sparade!");
             if (OnDisplayNameChanged.HasDelegate)
                 await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
             NavEvents.NotifyUpdated();
         }
         catch
         {
-            await Toast.Error("Fel vid sparning av navigationsinställningar");
+            await Toast.Error("Fel vid sparning av navigationsinstÃ¤llningar");
         }
         finally
         {

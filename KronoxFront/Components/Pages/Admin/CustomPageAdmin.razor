@@ -54,7 +54,7 @@ else
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h1 class="h3">Redigera "@customPage.DisplayName"</h1>
+                        <h1 class="h3">Redigera sidan "@customPage.DisplayName"</h1>
                         <nav aria-label="breadcrumb">
                             <ol class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="/admin">Admin</a></li>
@@ -762,6 +762,13 @@ else
             {
                 var imageUrl = await Cms.UploadImageAsync(info.File, PageKey);
                 info.Section.ImageUrl = imageUrl;
+                
+                // Publicera ändringen direkt så publika sidan får ny URL
+                await Cms.SaveFeatureSectionsAsync(PageKey, featureSections);
+
+                // Säkerställ att sidcachen töms
+                Cache.InvalidatePageCache(PageKey);
+
                 info.CloseModal?.Invoke();
                 await Toast.Success("Feature-bild uppladdad!");
             }
@@ -807,7 +814,7 @@ else
 
         try
         {
-            // 1) Uppdatera CustomPage.DisplayName via API
+            // Uppdatera CustomPage.DisplayName via API
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
             customPage.DisplayName = newDisplayName;
             var response = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", customPage.ToUpdateRequest());
@@ -817,11 +824,11 @@ else
                 return;
             }
 
-            // 2) Uppdatera endast breadcrumb i Intro (inte Intro.Title)
+            // Uppdatera endast breadcrumb i Intro (inte Intro.Title)
             introSection.BreadcrumbTitle = newDisplayName.ToUpperInvariant();
             await Cms.SaveIntroSectionAsync(PageKey, introSection);
 
-            // 3) Invalidera cache
+            // Invalidera cache
             Cache.InvalidatePageCache(PageKey);
 
             await Toast.Success("Navigationsnamn och breadcrumb uppdaterades.");

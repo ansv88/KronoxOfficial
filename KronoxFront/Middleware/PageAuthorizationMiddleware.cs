@@ -21,7 +21,8 @@ public class PageAuthorizationMiddleware
         "omsystemet",
         "visioner",
         "kontaktaoss",
-        "kontakt"
+        "kontakt",
+        "registrera"
     };
 
     public PageAuthorizationMiddleware(RequestDelegate next, IHttpClientFactory httpClientFactory, ILogger<PageAuthorizationMiddleware> logger)

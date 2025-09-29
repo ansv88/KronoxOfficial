@@ -28,7 +28,6 @@ public class AdminController : ControllerBase
     private readonly EmailTemplates _emailTemplates;
     private const string NewUserRole = "Ny användare";
 
-    // Konstruktor för AdminControll
     public AdminController(
               UserManager<ApplicationUser> userManager,
               RoleManager<IdentityRole> roleManager,
@@ -42,7 +41,6 @@ public class AdminController : ControllerBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _emailTemplates = emailTemplatesOptions?.Value ?? throw new ArgumentNullException(nameof(emailTemplatesOptions));
     }
-
 
     // Hämtar alla tillgängliga roller i systemet, returnerar en lista med rollnamn
     [HttpGet("roles")]
@@ -62,12 +60,11 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid hämtning av roller");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid hämtning av roller");
+            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av roller");
         }
     }
 
-
-    // Hämtar alla användare med rollen "Ny användare", lista med nya användare som väntar på godkännande
+    // Hämtar alla användare med rollen "Ny användare" som väntar på godkännande
     [HttpGet("registration-requests")]
     public async Task<IActionResult> GetRegistrationRequests()
     {
@@ -81,10 +78,10 @@ public class AdminController : ControllerBase
                 var roles = await _userManager.GetRolesAsync(user);
                 result.Add(new AdminUserDto
                 {
-                    UserName = user.UserName,
+                    UserName = user.UserName!,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
-                    Email = user.Email,
+                    Email = user.Email!,
                     Academy = user.Academy,
                     Roles = roles.ToList(),
                     CreatedDate = user.CreatedDate
@@ -96,10 +93,9 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid hämtning av registreringsförfrågningar");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid hämtning av registreringsförfrågningar");
+            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av registreringsförfrågningar");
         }
     }
-
 
     // Godkänner en ny användare genom att tilldela den en angiven roll och ta bort "Ny användare"-rollen
     [HttpPost("approve-user")]
@@ -139,7 +135,7 @@ public class AdminController : ControllerBase
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("Kunde inte tilldela roll {RoleName} till användare {UserName}. Fel: {Errors}",
                     model.RoleName, model.UserName, errors);
-                return StatusCode(StatusCodes.Status500InternalServerError, $"Kunde inte tilldela rollen. Fel: {errors}");
+                return StatusCode(500, $"Kunde inte tilldela rollen. Fel: {errors}");
             }
 
             // Skicka bekräftelsemail till användaren
@@ -158,15 +154,14 @@ public class AdminController : ControllerBase
                 // Fortsätt utan att returnera fel - e-post är inte kritiskt för operationen
             }
 
-            return StatusCode(StatusCodes.Status201Created, $"Användare '{model.UserName}' har nu rollen '{model.RoleName}'");
+            return StatusCode(201, $"Användare '{model.UserName}' har nu rollen '{model.RoleName}'");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid godkännande av användare {UserName}", model.UserName);
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid godkännande av användare");
+            return StatusCode(500, "Ett oväntat fel inträffade vid godkännande av användare");
         }
     }
-
 
     // Tilldelar en ny roll till en användare och tar bort alla befintliga roller
     [HttpPost("assignrole")]
@@ -203,7 +198,7 @@ public class AdminController : ControllerBase
                     var errors = string.Join(", ", removeResult.Errors.Select(e => e.Description));
                     _logger.LogError("Kunde inte ta bort tidigare roller från användare {UserName}. Fel: {Errors}",
                         model.UserName, errors);
-                    return StatusCode(StatusCodes.Status500InternalServerError,
+                    return StatusCode(500,
                         $"Kunde inte ta bort tidigare roller från användaren. Fel: {errors}");
                 }
             }
@@ -215,7 +210,7 @@ public class AdminController : ControllerBase
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("Kunde inte tilldela roll {RoleName} till användare {UserName}. Fel: {Errors}",
                     model.RoleName, model.UserName, errors);
-                return StatusCode(StatusCodes.Status500InternalServerError,
+                return StatusCode(500,
                     $"Kunde inte tilldela rollen till användaren. Fel: {errors}");
             }
 
@@ -224,7 +219,7 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid tilldelning av roll till användare {UserName}", model.UserName);
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid tilldelning av roll");
+            return StatusCode(500, "Ett oväntat fel inträffade vid tilldelning av roll");
         }
     }
 
@@ -258,7 +253,7 @@ public class AdminController : ControllerBase
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("Kunde inte uppdatera användare {UserName}. Fel: {Errors}", userName, errors);
-                return StatusCode(StatusCodes.Status500InternalServerError, $"Kunde inte uppdatera användaren. Fel: {errors}");
+                return StatusCode(500, $"Kunde inte uppdatera användaren. Fel: {errors}");
             }
 
             return Ok($"Användare '{userName}' har uppdaterats");
@@ -266,10 +261,9 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid uppdatering av användarprofil för {UserName}", userName);
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid uppdatering av användarprofil");
+            return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av användarprofil");
         }
     }
-
 
     // Tar bort en användare från systemet
     [HttpDelete("delete-user/{username}")]
@@ -288,7 +282,7 @@ public class AdminController : ControllerBase
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("Kunde inte ta bort användare {UserName}. Fel: {Errors}", username, errors);
-                return StatusCode(StatusCodes.Status500InternalServerError, $"Kunde inte ta bort användaren. Fel: {errors}");
+                return StatusCode(500, $"Kunde inte ta bort användaren. Fel: {errors}");
             }
 
             return Ok($"Användaren '{username}' har tagits bort från systemet");
@@ -296,10 +290,9 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid borttagning av användare {UserName}", username);
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid borttagning av användare");
+            return StatusCode(500, "Ett oväntat fel inträffade vid borttagning av användare");
         }
     }
-
 
     // Tar bort en registreringsförfrågan (användare med rollen "Ny användare")
     [HttpDelete("registration-request/{userName}")]
@@ -330,7 +323,7 @@ public class AdminController : ControllerBase
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("Kunde inte ta bort registreringsförfrågan för {UserName}. Fel: {Errors}", userName, errors);
-                return StatusCode(StatusCodes.Status500InternalServerError, $"Kunde inte ta bort registreringsförfrågan. Fel: {errors}");
+                return StatusCode(500, $"Kunde inte ta bort registreringsförfrågan. Fel: {errors}");
             }
 
             return Ok($"Registreringsförfrågan för '{userName}' borttagen");
@@ -338,10 +331,9 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid borttagning av registreringsförfrågan för {UserName}", userName);
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid borttagning av registreringsförfrågan");
+            return StatusCode(500, "Ett oväntat fel inträffade vid borttagning av registreringsförfrågan");
         }
     }
-
 
     // Återställer lösenordet för en användare
     [HttpPost("reset-password")]
@@ -369,7 +361,7 @@ public class AdminController : ControllerBase
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("Kunde inte ändra lösenord för användare {UserName}. Fel: {Errors}", model.UserName, errors);
-                return StatusCode(StatusCodes.Status500InternalServerError, $"Kunde inte ändra lösenordet. Fel: {errors}");
+                return StatusCode(500, $"Kunde inte ändra lösenordet. Fel: {errors}");
             }
 
             return Ok($"Lösenordet har ändrats för användare '{model.UserName}'");
@@ -377,10 +369,9 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid ändring av lösenord för {UserName}", model.UserName);
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid ändring av lösenord");
+            return StatusCode(500, "Ett oväntat fel inträffade vid ändring av lösenord");
         }
     }
-
 
     // Hämtar alla användare i systemet med deras roller
     [HttpGet("users")]
@@ -411,7 +402,7 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ett fel inträffade vid hämtning av användare");
-            return StatusCode(StatusCodes.Status500InternalServerError, "Ett oväntat fel inträffade vid hämtning av användare");
+            return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av användare");
         }
     }
 }

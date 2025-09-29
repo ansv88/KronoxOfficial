@@ -1,4 +1,4 @@
-@page "/admin/actionplan"
+Ôªø@page "/admin/actionplan"
 @using KronoxFront.Components.Layout
 @using KronoxFront.ViewModels
 @using KronoxFront.DTOs
@@ -21,7 +21,7 @@
 @implements IAsyncDisposable
 
 <HeadContent>
-    <meta name="description" content="Administrera handlingsplan fˆr KronoX. L‰gg till, redigera och hantera Âtg‰rder med detaljerade beskrivningar." />
+    <meta name="description" content="Administrera handlingsplan f√∂r KronoX. L√§gg till, redigera och hantera √•tg√§rder med detaljerade beskrivningar." />
 </HeadContent>
 
 <PageTitle>KronoX - Handlingsplan</PageTitle>
@@ -36,12 +36,12 @@
                     Hantera handlingsplan
                 </h1>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CleanUnusedImagesAsync" title="Rensa bilder som inte l‰ngre anv‰nds">
-                        <i class="fa-solid fa-broom me-1"></i> Rensa oanv‰nda bilder
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CleanUnusedImagesAsync" title="Rensa bilder som inte l√§ngre anv√§nds">
+                        <i class="fa-solid fa-broom me-1"></i> Rensa oanv√§nda bilder
                     </button>
                     <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
                         <i class="fa-solid fa-plus me-1"></i>
-                        L‰gg till Âtg‰rd
+                        L√§gg till √•tg√§rd
                     </button>
                 </div>
             </div>
@@ -58,9 +58,9 @@
             {
                 <div class="alert alert-danger" role="alert">
                     <h4 class="alert-heading">Fel vid laddning</h4>
-                    <p>Det uppstod ett problem n‰r handlingsplanen skulle h‰mtas. Fˆrsˆk ladda om sidan.</p>
+                    <p>Det uppstod ett problem n√§r handlingsplanen skulle h√§mtas. F√∂rs√∂k ladda om sidan.</p>
                     <button class="btn btn-outline-danger" @onclick="LoadActionPlan">
-                        <i class="fa-solid fa-refresh me-1"></i> Fˆrsˆk igen
+                        <i class="fa-solid fa-refresh me-1"></i> F√∂rs√∂k igen
                     </button>
                 </div>
             }
@@ -68,7 +68,7 @@
             {
                 <div class="alert alert-info">
                     <h4 class="alert-heading">Ingen handlingsplan finns</h4>
-                    <p>Det finns ingen handlingsplan att visa. Klicka pÂ knappen ovan fˆr att l‰gga till Âtg‰rder.</p>
+                    <p>Det finns ingen handlingsplan att visa. Klicka p√• knappen ovan f√∂r att l√§gga till √•tg√§rder.</p>
                 </div>
             }
             else
@@ -77,7 +77,7 @@
                     <div class="card-header bg-light">
                         <h5 class="mb-0">
                             <i class="fa-solid fa-list-check me-2"></i>
-                            Handlingsplan (@actionPlan.Items.Count Âtg‰rder)
+                            Handlingsplan (@actionPlan.Items.Count √•tg√§rder)
                         </h5>
                     </div>
                     <div class="card-body p-0">
@@ -99,7 +99,7 @@
                                         <th>Aktivitet</th>
                                         <th class="text-center">Planerad leverans</th>
                                         <th class="text-center">Avklarad</th>
-                                        <th>≈tg‰rder</th>
+                                        <th>√Ötg√§rder</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -121,7 +121,7 @@
                                                         {
                                                             <button type="button" class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
                                                                     @onclick="@(() => ToggleDescription(item.Id))"
-                                                                    title="Visa/dˆlj detaljerad beskrivning">
+                                                                    title="Visa/d√∂lj detaljerad beskrivning">
                                                                 <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
                                                             </button>
                                                         }
@@ -138,7 +138,7 @@
                                                     <div class="btn-group btn-group-sm" role="group">
                                                         <button type="button" class="btn btn-outline-primary"
                                                                 @onclick="@(() => OpenEditModal(item))"
-                                                                title="Redigera Âtg‰rd">
+                                                                title="Redigera √•tg√§rd">
                                                             <i class="fa-solid fa-edit"></i>
                                                         </button>
                                                         <button type="button" class="btn btn-outline-secondary"
@@ -155,7 +155,7 @@
                                                         </button>
                                                         <button type="button" class="btn btn-outline-danger"
                                                                 @onclick="@(() => OpenDeleteModal(item))"
-                                                                title="Ta bort Âtg‰rd">
+                                                                title="Ta bort √•tg√§rd">
                                                             <i class="fa-solid fa-trash"></i>
                                                         </button>
                                                     </div>
@@ -192,7 +192,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        @(editingItem.Id == 0 ? "Skapa ny Âtg‰rd" : "Redigera Âtg‰rd")
+                        @(editingItem.Id == 0 ? "Skapa ny √•tg√§rd" : "Redigera √•tg√§rd")
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
                 </div>
@@ -218,8 +218,8 @@
                                     <InputText class="form-control" @bind-Value="editModel.PlannedDelivery" placeholder="Q2 2024" />
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Status n‰r avklarad</label>
-                                    <InputText class="form-control" @bind-Value="editModel.Completed" placeholder="Q1 2024 eller l‰mna tom" />
+                                    <label class="form-label">Status n√§r avklarad</label>
+                                    <InputText class="form-control" @bind-Value="editModel.Completed" placeholder="Q1 2024 eller l√§mna tom" />
                                 </div>
                             </div>
                         </div>
@@ -232,10 +232,21 @@
 
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center">
-                                <label class="form-label mb-0">Utfˆrlig beskrivning</label>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenLibrary" title="V‰lj bild frÂn biblioteket">
-                                    <i class="fa-solid fa-images me-1"></i> V‰lj bild
-                                </button>
+                                <label class="form-label mb-0">Utf√∂rlig beskrivning</label>
+                                <div class="d-flex gap-2">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @onclick="OpenLibrary"
+                                            title="V√§lj bild fr√•n biblioteket">
+                                        <i class="fa-solid fa-images me-1"></i> V√§lj bild
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            @onclick="OpenEditorImageUpload"
+                                            title="Ladda upp bild fr√•n din dator via editorn">
+                                        <i class="fa-solid fa-upload me-1"></i> Ladda upp bild
+                                    </button>
+                                </div>
                             </div>
 
                             <textarea id="@_detailsEditorId"
@@ -243,9 +254,14 @@
                                       rows="8"
                                       @bind="editModel.DetailedDescription"
                                       @bind:event="oninput"
-                                      placeholder="Skriv en utfˆrlig beskrivning av Âtg‰rden h‰r...">
+                                      placeholder="Skriv en utf√∂rlig beskrivning av √•tg√§rden h√§r...">
                             </textarea>
-                            <div class="form-text">Anv‰nd denna ruta fˆr detaljerade beskrivningar av Âtg‰rden.</div>
+                            <div class="form-text">
+                                - ‚ÄúV√§lj bild‚Äù infogar en bild som redan finns i bildbiblioteket.<br />
+                                - F√∂r att ladda upp en ny bild fr√•n din dator, klicka p√• ‚ÄúLadda upp bild‚Äù ovan
+                                  eller anv√§nd bildikonen i TinyMCE:s verktygsf√§lt.
+                                Tips: du kan √§ven dra-och-sl√§ppa en bild direkt i editorn.
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -266,21 +282,21 @@
     </div>
 }
 
-@* Modal fˆr bekr‰fta borttagning *@
+@* Modal f√∂r bekr√§fta borttagning *@
 @if (showDeleteModal && deletingItem != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog" @onclick:stopPropagation>
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Bekr‰fta borttagning</h5>
+                    <h5 class="modal-title">Bekr√§fta borttagning</h5>
                     <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>ƒr du s‰ker pÂ att du vill ta bort Âtg‰rden "<strong>@deletingItem.Activity</strong>"?</p>
+                    <p>√Ñr du s√§ker p√• att du vill ta bort √•tg√§rden "<strong>@deletingItem.Activity</strong>"?</p>
                     <p class="text-danger">
                         <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                        Denna Âtg‰rd kan inte Ângras.
+                        Denna √•tg√§rd kan inte √•ngras.
                     </p>
                 </div>
                 <div class="modal-footer">
@@ -339,7 +355,7 @@
                     }
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CloseLibrary">St‰ng</button>
+                    <button class="btn btn-secondary" @onclick="CloseLibrary">St√§ng</button>
                 </div>
             </div>
         </div>
@@ -391,7 +407,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Kunde inte s‰tta currentPageKey fˆr TinyMCE");
+            Logger.LogWarning(ex, "Kunde inte s√§tta currentPageKey f√∂r TinyMCE");
         }
     }
 
@@ -490,7 +506,7 @@
                 }
 
                 _detailsEditorInitialized = true;
-                Logger.LogInformation("TinyMCE initialiserad fˆr {EditorId}", _detailsEditorId);
+                Logger.LogInformation("TinyMCE initialiserad f√∂r {EditorId}", _detailsEditorId);
             }
             else
             {
@@ -532,7 +548,7 @@
             if (editorExists)
             {
                 await JS.InvokeVoidAsync("eval", $"tinymce.get('{_detailsEditorId}')?.destroy()");
-                Logger.LogInformation("TinyMCE fˆrstˆrd fˆr {EditorId}", _detailsEditorId);
+                Logger.LogInformation("TinyMCE f√∂rst√∂rd f√∂r {EditorId}", _detailsEditorId);
             }
         }
         catch (Exception ex)
@@ -590,7 +606,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "OpenCreateModal failed");
-            _ = Toast.Error("Ett fel intr‰ffade vid ˆppning av dialog.");
+            _ = Toast.Error("Ett fel intr√§ffade vid √∂ppning av dialog.");
         }
     }
 
@@ -619,7 +635,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "OpenEditModal failed");
-            _ = Toast.Error("Ett fel intr‰ffade vid ˆppning av dialog.");
+            _ = Toast.Error("Ett fel intr√§ffade vid √∂ppning av dialog.");
         }
     }
 
@@ -656,7 +672,7 @@
             {
                 Cms.InvalidateActionPlanCache(pageKey);
 
-                await Toast.Success(editingItem.Id == 0 ? "≈tg‰rd har lagts till!" : "≈tg‰rd har uppdaterats!");
+                await Toast.Success(editingItem.Id == 0 ? "√Ötg√§rd har lagts till!" : "√Ötg√§rd har uppdaterats!");
                 await LoadActionPlan();
                 await CloseEditModal();
             }
@@ -664,13 +680,13 @@
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Logger.LogError("Fel vid sparning: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                await Toast.Error("Kunde inte spara Âtg‰rden. Fˆrsˆk igen.");
+                await Toast.Error("Kunde inte spara √•tg√§rden. F√∂rs√∂k igen.");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid sparning av Âtg‰rd");
-            await Toast.Error("Ett fel intr‰ffade vid sparning. Fˆrsˆk igen.");
+            Logger.LogError(ex, "Fel vid sparning av √•tg√§rd");
+            await Toast.Error("Ett fel intr√§ffade vid sparning. F√∂rs√∂k igen.");
         }
         finally
         {
@@ -698,13 +714,13 @@
             }
             else
             {
-                await Toast.Error("Kunde inte flytta Âtg‰rden.");
+                await Toast.Error("Kunde inte flytta √•tg√§rden.");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid flyttning av Âtg‰rd");
-            await Toast.Error("Ett fel intr‰ffade vid flyttning.");
+            Logger.LogError(ex, "Fel vid flyttning av √•tg√§rd");
+            await Toast.Error("Ett fel intr√§ffade vid flyttning.");
         }
     }
 
@@ -734,19 +750,19 @@
             {
                 Cms.InvalidateActionPlanCache(pageKey);
 
-                await Toast.Success("≈tg‰rden har tagits bort.");
+                await Toast.Success("√Ötg√§rden har tagits bort.");
                 await LoadActionPlan();
                 CloseDeleteModal();
             }
             else
             {
-                await Toast.Error("Kunde inte ta bort Âtg‰rden. Fˆrsˆk igen.");
+                await Toast.Error("Kunde inte ta bort √•tg√§rden. F√∂rs√∂k igen.");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid borttagning av Âtg‰rd");
-            await Toast.Error("Ett fel intr‰ffade vid borttagning. Fˆrsˆk igen.");
+            Logger.LogError(ex, "Fel vid borttagning av √•tg√§rd");
+            await Toast.Error("Ett fel intr√§ffade vid borttagning. F√∂rs√∂k igen.");
         }
         finally
         {
@@ -758,7 +774,7 @@
     {
         try
         {
-            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", "Rensa alla oanv‰nda bilder fˆr denna sida?");
+            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", "Rensa alla oanv√§nda bilder f√∂r denna sida?");
             if (!ok) return;
 
             var images = await Cms.GetPageImagesAsync(pageKey);
@@ -789,12 +805,12 @@
                 }
             }
 
-            await Toast.Success(deleted == 0 ? "Inga oanv‰nda bilder hittades." : $"Rensade {deleted} bild(er).");
+            await Toast.Success(deleted == 0 ? "Inga oanv√§nda bilder hittades." : $"Rensade {deleted} bild(er).");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid rensning av oanv‰nda bilder");
-            await Toast.Error("Kunde inte rensa oanv‰nda bilder.");
+            Logger.LogError(ex, "Fel vid rensning av oanv√§nda bilder");
+            await Toast.Error("Kunde inte rensa oanv√§nda bilder.");
         }
     }
 
@@ -825,7 +841,7 @@
     {
         try
         {
-            // Registrera referens pÂ sidan (hindrar att filen raderas om den Âteranv‰nds)
+            // Registrera referens p√• sidan (hindrar att filen raderas om den √•teranv√§nds)
             _ = await Cms.RegisterExistingImageAsync(pageKey, img.Url, img.AltText ?? "");
 
             // Infoga i TinyMCE
@@ -840,6 +856,24 @@
         {
             Logger.LogError(ex, "Fel vid infogning av bild i TinyMCE");
             await Toast.Error("Kunde inte infoga bild.");
+        }
+    }
+
+    private async Task OpenEditorImageUpload()
+    {
+        try
+        {
+            var script =
+                $"var ed=tinymce.get('{_detailsEditorId}');" +
+                "if(ed && ed.execCommand){ ed.execCommand('mceImage'); }" +
+                "if(ed){ ed.focus(); }";
+
+            await JS.InvokeVoidAsync("eval", script);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte √∂ppna TinyMCE-bilddialogen");
+            await Toast.Info("Klicka p√• bildikonen i editorns verktygsf√§lt f√∂r att ladda upp fr√•n datorn.");
         }
     }
 }

@@ -98,15 +98,23 @@ public class CustomPageController : ControllerBase
                 navigationPages.Add(navPage);
             }
 
-            var staticPages = new List<string> { "omkonsortiet", "omsystemet", "visioner", "kontaktaoss", "dokument", "forvaltning", "medlemsnytt" };
+            var staticPages = new List<string> { 
+                "home", "omkonsortiet", "omsystemet", "visioner", "kontaktaoss",
+                "dokument", "forvaltning", "medlemsnytt", "forstyrelsen", "forvnsg"
+            };
 
             foreach (var staticPageKey in staticPages)
             {
                 var cfg = navConfigs.FirstOrDefault(n => n.PageKey == staticPageKey);
 
-                // Om det finns en konfig och den är inaktiv -> visa inte sidan i navigationen
+                // hoppa över om explicit inaktiv
                 if (cfg is { IsActive: false })
                     continue;
+
+                // roller för statisk sida hämtas från NavigationConfig (CSV -> lista)
+                var requiredRolesForStatic = (cfg?.RequiredRoles ?? "")
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
 
                 var children = pages
                     .Where(p => p.ParentPageKey == staticPageKey)
@@ -121,7 +129,7 @@ public class CustomPageController : ControllerBase
                         RequiredRoles = child.RequiredRoles
                     }).ToList();
 
-                // Inkludera statisk sida om den har barn eller om det finns en NavigationConfig för den
+                // ta med statisk sida endast om den har barn eller det finns en NavigationConfig
                 if (children.Any() || cfg != null)
                 {
                     navigationPages.Add(new NavigationPageDto
@@ -131,7 +139,7 @@ public class CustomPageController : ControllerBase
                         NavigationType = "main",
                         ParentPageKey = null,
                         SortOrder = cfg?.SortOrder ?? GetStaticPageSortOrder(staticPageKey),
-                        RequiredRoles = new List<string>(),
+                        RequiredRoles = requiredRolesForStatic,
                         Children = children
                     });
                 }
@@ -148,6 +156,7 @@ public class CustomPageController : ControllerBase
 
     private string GetStaticPageDisplayName(string pageKey) => pageKey switch
     {
+        "home" => "Startsida",
         "omkonsortiet" => "Om konsortiet",
         "omsystemet" => "Om systemet",
         "visioner" => "Visioner & verksamhetsidé",
@@ -160,6 +169,7 @@ public class CustomPageController : ControllerBase
 
     private int GetStaticPageSortOrder(string pageKey) => pageKey switch
     {
+        "home" => 0,
         "omkonsortiet" => 1,
         "omsystemet" => 2,
         "visioner" => 3,
@@ -171,7 +181,6 @@ public class CustomPageController : ControllerBase
     };
 
     [HttpGet("{pageKey}")]
-    [RequireRole("Admin")]
     public async Task<ActionResult<CustomPageDto>> GetCustomPage(string pageKey)
     {
         try

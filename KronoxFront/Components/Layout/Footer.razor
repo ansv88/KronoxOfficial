@@ -1,5 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using KronoxFront.DTOs
+@using System.Security.Claims
 @inject AuthenticationStateProvider AuthProvider
 @inject IHttpClientFactory HttpClientFactory
 
@@ -11,289 +12,348 @@
 *@
 
 <footer class="footer-custom text-white py-4 bg-dark" role="contentinfo">
-	<div class="container">
-		<!-- Desktop-vy: visas vid md och uppåt -->
-		<div class="row d-none d-md-flex align-items-center">
-			<!-- Vänster kolumn: Postadress och e-post -->
-			<div class="col-md-4 text-start text-white">
-				<address class="mb-0">
-					<h3 class="fs-6 h4" id="address-heading-desktop">POSTADRESS</h3>
-					<div aria-labelledby="address-heading-desktop">
-						<p>
-							KronoX<br />
-							Högskolan i Borås<br />
-							501 90 Borås
-						</p>
-						<p>
-							<i class="fa fa-envelope" aria-hidden="true"></i> E-post:
-							<a href="mailto:info@kronox.se" class="text-white">info@kronox.se</a>
-						</p>
-					</div>
-				</address>
-			</div>
-			<!-- Mittenkolumn: Logotyp -->
-			<div class="col-md-4 text-center">
-				<img src="images/logo.png" alt="KronoX logotyp" class="logo" width="200" height="47" loading="lazy" />
-			</div>
-			<!-- Höger kolumn: Dynamisk Sitemap -->
-			<div class="col-md-4 text-end">
-				<nav aria-label="Sidfotsmeny">
-					<h3 class="text-white fs-6 h4" id="sitemap-desktop">SITEMAP</h3>
-					<AuthorizeView>
-						<NotAuthorized>
-							@if (guestSitemapPages.Any())
-							{
-								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
-									@foreach (var navItem in guestSitemapPages.OrderBy(p => p.SortOrder))
-									{
-										<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
-									}
-								</ul>
-							}
-							else
-							{
-								<!-- Fallback till statiska länkar om API inte fungerar -->
-								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
-									<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-									<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
-									<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
-									<li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
-								</ul>
-							}
-						</NotAuthorized>
-						<Authorized>
-							@if (memberSitemapPages.Any())
-							{
-								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
-									@foreach (var navItem in memberSitemapPages.OrderBy(p => p.SortOrder))
-									{
-										<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
-									}
-								</ul>
-							}
-							else
-							{
-								<!-- Fallback till statiska länkar om API inte fungerar -->
-								<ul class="list-unstyled" aria-labelledby="sitemap-desktop">
-									<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
-									<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-									<AuthorizeView Roles="Admin,Styrelse" Context="rolesAuthState">
-										<li><NavLink href="/forstyrelsen" class="text-white">För styrelsen</NavLink></li>
-										<li><NavLink href="/forvnsg" class="text-white">För VNSG</NavLink></li>
-									</AuthorizeView>
-									<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
-									<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
-									<li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
-								</ul>
-							}
-						</Authorized>
-					</AuthorizeView>
-				</nav>
-			</div>
-		</div>
-		<!-- Mobilvy: visas vid mindre än md -->
-		<div class="d-md-none">
-			<!-- Postadress -->
-			<div class="row text-center">
-				<div class="col-12 text-white">
-					<address class="mb-0">
-						<h3 class="fs-6 h4" id="address-heading-mobile">POSTADRESS</h3>
-						<div aria-labelledby="address-heading-mobile">
-							<p>
-								KronoX<br />
-								Högskolan i Borås<br />
-								501 90 Borås
-							</p>
-							<p>
-								<i class="fa fa-envelope" aria-hidden="true"></i> E-post:
-								<a href="mailto:info@kronox.se" class="text-white">info@kronox.se</a>
-							</p>
-						</div>
-					</address>
-				</div>
-			</div>
-			<!-- Separator -->
-			<hr class="my-3" aria-hidden="true" />
-			<!-- Dynamisk Sitemap för mobil -->
-			<div class="row text-center">
-				<div class="col-12">
-					<nav aria-label="Sidfotsmeny för mobil">
-						<h3 class="fs-6 h4" id="sitemap-mobile">SITEMAP</h3>
-						<AuthorizeView>
-							<NotAuthorized>
-								@if (guestSitemapPages.Any())
-								{
-									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
-										@foreach (var navItem in guestSitemapPages.OrderBy(p => p.SortOrder))
-										{
-											<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
-										}
-									</ul>
-								}
-								else
-								{
-									<!-- Fallback till statiska länkar om API inte fungerar -->
-									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
-										<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-										<li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
-										<li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
-										<li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
-									</ul>
-								}
-							</NotAuthorized>
-							<Authorized>
-								@if (memberSitemapPages.Any())
-								{
-									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
-										@foreach (var navItem in memberSitemapPages.OrderBy(p => p.SortOrder))
-										{
-											<li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
-										}
-									</ul>
-								}
-								else
-								{
-									<!-- Fallback till statiska länkar om API inte fungerar -->
-									<ul class="list-unstyled" aria-labelledby="sitemap-mobile">
-										<li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
-										<li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
-										<AuthorizeView Roles="Admin,Styrelse" Context="innerAuthState">
-											<li><NavLink href="/forstyrelsen" class="text-white">För styrelsen</NavLink></li>
-											<li><NavLink href="/forvnsg" class="text-white">För VNSG</NavLink></li>
-										</AuthorizeView>
-										<li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
-										<li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
-										<li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
-									</ul>
-								}
-							</Authorized>
-						</AuthorizeView>
-					</nav>
-				</div>
-			</div>
-		</div>
-	</div>
+    <div class="container">
+        <!-- Desktop-vy: visas vid md och uppåt -->
+        <div class="row d-none d-md-flex align-items-center">
+            <!-- Vänster kolumn: Postadress och e-post -->
+            <div class="col-md-4 text-start text-white">
+                <address class="mb-0">
+                    <h3 class="fs-6 h4" id="address-heading-desktop">POSTADRESS</h3>
+                    <div aria-labelledby="address-heading-desktop">
+                        <p>
+                            KronoX<br />
+                            Högskolan i Borås<br />
+                            501 90 Borås
+                        </p>
+                        <p>
+                            <i class="fa fa-envelope" aria-hidden="true"></i> E-post:
+                            <a href="mailto:info@kronox.se" class="text-white">info@kronox.se</a>
+                        </p>
+                    </div>
+                </address>
+            </div>
+            <!-- Mittenkolumn: Logotyp -->
+            <div class="col-md-4 text-center">
+                <img src="images/logo.png" alt="KronoX logotyp" class="logo" width="200" height="47" loading="lazy" />
+            </div>
+            <!-- Höger kolumn: Dynamisk Sitemap -->
+            <div class="col-md-4 text-end">
+                <nav aria-label="Sidfotsmeny">
+                    <h3 class="text-white fs-6 h4" id="sitemap-desktop">SITEMAP</h3>
+                    <AuthorizeView>
+                        <NotAuthorized>
+                            @if (guestSitemapPages.Any())
+                            {
+                                <ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+                                    @foreach (var navItem in guestSitemapPages.OrderBy(p => p.SortOrder))
+                                    {
+                                        <li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <!-- Fallback till statiska länkar om API inte fungerar -->
+                                <ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+                                    <li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+                                    <li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
+                                    <li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
+                                    <li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
+                                </ul>
+                            }
+                        </NotAuthorized>
+                        <Authorized>
+                            @if (memberSitemapPages.Any())
+                            {
+                                <ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+                                    @foreach (var navItem in memberSitemapPages.OrderBy(p => p.MemberSortOrder ?? p.SortOrder))
+                                    {
+                                        <li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <!-- Fallback till statiska länkar om API inte fungerar -->
+                                <ul class="list-unstyled" aria-labelledby="sitemap-desktop">
+                                    <li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
+                                    <li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+                                    <AuthorizeView Roles="Admin,Styrelse" Context="rolesAuthState">
+                                        <li><NavLink href="/forstyrelsen" class="text-white">För styrelsen</NavLink></li>
+                                        <li><NavLink href="/forvnsg" class="text-white">För VNSG</NavLink></li>
+                                    </AuthorizeView>
+                                    <li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
+                                    <li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
+                                    <li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
+                                </ul>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                </nav>
+            </div>
+        </div>
+        <!-- Mobilvy: visas vid mindre än md -->
+        <div class="d-md-none">
+            <!-- Postadress -->
+            <div class="row text-center">
+                <div class="col-12 text-white">
+                    <address class="mb-0">
+                        <h3 class="fs-6 h4" id="address-heading-mobile">POSTADRESS</h3>
+                        <div aria-labelledby="address-heading-mobile">
+                            <p>
+                                KronoX<br />
+                                Högskolan i Borås<br />
+                                501 90 Borås
+                            </p>
+                            <p>
+                                <i class="fa fa-envelope" aria-hidden="true"></i> E-post:
+                                <a href="mailto:info@kronox.se" class="text-white">info@kronox.se</a>
+                            </p>
+                        </div>
+                    </address>
+                </div>
+            </div>
+            <!-- Separator -->
+            <hr class="my-3" aria-hidden="true" />
+            <!-- Dynamisk Sitemap för mobil -->
+            <div class="row text-center">
+                <div class="col-12">
+                    <nav aria-label="Sidfotsmeny för mobil">
+                        <h3 class="fs-6 h4" id="sitemap-mobile">SITEMAP</h3>
+                        <AuthorizeView>
+                            <NotAuthorized>
+                                @if (guestSitemapPages.Any())
+                                {
+                                    <ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+                                        @foreach (var navItem in guestSitemapPages.OrderBy(p => p.SortOrder))
+                                        {
+                                            <li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <!-- Fallback till statiska länkar om API inte fungerar -->
+                                    <ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+                                        <li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+                                        <li><NavLink href="/omsystemet" class="text-white">Om systemet</NavLink></li>
+                                        <li><NavLink href="/visioner" class="text-white">Visioner & Verksamhetsidé</NavLink></li>
+                                        <li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
+                                    </ul>
+                                }
+                            </NotAuthorized>
+                            <Authorized>
+                                @if (memberSitemapPages.Any())
+                                {
+                                    <ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+                                        @foreach (var navItem in memberSitemapPages.OrderBy(p => p.MemberSortOrder ?? p.SortOrder))
+                                        {
+                                            <li><NavLink href="@($"/{navItem.PageKey}")" class="text-white">@navItem.DisplayName</NavLink></li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <!-- Fallback till statiska länkar om API inte fungerar -->
+                                    <ul class="list-unstyled" aria-labelledby="sitemap-mobile">
+                                        <li><NavLink href="/medlemsnytt" class="text-white">Medlemsnytt</NavLink></li>
+                                        <li><NavLink href="/omkonsortiet" class="text-white">Om konsortiet</NavLink></li>
+                                        <AuthorizeView Roles="Admin,Styrelse" Context="innerAuthState">
+                                            <li><NavLink href="/forstyrelsen" class="text-white">För styrelsen</NavLink></li>
+                                            <li><NavLink href="/forvnsg" class="text-white">För VNSG</NavLink></li>
+                                        </AuthorizeView>
+                                        <li><NavLink href="/forvaltning" class="text-white">Förvaltning</NavLink></li>
+                                        <li><NavLink href="/dokument" class="text-white">Dokument</NavLink></li>
+                                        <li><NavLink href="/kontaktaoss" class="text-white">Kontakta oss</NavLink></li>
+                                    </ul>
+                                }
+                            </Authorized>
+                        </AuthorizeView>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
 </footer>
 
 @code {
-	private List<NavigationConfigDto> guestSitemapPages = new();
-	private List<NavigationConfigDto> memberSitemapPages = new();
-	private List<NavigationPageDto> customPages = new();
+    private List<NavigationConfigDto> guestSitemapPages = new();
+    private List<NavigationConfigDto> memberSitemapPages = new();
+    private List<NavigationPageDto> customPages = new();
 
-	protected override async Task OnInitializedAsync()
-	{
-		await LoadSitemapData();
-	}
+    // Behöver originaldata för att kunna slå samman med custom pages
+    private List<NavigationConfigDto> allNavItems = new();
 
-	private async Task LoadSitemapData()
-	{
-		try
-		{
-			var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-			
-			// Ladda navigationskonfiguration
-			var navResponse = await httpClient.GetAsync("api/navigation");
-			if (navResponse.IsSuccessStatusCode)
-			{
-				var allNavItems = await navResponse.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
-				
-				// Filtrera för sitemap - endast aktiva sidor som ska visas i navigation
-				// Exkludera admin och logout från sitemap
-				var sitemapItems = allNavItems
-					.Where(item => item.IsActive && 
-								  !item.PageKey.Equals("admin", StringComparison.OrdinalIgnoreCase) &&
-								  !item.PageKey.Equals("logout", StringComparison.OrdinalIgnoreCase))
-					.ToList();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSitemapData();
+    }
 
-				// Separera för sitemap
-				guestSitemapPages = sitemapItems
-					.Where(item => item.IsVisibleToGuests)
-					.OrderBy(item => item.GuestSortOrder ?? item.SortOrder)
-					.ToList();
+    private async Task LoadSitemapData()
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
 
-				memberSitemapPages = sitemapItems
-					.Where(item => item.IsVisibleToMembers)
-					.OrderBy(item => item.MemberSortOrder ?? item.SortOrder)
-					.ToList();
+            // Läs auth för rollfiltrering
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var isAuthenticated = user.Identity?.IsAuthenticated == true;
 
-				// Fallback om det blev tomt
-				if (guestSitemapPages.Count == 0 && memberSitemapPages.Count == 0)
-				{
-					// använd enkla defaults så sidfoten inte blir tom
-					var fb = new List<NavigationConfigDto>
-					{
-						new() { PageKey = "omkonsortiet", DisplayName = "Om konsortiet", SortOrder = 1, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
-						new() { PageKey = "omsystemet", DisplayName = "Om systemet", SortOrder = 2, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
-						new() { PageKey = "visioner", DisplayName = "Visioner & Verksamhetsidé", SortOrder = 3, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
-						new() { PageKey = "kontaktaoss", DisplayName = "Kontakta oss", SortOrder = 17, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true }
-					};
-					guestSitemapPages = fb;
-					memberSitemapPages = fb;
-				}
-			}
+            // Ladda navigationskonfiguration
+            var navResponse = await httpClient.GetAsync("api/navigation");
+            if (navResponse.IsSuccessStatusCode)
+            {
+                allNavItems = await navResponse.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
 
-			// Ladda custom pages för att komplettera med eventuella sidor som bara finns där
-			var customResponse = await httpClient.GetAsync("api/custompage/navigation");
-			if (customResponse.IsSuccessStatusCode)
-			{
-				customPages = await customResponse.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
-				
-				// Lägg till custom pages som är aktiva och ska visas i navigation men som kanske inte finns i navigationskonfigurationen än
-				await AddMissingCustomPages();
-			}
-		}
-		catch (Exception)
-		{
-			// Silent fail - använd fallback-länkar om API inte fungerar
-		}
-	}
+                // Endast aktiva och ej admin/logout/home
+                var sitemapItems = allNavItems
+                    .Where(item => item.IsActive &&
+                                   !item.PageKey.Equals("admin", StringComparison.OrdinalIgnoreCase) &&
+                                   !item.PageKey.Equals("logout", StringComparison.OrdinalIgnoreCase) &&
+                                   !item.PageKey.Equals("home", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
-	private async Task AddMissingCustomPages()
-	{
-		var authState = await AuthProvider.GetAuthenticationStateAsync();
-		var user = authState.User;
-		var isAuthenticated = user.Identity?.IsAuthenticated == true;
+                // Gäster: synliga för gäster OCH inga roller krävs
+                guestSitemapPages = sitemapItems
+                    .Where(item => item.IsVisibleToGuests && IsAllowedByRolesCsv(item.RequiredRoles, user, isAuthenticated: false))
+                    .OrderBy(item => item.GuestSortOrder ?? item.SortOrder)
+                    .ToList();
 
-		foreach (var customPage in customPages)
-		{
-			// Kontrollera om sidan ska visas i navigation och är behörig
-			if (customPage.NavigationType != "hidden" && 
-				customPage.IsAuthorized(isAuthenticated, user))
-			{
-				// Kontrollera om den redan finns i navigationskonfigurationen
-				var existsInGuestNav = guestSitemapPages.Any(g => g.PageKey == customPage.PageKey);
-				var existsInMemberNav = memberSitemapPages.Any(m => m.PageKey == customPage.PageKey);
+                // Medlemmar: synliga för medlemmar OCH roller (om angivet) matchar
+                memberSitemapPages = sitemapItems
+                    .Where(item => item.IsVisibleToMembers && IsAllowedByRolesCsv(item.RequiredRoles, user, isAuthenticated))
+                    .OrderBy(item => item.MemberSortOrder ?? item.SortOrder)
+                    .ToList();
 
-				// Lägg till för gäster om den inte redan finns och är publik
-				if (!existsInGuestNav && !customPage.RequiredRoles.Any())
-				{
-					guestSitemapPages.Add(new NavigationConfigDto
-					{
-						PageKey = customPage.PageKey,
-						DisplayName = customPage.DisplayName,
-						SortOrder = customPage.SortOrder,
-						IsActive = true,
-						IsVisibleToGuests = true
-					});
-				}
+                // Fallback om det blev tomt
+                if (guestSitemapPages.Count == 0 && memberSitemapPages.Count == 0)
+                {
+                    var fb = new List<NavigationConfigDto>
+                    {
+                        new() { PageKey = "omkonsortiet", DisplayName = "Om konsortiet", SortOrder = 1, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
+                        new() { PageKey = "omsystemet", DisplayName = "Om systemet", SortOrder = 2, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
+                        new() { PageKey = "visioner", DisplayName = "Visioner & Verksamhetsidé", SortOrder = 3, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true },
+                        new() { PageKey = "kontaktaoss", DisplayName = "Kontakta oss", SortOrder = 17, IsActive = true, IsVisibleToGuests = true, IsVisibleToMembers = true }
+                    };
+                    guestSitemapPages = fb;
+                    memberSitemapPages = fb;
+                }
+            }
 
-				// Lägg till för medlemmar om den inte redan finns
-				if (!existsInMemberNav)
-				{
-					memberSitemapPages.Add(new NavigationConfigDto
-					{
-						PageKey = customPage.PageKey,
-						DisplayName = customPage.DisplayName,
-						SortOrder = customPage.SortOrder,
-						IsActive = true,
-						IsVisibleToMembers = true
-					});
-				}
-			}
-		}
+            // Ladda custom pages (huvudlänkar + deras children)
+            var customResponse = await httpClient.GetAsync("api/custompage/navigation");
+            if (customResponse.IsSuccessStatusCode)
+            {
+                customPages = await customResponse.Content.ReadFromJsonAsync<List<NavigationPageDto>>() ?? new();
 
-		// Sortera om efter att ha lagt till custom pages
-		guestSitemapPages = guestSitemapPages.OrderBy(p => p.SortOrder).ToList();
-		memberSitemapPages = memberSitemapPages.OrderBy(p => p.SortOrder).ToList();
-	}
+                // Lägg endast till saknade huvudlänkar (NavigationType == "main") med korrekta rollregler
+                await AddMissingCustomPages();
+            }
+        }
+        catch (Exception)
+        {
+            // Silent fail - använd fallback-länkar om API inte fungerar
+        }
+    }
+
+    private async Task AddMissingCustomPages()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var isAuthenticated = user.Identity?.IsAuthenticated == true;
+
+        foreach (var customPage in customPages)
+        {
+            // Hoppa över startsidan i sidfoten
+            if (string.Equals(customPage.PageKey, "home", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Endast huvudnavigationslänkar, exkludera dropdown/hidden/footer
+            if (!string.Equals(customPage.NavigationType, "main", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Om det finns NavigationConfig för sidan, använd den som sanning
+            var cfg = allNavItems.FirstOrDefault(n => n.PageKey.Equals(customPage.PageKey, StringComparison.OrdinalIgnoreCase));
+
+            if (cfg != null && !cfg.IsActive)
+                continue;
+
+            var existsInGuestNav = guestSitemapPages.Any(g => g.PageKey.Equals(customPage.PageKey, StringComparison.OrdinalIgnoreCase));
+            var existsInMemberNav = memberSitemapPages.Any(m => m.PageKey.Equals(customPage.PageKey, StringComparison.OrdinalIgnoreCase));
+
+            // Beräkna visibilitet
+            bool showForGuest = false;
+            bool showForMember = false;
+
+            if (cfg != null)
+            {
+                // Styrs av NavigationConfig
+                showForGuest = cfg.IsVisibleToGuests && IsAllowedByRolesCsv(cfg.RequiredRoles, user, isAuthenticated: false);
+                showForMember = isAuthenticated && cfg.IsVisibleToMembers && IsAllowedByRolesCsv(cfg.RequiredRoles, user, isAuthenticated);
+            }
+            else
+            {
+                // Fallback till CustomPage-regler
+                showForGuest = IsAllowedByRolesList(customPage.RequiredRoles, user, isAuthenticated: false);
+                showForMember = isAuthenticated && IsAllowedByRolesList(customPage.RequiredRoles, user, isAuthenticated);
+            }
+
+            if (showForGuest && !existsInGuestNav)
+            {
+                guestSitemapPages.Add(new NavigationConfigDto
+                {
+                    PageKey = customPage.PageKey,
+                    DisplayName = customPage.DisplayName,
+                    SortOrder = customPage.SortOrder,
+                    IsActive = true,
+                    IsVisibleToGuests = true
+                });
+            }
+
+            if (showForMember && !existsInMemberNav)
+            {
+                memberSitemapPages.Add(new NavigationConfigDto
+                {
+                    PageKey = customPage.PageKey,
+                    DisplayName = customPage.DisplayName,
+                    SortOrder = customPage.SortOrder,
+                    IsActive = true,
+                    IsVisibleToMembers = true
+                });
+            }
+        }
+
+        // Sortera efter att ha lagt till custom pages
+        guestSitemapPages = guestSitemapPages.OrderBy(p => p.GuestSortOrder ?? p.SortOrder).ToList();
+        memberSitemapPages = memberSitemapPages.OrderBy(p => p.MemberSortOrder ?? p.SortOrder).ToList();
+    }
+
+    // CSV-sträng från NavigationConfigDto
+    private static bool IsAllowedByRolesCsv(string? requiredRolesCsv, ClaimsPrincipal user, bool isAuthenticated)
+    {
+        if (string.IsNullOrWhiteSpace(requiredRolesCsv))
+            return true; // inga roller krävs
+
+        if (!isAuthenticated)
+            return false; // roller krävs men användaren är oinloggad
+
+        var roles = requiredRolesCsv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToArray();
+
+        return roles.Length == 0 || roles.Any(r => user.IsInRole(r));
+    }
+
+    // lista från NavigationPageDto
+    private static bool IsAllowedByRolesList(List<string> roles, ClaimsPrincipal user, bool isAuthenticated)
+    {
+        if (roles == null || roles.Count == 0)
+            return true;
+
+        if (!isAuthenticated)
+            return false;
+
+        return roles.Any(user.IsInRole);
+    }
 }

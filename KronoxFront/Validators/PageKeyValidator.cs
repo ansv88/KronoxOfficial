@@ -13,7 +13,7 @@ public static class PageKeyValidator
         
         // Befintliga publik sidor (kolliderar med /{PageKey})  
         "omkonsortiet", "omsystemet", "visioner", "kontakt", "kontaktaoss",
-        "dokument", "forvaltning", "medlemsnytt", "for-styrelsen", "for-vnsg",
+        "dokument", "forvaltning", "medlemsnytt", "for-styrelsen", "for-vnsg", "registrera",
         
         // Tekniska routes
         "api", "auth", "login", "logout", "error", "account",

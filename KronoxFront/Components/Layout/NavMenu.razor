@@ -408,7 +408,9 @@
 
         var allConfigs = navigationConfigs
             .Where(n => n.IsActive)
-            .Where(n => isAuth ? n.IsVisibleToMembers : n.IsVisibleToGuests);
+            .Where(n => isAuth ? n.IsVisibleToMembers : n.IsVisibleToGuests)
+            // Göm startsidan från huvudnavigeringen
+            .Where(n => !string.Equals(n.PageKey, "home", StringComparison.OrdinalIgnoreCase));
 
         foreach (var config in allConfigs)
         {

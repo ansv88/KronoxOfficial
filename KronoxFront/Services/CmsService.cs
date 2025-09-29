@@ -726,6 +726,12 @@ public class CmsService
                 var json = await response.Content.ReadAsStringAsync();
                 var dto = json.ToImageViewModel();
 
+                // Rensa cache för att synka om FeatureSections
+                _cache.InvalidatePageCache(pageKey);
+                _cache.InvalidateGroup($"features_{pageKey}");
+                _cache.InvalidateKey($"features_public_{pageKey}");
+                _cache.InvalidateKey($"features_private_{pageKey}");
+
                 _logger.LogInformation("Feature-bild uppladdad: {Url}", dto?.Url);
                 return dto;
             }
@@ -1395,7 +1401,15 @@ public class CmsService
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var imageResult = json.ToImageViewModel();
-                return imageResult?.Url ?? "";
+                var url = imageResult?.Url ?? "";
+
+                // rensa relevanta cacher så nya bilder/URLs syns direkt
+                _cache.InvalidatePageCache(pageKey);
+                _cache.InvalidateGroup($"features_{pageKey}");
+                _cache.InvalidateKey($"features_public_{pageKey}");
+                _cache.InvalidateKey($"features_private_{pageKey}");
+
+                return url;
             }
 
             throw new Exception("Bilduppladdning misslyckades");
