@@ -9,12 +9,12 @@ public static class DevelopmentSuggestionExtensions
     {
         return new CreateDevelopmentSuggestionDto
         {
-            Organization = formModel.Organization,
-            Name = formModel.Name,
-            Email = formModel.Email,
-            Requirement = formModel.Requirement,
-            ExpectedBenefit = formModel.ExpectedBenefit,
-            AdditionalInfo = formModel.AdditionalInfo
+            Organization = formModel.Organization?.Trim() ?? string.Empty,
+            Name = formModel.Name?.Trim() ?? string.Empty,
+            Email = formModel.Email?.Trim() ?? string.Empty,
+            Requirement = formModel.Requirement?.Trim() ?? string.Empty,
+            ExpectedBenefit = formModel.ExpectedBenefit?.Trim() ?? string.Empty,
+            AdditionalInfo = formModel.AdditionalInfo?.Trim() ?? string.Empty
         };
     }
 

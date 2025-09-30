@@ -12,7 +12,7 @@ public class CategoryService
     public Task<List<MainCategoryDto>> GetMainCategoriesAsync()
         => _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main")!;
 
-    // **NYCKELMETHOD** - Hämtar kategorier baserat på användarens roller
+    // Hämtar kategorier baserat på användarens roller
     public Task<List<MainCategoryDto>> GetAccessibleMainCategoriesAsync()
         => _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main/accessible")!;
 

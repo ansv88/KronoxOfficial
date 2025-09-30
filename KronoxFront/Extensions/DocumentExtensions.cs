@@ -16,9 +16,9 @@ public static class DocumentExtensions
             UploadedAt = dto.UploadedAt,
             FileSize = dto.FileSize,
             MainCategoryId = dto.MainCategoryId,
-            SubCategories = dto.SubCategories,
-            MainCategoryDto = dto.MainCategory, // Direkt mapping eftersom strukturen matchar
-            SubCategoryDtos = dto.SubCategoryDtos,
+            SubCategories = (dto.SubCategories ?? new List<int>()).ToList(),
+            MainCategoryDto = dto.MainCategory ?? new MainCategoryDto(),
+            SubCategoryDtos = (dto.SubCategoryDtos ?? new List<SubCategoryDto>()).ToList(),
             IsArchived = dto.IsArchived,
             ArchivedAt = dto.ArchivedAt,
             ArchivedBy = dto.ArchivedBy

@@ -22,7 +22,7 @@ public static class CustomPageExtensions
             CreatedAt = dto.CreatedAt,
             LastModified = dto.LastModified,
             CreatedBy = dto.CreatedBy,
-            RequiredRoles = dto.RequiredRoles
+            RequiredRoles = dto.RequiredRoles ?? new List<string>()
         };
     }
 
@@ -40,7 +40,7 @@ public static class CustomPageExtensions
             NavigationType = dto.NavigationType,
             ParentPageKey = dto.ParentPageKey,
             SortOrder = dto.SortOrder,
-            RequiredRoles = dto.RequiredRoles,
+            RequiredRoles = dto.RequiredRoles ?? new List<string>(),
             Children = dto.Children.Select(c => c.ToNavigationViewModel()).ToList()
         };
     }
@@ -54,16 +54,16 @@ public static class CustomPageExtensions
     {
         return new
         {
-            PageKey = viewModel.PageKey,
-            Title = viewModel.Title,
-            DisplayName = viewModel.DisplayName,
-            Description = viewModel.Description,
+            PageKey = viewModel.PageKey?.Trim() ?? string.Empty,
+            Title = viewModel.Title?.Trim() ?? string.Empty,
+            DisplayName = viewModel.DisplayName?.Trim() ?? string.Empty,
+            Description = viewModel.Description?.Trim() ?? string.Empty,
             IsActive = viewModel.IsActive,
             ShowInNavigation = viewModel.ShowInNavigation,
-            NavigationType = viewModel.NavigationType,
-            ParentPageKey = viewModel.ParentPageKey,
+            NavigationType = viewModel.NavigationType?.Trim() ?? string.Empty,
+            ParentPageKey = string.IsNullOrWhiteSpace(viewModel.ParentPageKey) ? null : viewModel.ParentPageKey!.Trim(),
             SortOrder = viewModel.SortOrder,
-            RequiredRoles = viewModel.RequiredRoles
+            RequiredRoles = viewModel.RequiredRoles ?? new List<string>()
         };
     }
 
@@ -71,24 +71,24 @@ public static class CustomPageExtensions
     {
         return new
         {
-            Title = viewModel.Title,
-            DisplayName = viewModel.DisplayName,
-            Description = viewModel.Description,
+            Title = viewModel.Title?.Trim() ?? string.Empty,
+            DisplayName = viewModel.DisplayName?.Trim() ?? string.Empty,
+            Description = viewModel.Description?.Trim() ?? string.Empty,
             IsActive = viewModel.IsActive,
             ShowInNavigation = viewModel.ShowInNavigation,
-            NavigationType = viewModel.NavigationType,
-            ParentPageKey = viewModel.ParentPageKey,
+            NavigationType = viewModel.NavigationType?.Trim() ?? string.Empty,
+            ParentPageKey = string.IsNullOrWhiteSpace(viewModel.ParentPageKey) ? null : viewModel.ParentPageKey!.Trim(),
             SortOrder = viewModel.SortOrder,
-            RequiredRoles = viewModel.RequiredRoles
+            RequiredRoles = viewModel.RequiredRoles ?? new List<string>()
         };
     }
 
     public static bool IsAuthorized(this NavigationPageDto page, bool isAuthenticated, System.Security.Claims.ClaimsPrincipal user)
     {
-        if (!page.RequiredRoles.Any())
+        if (page.RequiredRoles is null || page.RequiredRoles.Count == 0)
             return true;
 
-        if (!isAuthenticated)
+        if (!isAuthenticated || user is null)
             return false;
 
         return page.RequiredRoles.Any(role => user.IsInRole(role));
@@ -96,10 +96,10 @@ public static class CustomPageExtensions
 
     public static bool IsAuthorized(this NavigationPageViewModel page, bool isAuthenticated, System.Security.Claims.ClaimsPrincipal user)
     {
-        if (!page.RequiredRoles.Any())
+        if (page.RequiredRoles is null || page.RequiredRoles.Count == 0)
             return true;
 
-        if (!isAuthenticated)
+        if (!isAuthenticated || user is null)
             return false;
 
         return page.RequiredRoles.Any(role => user.IsInRole(role));

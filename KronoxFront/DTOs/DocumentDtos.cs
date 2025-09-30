@@ -17,21 +17,22 @@ public class DocumentDto
     public DateTime? ArchivedAt { get; set; }
     public string? ArchivedBy { get; set; }
 
-    // Hjälpmetod för formaterad filstorlek (samma som API)
+    // Hjälpmetod för formaterad filstorlek
     public string FormattedFileSize => FormatFileSize(FileSize);
 
     private static string FormatFileSize(long bytes)
     {
-        const int scale = 1024;
-        string[] orders = { "GB", "MB", "KB", "Bytes" };
-        long max = (long)Math.Pow(scale, orders.Length - 1);
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        var order = 0;
 
-        foreach (string order in orders)
+        // Skala ned tills värdet är < 1024 eller vi nått högsta enhet
+        while (len >= 1024 && order < sizes.Length - 1)
         {
-            if (bytes > max)
-                return $"{decimal.Divide(bytes, max):##.##} {order}";
-            max /= scale;
+            order++;
+            len /= 1024.0;
         }
-        return "0 Bytes";
+
+        return $"{len:0.##} {sizes[order]}";
     }
 }

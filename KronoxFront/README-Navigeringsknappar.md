@@ -5,7 +5,7 @@ Den här guiden beskriver hur navigeringsknapparna under intro-sektionen hanteras
 Innehållet gäller Blazor-projektet KronoxFront (.NET 8).
 
 ## Begrepp
-- Vanlig länk: Du skriver den riktiga URL:en direkt i admin (t.ex. `/dokument` eller `https://exempel.se`). Inget extra behövs.
+- Vanlig länk: Du skriver den riktiga URL:en direkt i admingränssnittet (t.ex. `/dokument` eller `https://exempel.se`). Inget extra behövs.
 - Maskerad länk: Du döljer den riktiga URL:en bakom en intern väg, t.ex. `/go/manualen`, och låter servern göra en 302-redirect till målet. Hover i webbläsaren visar då bara `/go/manualen`.
 
 Maskerade länkar används när du inte vill exponera extern mål-URL (t.ex. en inloggningssida hos tredje part) i statusraden.

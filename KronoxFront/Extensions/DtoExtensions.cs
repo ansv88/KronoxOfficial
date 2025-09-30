@@ -1,14 +1,14 @@
 using KronoxFront.DTOs;
 using KronoxFront.ViewModels;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace KronoxFront.Extensions;
 
 // Extension-metoder för att deserialisera JSON-strängar till ViewModels.
-
 public static class DtoExtensions
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
@@ -16,13 +16,11 @@ public static class DtoExtensions
     // Mappningar från API-svar (JSON) till viewmodels
     public static PageContentViewModel? ToViewModel(this string json)
     {
-        if (string.IsNullOrEmpty(json))
-            return null;
+        if (string.IsNullOrWhiteSpace(json)) return null;
 
         try
         {
-            var apiDto = JsonSerializer.Deserialize<PageContentViewModel>(json, _jsonOptions);
-            return apiDto;
+            return JsonSerializer.Deserialize<PageContentViewModel>(json, _jsonOptions);
         }
         catch
         {
@@ -32,13 +30,11 @@ public static class DtoExtensions
 
     public static List<MemberLogoViewModel>? ToLogoViewModels(this string json)
     {
-        if (string.IsNullOrEmpty(json))
-            return null;
+        if (string.IsNullOrWhiteSpace(json)) return null;
 
         try
         {
-            var viewModels = JsonSerializer.Deserialize<List<MemberLogoViewModel>>(json, _jsonOptions);
-            return viewModels;
+            return JsonSerializer.Deserialize<List<MemberLogoViewModel>>(json, _jsonOptions);
         }
         catch
         {
@@ -48,13 +44,11 @@ public static class DtoExtensions
 
     public static MemberLogoViewModel? ToLogoViewModel(this string json)
     {
-        if (string.IsNullOrEmpty(json))
-            return null;
+        if (string.IsNullOrWhiteSpace(json)) return null;
 
         try
         {
-            var viewModel = JsonSerializer.Deserialize<MemberLogoViewModel>(json, _jsonOptions);
-            return viewModel;
+            return JsonSerializer.Deserialize<MemberLogoViewModel>(json, _jsonOptions);
         }
         catch
         {
@@ -70,49 +64,46 @@ public static class DtoExtensions
             Url = dto.Url,
             AltText = dto.AltText,
             SortOrd = dto.SortOrd,
-            LinkUrl = dto.LinkUrl
+            LinkUrl = dto.LinkUrl ?? string.Empty
         };
     }
 
-    public static PageImageViewModel? ToImageViewModel(this string json)
+    // ILogger är valfri för att undvika breaking changes. Logga endast om logger != null.
+    public static PageImageViewModel? ToImageViewModel(this string json, ILogger? logger = null)
     {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+
         try
         {
-            if (string.IsNullOrEmpty(json))
-                return null;
+            var result = JsonSerializer.Deserialize<PageImageViewModel>(json, _jsonOptions);
 
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var result = JsonSerializer.Deserialize<PageImageViewModel>(json, options);
-
-            // Extra validering och logging
+            // Extra validering
             if (result != null)
             {
-                // Säkerställ att URL inte är tom
-                if (string.IsNullOrEmpty(result.Url))
-                {
+                var urlTrimmed = result.Url?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(urlTrimmed))
                     return null;
-                }
+
+                result.Url = urlTrimmed;
             }
 
             return result;
         }
         catch (JsonException ex)
         {
-            // Logga felet om möjligt
-            System.Diagnostics.Debug.WriteLine($"JSON deserialization error in ToImageViewModel: {ex.Message}");
+            logger?.LogDebug(ex, "JSON-fel i ToImageViewModel");
             return null;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Unexpected error in ToImageViewModel: {ex.Message}");
+            logger?.LogDebug(ex, "Oväntat fel i ToImageViewModel");
             return null;
         }
     }
 
     public static T? DeserializeAnonymous<T>(this string json) where T : class, new()
     {
-        if (string.IsNullOrEmpty(json))
-            return null;
+        if (string.IsNullOrWhiteSpace(json)) return null;
 
         try
         {
@@ -126,12 +117,11 @@ public static class DtoExtensions
 
     public static List<FaqSectionViewModel> ToFaqSectionViewModels(this string json)
     {
-        if (string.IsNullOrEmpty(json)) return new List<FaqSectionViewModel>();
+        if (string.IsNullOrWhiteSpace(json)) return new List<FaqSectionViewModel>();
 
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var dtos = JsonSerializer.Deserialize<List<FaqSectionDto>>(json, options);
+            var dtos = JsonSerializer.Deserialize<List<FaqSectionDto>>(json, _jsonOptions);
 
             return dtos?.Select(dto => new FaqSectionViewModel
             {

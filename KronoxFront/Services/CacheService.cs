@@ -23,8 +23,6 @@ public class CacheService
         _logger = logger;
     }
 
-    // ============ CORE CACHE FUNCTIONALITY ============
-
     // Hämtar data från cache eller kör factory-funktion
     public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T?>> factory, TimeSpan expiration, string? group = null)
     {
@@ -61,8 +59,6 @@ public class CacheService
         return item;
     }
 
-    // ============ SPECIFIKA CACHE-METODER ============
-
     // Cache för publikt sidinnehåll (säkert att dela mellan användare)
     public async Task<T?> GetPageContentAsync<T>(string pageKey, Func<Task<T?>> factory)
     {
@@ -90,8 +86,6 @@ public class CacheService
         return await GetOrSetAsync(cacheKey, factory, LongCache, "actionplans");
     }
 
-    // ============ DOKUMENTFUNKTIONALITET ============
-
     public async Task<List<DocumentViewModel>?> GetDocumentsAsync(Func<Task<List<DocumentViewModel>?>> factory)
     {
         return await GetOrSetAsync("DocumentsWithCategories", factory, LongCache, "documents");
@@ -117,8 +111,6 @@ public class CacheService
             new ConcurrentBag<string> { "DocumentsWithCategories" },
             (_, existing) => { existing.Add("DocumentsWithCategories"); return existing; });
     }
-
-    // ============ SÄKER INVALIDERING ============
 
     // Invalidera alla cache-poster i en grupp
     public void InvalidateGroup(string group)

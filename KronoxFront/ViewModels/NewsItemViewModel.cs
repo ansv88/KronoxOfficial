@@ -67,8 +67,6 @@ public class CreateNewsViewModel
 
     public List<string> SelectedRoles { get; set; } = new() { "Member" };
 
-
-    // Available roles for selection
     public List<RoleOption> AvailableRoles { get; set; } = new()
     {
         new RoleOption { Value = "Alla", Label = "Alla (alla användare)", IsSelected = true },

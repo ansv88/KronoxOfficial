@@ -49,13 +49,13 @@ public class CmsService
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to update alt text: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                _logger.LogError("Kunde inte uppdatera alt-text: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 return false;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating alt text for image {ImageId} on page {PageKey}", image.Id, pageKey);
+            _logger.LogError(ex, "Fel vid uppdatering av alt-text för bild {ImageId} på sida {PageKey}", image.Id, pageKey);
             return false;
         }
     }
@@ -76,7 +76,7 @@ public class CmsService
     {
         return await _cache.GetPageContentAsync(pageKey, async () =>
         {
-            _logger.LogDebug("Fetching page content from API: {PageKey}", pageKey);
+            _logger.LogDebug("Hämtar sidinnehåll från API: {PageKey}", pageKey);
             var resp = await _http.GetAsync($"api/content/{pageKey}");
             if (!resp.IsSuccessStatusCode) return null;
             return (await resp.Content.ReadAsStringAsync()).ToViewModel();
@@ -108,20 +108,54 @@ public class CmsService
 
                     foreach (var feature in featuresElement.EnumerateArray())
                     {
+                        var title = feature.TryGetProperty("title", out var titleProp)
+                            ? titleProp.GetString() ?? "" : "";
+                        var sectionContent = feature.TryGetProperty("content", out var contentProp)
+                            ? contentProp.GetString() ?? "" : "";
+                        var imageUrl = feature.TryGetProperty("imageUrl", out var imageUrlProp)
+                            ? imageUrlProp.GetString() ?? "" : "";
+                        var imageAltText = feature.TryGetProperty("imageAltText", out var altTextProp)
+                            ? altTextProp.GetString() ?? "" : "";
+                        var hasImage = feature.TryGetProperty("hasImage", out var hasImageProp)
+                            ? hasImageProp.GetBoolean() : !string.IsNullOrEmpty(imageUrl);
+
+                        // Läs privatfält
+                        var hasPrivateContent = feature.TryGetProperty("hasPrivateContent", out var hpProp)
+                            ? hpProp.GetBoolean() : false;
+                        var privateContent = feature.TryGetProperty("privateContent", out var pcProp)
+                            ? (pcProp.GetString() ?? "") : "";
+                        var contactHeading = feature.TryGetProperty("contactHeading", out var chProp)
+                            ? (chProp.GetString() ?? "") : "";
+
+                        // Läs kontaktpersoner
+                        var contacts = new List<ContactPersonViewModel>();
+                        if (feature.TryGetProperty("contactPersons", out var cpsProp) &&
+                            cpsProp.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var cp in cpsProp.EnumerateArray())
+                            {
+                                contacts.Add(new ContactPersonViewModel
+                                {
+                                    Name = cp.TryGetProperty("name", out var n) ? (n.GetString() ?? "") : "",
+                                    Email = cp.TryGetProperty("email", out var e) ? (e.GetString() ?? "") : "",
+                                    Phone = cp.TryGetProperty("phone", out var p) ? (p.GetString() ?? "") : "",
+                                    Organization = cp.TryGetProperty("organization", out var o) ? (o.GetString() ?? "") : ""
+                                });
+                            }
+                        }
+
                         featureSections.Add(new FeatureSectionViewModel
                         {
-                            Title = feature.TryGetProperty("title", out var titleProp)
-                                ? titleProp.GetString() ?? "" : "",
-                            Content = feature.TryGetProperty("content", out var contentProp)
-                                ? contentProp.GetString() ?? "" : "",
-                            ImageUrl = feature.TryGetProperty("imageUrl", out var imageUrlProp)
-                                ? imageUrlProp.GetString() ?? "" : "",
-                            ImageAltText = feature.TryGetProperty("imageAltText", out var altTextProp)
-                                ? altTextProp.GetString() ?? "" : "",
-                            HasImage = feature.TryGetProperty("hasImage", out var hasImageProp)
-                                ? hasImageProp.GetBoolean() : false,
+                            Title = title,
+                            Content = sectionContent,
+                            ImageUrl = imageUrl,
+                            ImageAltText = imageAltText,
+                            HasImage = hasImage,
                             SortOrder = index++,
-                            PageKey = pageKey
+                            HasPrivateContent = hasPrivateContent,
+                            PrivateContent = privateContent,
+                            ContactHeading = contactHeading,
+                            ContactPersons = contacts
                         });
                     }
 
@@ -136,6 +170,13 @@ public class CmsService
                         if (!syncResp.IsSuccessStatusCode)
                         {
                             _logger.LogWarning("Kunde inte synkronisera FeatureSections. Status: {Status}", syncResp.StatusCode);
+                        }
+                        else
+                        {
+                            // Invalidera features-cache direkt efter lyckad sync
+                            _cache.InvalidateGroup($"features_{pageKey}");
+                            _cache.InvalidateKey($"features_public_{pageKey}");
+                            _cache.InvalidateKey($"features_private_{pageKey}");
                         }
                     }
                     catch (Exception ex)
@@ -413,7 +454,7 @@ public class CmsService
         {
             return await _cache.GetOrSetAsync($"features_public_{pageKey}", async () =>
             {
-                _logger.LogDebug("Fetching public feature sections from API: {PageKey}", pageKey);
+                _logger.LogDebug("Hämtar publika feature-sektioner från API: {PageKey}", pageKey);
 
                 try
                 {
@@ -427,7 +468,7 @@ public class CmsService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error fetching public feature sections for {PageKey}", pageKey);
+                    _logger.LogError(ex, "Fel vid hämtning av publika feature-sektioner för {PageKey}", pageKey);
                 }
 
                 return await GetFeatureSectionsFromMetadata(pageKey);
@@ -438,7 +479,7 @@ public class CmsService
             // Inloggat innehåll
             return await _cache.GetOrSetAsync($"features_private_{pageKey}", async () =>
             {
-                _logger.LogDebug("Fetching authenticated feature sections from API: {PageKey}", pageKey);
+                _logger.LogDebug("Hämtar autentiserade feature-sektioner från API: {PageKey}", pageKey);
                 try
                 {
                     var response = await _http.GetAsync($"api/featuresections/{pageKey}/authenticated");
@@ -452,7 +493,7 @@ public class CmsService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error fetching authenticated feature sections for {PageKey}", pageKey);
+                    _logger.LogError(ex, "Fel vid hämtning av autentiserade feature-sektioner för {PageKey}", pageKey);
                     return await GetFeatureSectionsFromMetadata(pageKey);
                 }
             }, TimeSpan.FromMinutes(8), $"features_{pageKey}") ?? new List<FeatureSectionViewModel>();
@@ -488,7 +529,7 @@ public class CmsService
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new HttpRequestException($"Failed to save feature sections: {response.StatusCode}");
+                throw new HttpRequestException($"Fel vid sparande av feature-sektioner: {response.StatusCode}");
             }
 
             _cache.InvalidateGroup($"features_{pageKey}");
@@ -506,7 +547,7 @@ public class CmsService
     {
         return await _cache.GetOrSetAsync($"faq_{pageKey}", async () =>
         {
-            _logger.LogDebug("Fetching FAQ sections from API: {PageKey}", pageKey);
+            _logger.LogDebug("Hämtar FAQ sektioner från API: {PageKey}", pageKey);
 
             try
             {
@@ -539,7 +580,7 @@ public class CmsService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching FAQ sections for {PageKey}", pageKey);
+                _logger.LogError(ex, "Fel vid hämtning av FAQ-sektioner för {PageKey}", pageKey);
             }
 
             return new List<FaqSectionViewModel>();
@@ -577,7 +618,7 @@ public class CmsService
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Kunde inte spara FAQ-sektioner: {StatusCode} - {Content}",
                     response.StatusCode, errorContent);
-                throw new HttpRequestException($"Failed to save FAQ sections: {response.StatusCode}");
+                throw new HttpRequestException($"Fel vid sparning av FAQ-sektioner: {response.StatusCode}");
             }
 
             _cache.InvalidateGroup($"faq_{pageKey}");
@@ -671,11 +712,11 @@ public class CmsService
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new HttpRequestException($"Failed to save action plan: {response.StatusCode}");
+                throw new HttpRequestException($"Kunde inte spara handlingsplan: {response.StatusCode}");
             }
 
             _cache.InvalidateGroup("actionplans");
-            _logger.LogDebug("Action plan saved and cache invalidated for {PageKey}", pageKey);
+            _logger.LogDebug("Handlingsplan sparad och cache invaliderad för {PageKey}", pageKey);
         }
         catch (Exception ex)
         {
@@ -791,7 +832,7 @@ public class CmsService
 
             var errorContent = await response.Content.ReadAsStringAsync();
             _logger.LogError("Medlemslogotyp uppladdning misslyckades: {StatusCode} - {Content}", response.StatusCode, errorContent);
-            throw new HttpRequestException($"Upload failed: {response.StatusCode}");
+            throw new HttpRequestException($"Uppladdning misslyckades: {response.StatusCode}");
         }
         catch (Exception ex)
         {
@@ -811,7 +852,7 @@ public class CmsService
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Kunde inte uppdatera logotypbeskrivning: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                throw new HttpRequestException($"Failed to update description: {response.StatusCode}");
+                throw new HttpRequestException($"Kunde inte uppdatera beskrivning: {response.StatusCode}");
             }
         }
         catch (Exception ex)
@@ -832,7 +873,7 @@ public class CmsService
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Kunde inte uppdatera logotyplänk: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                throw new HttpRequestException($"Failed to update link: {response.StatusCode}");
+                throw new HttpRequestException($"Kunde inte uppdatera länk: {response.StatusCode}");
             }
         }
         catch (Exception ex)
@@ -853,7 +894,7 @@ public class CmsService
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Kunde inte flytta logotyp: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                throw new HttpRequestException($"Failed to move logo: {response.StatusCode}");
+                throw new HttpRequestException($"Fel vid flytt av logotyp {response.StatusCode}");
             }
         }
         catch (Exception ex)
@@ -873,7 +914,7 @@ public class CmsService
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Kunde inte ta bort logotyp: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                throw new HttpRequestException($"Failed to delete logo: {response.StatusCode}");
+                throw new HttpRequestException($"Fel vid borttagning av logotyp: {response.StatusCode}");
             }
 
             _logger.LogDebug("Medlemslogotyp borttagen: {LogoId}", logoId);
@@ -1521,66 +1562,80 @@ public class CmsService
 
                     foreach (var feature in featuresEl.EnumerateArray())
                     {
-                        var title = feature.TryGetProperty("title", out var titleEl)
-                            ? titleEl.GetString() ?? ""
-                            : "";
-
-                        var content = feature.TryGetProperty("content", out var contentEl)
-                            ? contentEl.GetString() ?? ""
-                            : "";
-
-                        var imageUrl = feature.TryGetProperty("imageUrl", out var imageUrlEl)
-                            ? imageUrlEl.GetString() ?? ""
-                            : "";
-
+                        var title = feature.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? "" : "";
+                        var content = feature.TryGetProperty("content", out var contentEl) ? contentEl.GetString() ?? "" : "";
+                        var imageUrl = feature.TryGetProperty("imageUrl", out var imageUrlEl) ? imageUrlEl.GetString() ?? "" : "";
                         var imageAltText = feature.TryGetProperty("imageAltText", out var imageAltTextEl)
                             ? imageAltTextEl.GetString() ?? ""
                             : (string.IsNullOrEmpty(title) ? "" : title);
-
                         var hasImage = feature.TryGetProperty("hasImage", out var hasImageEl)
-                            ? hasImageEl.GetBoolean()
-                            : !string.IsNullOrEmpty(imageUrl);
+                            ? hasImageEl.GetBoolean() : !string.IsNullOrEmpty(imageUrl);
 
-                        features.Add(new FeatureSectionViewModel
+                        // privatfält
+                        var hasPrivateContent = feature.TryGetProperty("hasPrivateContent", out var hpEl) && hpEl.GetBoolean();
+                        var privateContent = feature.TryGetProperty("privateContent", out var pcEl) ? (pcEl.GetString() ?? "") : "";
+                        var contactHeading = feature.TryGetProperty("contactHeading", out var chEl) ? (chEl.GetString() ?? "") : "";
+
+                        // kontaktpersoner
+                        var contacts = new List<ContactPersonViewModel>();
+                        if (feature.TryGetProperty("contactPersons", out var cpsEl) &&
+                            cpsEl.ValueKind == JsonValueKind.Array)
                         {
-                            Title = title,
-                            Content = content,
-                            ImageUrl = imageUrl,
-                            ImageAltText = imageAltText,
-                            HasImage = hasImage
-                        });
+                            foreach (var cp in cpsEl.EnumerateArray())
+                            {
+                                contacts.Add(new ContactPersonViewModel
+                                {
+                                    Name = cp.TryGetProperty("name", out var n) ? (n.GetString() ?? "") : "",
+                                    Email = cp.TryGetProperty("email", out var e) ? (e.GetString() ?? "") : "",
+                                    Phone = cp.TryGetProperty("phone", out var p) ? (p.GetString() ?? "") : "",
+                                    Organization = cp.TryGetProperty("organization", out var o) ? (o.GetString() ?? "") : ""
+                            });
+                        }
                     }
 
-                    if (features.Any())
-                        return features;
+                    features.Add(new FeatureSectionViewModel
+                    {
+                        Title = title,
+                        Content = content,
+                        ImageUrl = imageUrl,
+                        ImageAltText = imageAltText,
+                        HasImage = hasImage,
+                        HasPrivateContent = hasPrivateContent,
+                        PrivateContent = privateContent,
+                        ContactHeading = contactHeading,
+                        ContactPersons = contacts
+                    });
                 }
+
+                if (features.Any())
+                    return features;
             }
-
-            return new List<FeatureSectionViewModel>
-            {
-                new FeatureSectionViewModel
-                {
-                    Title = "Innehållet laddas",
-                    Content = "<p>Innehållet för denna sida är under uppbyggnad.</p>",
-                    HasImage = false
-                }
-            };
         }
-        catch (Exception ex)
+
+        return new List<FeatureSectionViewModel>
         {
-            _logger.LogError(ex, "Fel vid fallback-hämtning från metadata för {PageKey}", pageKey);
-
-            return new List<FeatureSectionViewModel>
+            new()
             {
-                new FeatureSectionViewModel
-                {
-                    Title = "Ett fel uppstod",
-                    Content = "<p>Det gick inte att hämta innehållet. Vänligen försök igen senare.</p>",
-                    HasImage = false
-                }
-            };
-        }
+                Title = "Innehållet laddas",
+                Content = "<p>Innehållet för denna sida är under uppbyggnad.</p>",
+                HasImage = false
+            }
+        };
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Fel vid fallback-hämtning från metadata för {PageKey}", pageKey);
+        return new List<FeatureSectionViewModel>
+        {
+            new()
+            {
+                Title = "Ett fel uppstod",
+                Content = "<p>Det gick inte att hämta innehållet. Vänligen försök igen senare.</p>",
+                HasImage = false
+            }
+        };
+    }
+}
 
     private List<FeatureSectionViewModel> MapToViewModelsWithPrivate(List<FeatureSectionWithPrivateDto> dtos, bool includePrivate = true)
     {
@@ -1636,6 +1691,7 @@ public class CmsService
                 }
             }
 
+            // Inkludera kontaktpersoner + rubrik
             existingMetadata["features"] = sections.Select(f => new
             {
                 title = f.Title,
@@ -1644,7 +1700,15 @@ public class CmsService
                 imageAltText = f.ImageAltText,
                 hasImage = f.HasImage,
                 hasPrivateContent = f.HasPrivateContent,
-                privateContent = f.PrivateContent
+                privateContent = f.PrivateContent,
+                contactHeading = f.ContactHeading,
+                contactPersons = f.ContactPersons.Select(c => new
+                {
+                    name = c.Name,
+                    email = c.Email,
+                    phone = c.Phone,
+                    organization = c.Organization
+                }).ToArray()
             }).ToArray();
 
             pageContent.Metadata = JsonSerializer.Serialize(existingMetadata);
