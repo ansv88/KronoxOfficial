@@ -19,7 +19,8 @@
                 
                 <EditForm Model="@contactForm" OnValidSubmit="@HandleFormSubmit">
                     <DataAnnotationsValidator />
-                    
+                    <ValidationSummary />
+
                     <div class="mb-3">
                         <label for="contactName" class="form-label fw-medium">Namn*</label>
                         <InputText id="contactName" 
@@ -91,42 +92,65 @@
                     <h3 class="h5 mb-4 fw-bold">Postadress</h3>
                     
                     <div class="mb-4 p-3 bg-light rounded border-start border-3 border-primary">
-                        <strong>@contactInfo.PostalAddress.OrganizationName</strong><br />
-                        @contactInfo.PostalAddress.AddressLine1<br />
-                        @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.AddressLine2))
+                        @if (contactInfo?.PostalAddress is not null)
                         {
-                            @contactInfo.PostalAddress.AddressLine2<br />
+                            <strong>@contactInfo.PostalAddress.OrganizationName</strong><br />
+                            @contactInfo.PostalAddress.AddressLine1<br />
+                            @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.AddressLine2))
+                            {
+                                @contactInfo.PostalAddress.AddressLine2<br />
+                            }
+                            @contactInfo.PostalAddress.PostalCode @contactInfo.PostalAddress.City
+                            @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.Country))
+                            {
+                                <br />@contactInfo.PostalAddress.Country
+                            }
                         }
-                        @contactInfo.PostalAddress.PostalCode @contactInfo.PostalAddress.City
-                        @if (!string.IsNullOrEmpty(contactInfo.PostalAddress.Country))
+                        else
                         {
-                            <br />@contactInfo.PostalAddress.Country
+                            <span class="text-muted">Kontaktuppgifter saknas för närvarande.</span>
                         }
                     </div>
 
-                    <h3 class="h5 mb-3 fw-bold">@ContactPersonsTitle</h3
-                    >
-                    @foreach (var person in contactInfo.ContactPersons.Where(p => p.IsActive).OrderBy(p => p.SortOrder))
+                    <h3 class="h5 mb-3 fw-bold">@ContactPersonsTitle</h3>
+                    @if (contactInfo?.ContactPersons is not null && contactInfo.ContactPersons.Any())
                     {
-                        <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
-                            <div class="mb-2">
-                                <strong class="text-dark">@person.Name</strong>
-                                <span class="ms-2">@person.Title</span><br />
-                                <small class="text-muted">
-                                    <i class="fa-solid fa-envelope me-1"></i>@person.Email
-                                </small><br />
-                                @if (!string.IsNullOrEmpty(person.Phone))
-                                {
-                                    <small class="text-muted">
-                                        <i class="fa-solid fa-phone me-1"></i>@person.Phone
-                                    </small>
-                                }
+                        @foreach (var person in contactInfo.ContactPersons.Where(p => p.IsActive).OrderBy(p => p.SortOrder))
+                        {
+                            <div class="contact-enhanced p-3 mb-3 bg-light rounded border">
+                                <div class="mb-2">
+                                    <strong class="text-dark">@person.Name</strong>
+                                    @if (!string.IsNullOrEmpty(person.Title))
+                                    {
+                                        <span class="ms-2">@person.Title</span>
+                                    }
+                                    <br />
+                                    @if (!string.IsNullOrEmpty(person.Email))
+                                    {
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-envelope me-1"></i>
+                                            <a href="mailto:@person.Email" class="text-decoration-none">@person.Email</a>
+                                        </small>
+                                        <br />
+                                    }
+                                    @if (!string.IsNullOrEmpty(person.Phone))
+                                    {
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-phone me-1"></i>
+                                            <a href="tel:@person.Phone" class="text-decoration-none">@person.Phone</a>
+                                        </small>
+                                    }
+                                </div>
                             </div>
-                        </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">Inga kontaktpersoner att visa.</p>
                     }
 
                     @* ===== MEDLEMSINFORMATION (endast för inloggade medlemmar) ===== *@
-                    @if (isLoggedIn && contactInfo.EmailLists.Any())
+                    @if (isLoggedIn && (contactInfo?.EmailLists?.Any() == true))
                     {
                         <hr class="my-4" />
                         
@@ -232,11 +256,10 @@
                 
                 // Rensa formuläret efter framgångsrik submit
                 contactForm = new ContactFormViewModel();
+                StateHasChanged();
                 
                 if (OnFormSuccess.HasDelegate)
-                {
                     await OnFormSuccess.InvokeAsync();
-                }
                 
                 return;
             }
@@ -251,11 +274,10 @@
                 
                 // Rensa formuläret
                 contactForm = new ContactFormViewModel();
+                StateHasChanged();
                 
                 if (OnFormSuccess.HasDelegate)
-                {
                     await OnFormSuccess.InvokeAsync();
-                }
             }
             else
             {
@@ -266,9 +288,7 @@
                 await Toast.Error(errorMessage);
                 
                 if (OnFormError.HasDelegate)
-                {
                     await OnFormError.InvokeAsync(errorMessage);
-                }
             }
         }
         catch (Exception ex)
@@ -279,9 +299,7 @@
             await Toast.Error(errorMessage);
             
             if (OnFormError.HasDelegate)
-            {
                 await OnFormError.InvokeAsync(errorMessage);
-            }
         }
         finally
         {

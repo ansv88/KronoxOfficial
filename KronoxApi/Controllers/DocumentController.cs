@@ -29,20 +29,20 @@ public class DocumentController : ControllerBase
     private readonly IFileService _files;
     private readonly IRoleValidationService _roleValidationService;
     private readonly IWebHostEnvironment _env;
-    private readonly ILogger<DocumentController> _log;
+    private readonly ILogger<DocumentController> _logger;
 
     public DocumentController(
         ApplicationDbContext db,
         IFileService files,
         IRoleValidationService roleValidationService,
         IWebHostEnvironment env,
-        ILogger<DocumentController> log)
+        ILogger<DocumentController> logger)
     {
         _db = db;
         _files = files;
         _roleValidationService = roleValidationService;
         _env = env;
-        _log = log;
+        _logger = logger;
     }
 
     // Laddar upp ett dokument och kopplar det till kategorier.
@@ -63,7 +63,7 @@ public class DocumentController : ControllerBase
             var mainCategory = await _db.MainCategories.FindAsync(req.MainCategoryId);
             if (mainCategory == null || !mainCategory.IsActive)
             {
-                _log.LogWarning("Ogiltig eller inaktiv huvudkategori vid uppladdning: {MainCategoryId}", req.MainCategoryId);
+                _logger.LogWarning("Ogiltig eller inaktiv huvudkategori vid uppladdning: {MainCategoryId}", req.MainCategoryId);
                 return BadRequest("Ogiltig eller inaktiv huvudkategori");
             }
 
@@ -84,12 +84,12 @@ public class DocumentController : ControllerBase
             _db.Documents.Add(document);
             await _db.SaveChangesAsync();
 
-            _log.LogDebug("Dokument uppladdat: {FileName} (ID: {Id})", document.FileName, document.Id);
+            _logger.LogDebug("Dokument uppladdat: {FileName} (ID: {Id})", document.FileName, document.Id);
             return Ok(document);
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid uppladdning av dokument");
+            _logger.LogError(ex, "Fel vid uppladdning av dokument");
             return StatusCode(500, "Ett oväntat fel inträffade vid uppladdning av dokumentet.");
         }
     }
@@ -129,12 +129,12 @@ public class DocumentController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid hämtning av dokumentlista");
+            _logger.LogError(ex, "Fel vid hämtning av dokumentlista");
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av dokument.");
         }
     }
 
-    // **NYCKELMETHOD** - Hämtar dokument baserat på användarens roller
+    // Hämtar dokument baserat på användarens roller.
     [HttpGet("accessible")]
     [RequireRole("Admin", "Styrelse", "Medlem")]
     public async Task<IActionResult> GetAccessibleDocuments()
@@ -207,12 +207,12 @@ public class DocumentController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid hämtning av tillgängliga dokument");
+            _logger.LogError(ex, "Fel vid hämtning av tillgängliga dokument");
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av dokument.");
         }
     }
 
-    // Streama ner dokumentet från PrivateStorage, med rollbaserad åtkomstkontroll
+    // Streama ner dokumentet från PrivateStorage, med rollbaserad åtkomstkontroll.
     [HttpGet("{id}")]
     [RequireRole("Admin", "Styrelse", "Medlem")]
     public async Task<IActionResult> Download(int id)
@@ -225,7 +225,7 @@ public class DocumentController : ControllerBase
 
             if (document == null)
             {
-                _log.LogWarning("Dokument med ID {Id} hittades inte vid nedladdning.", id);
+                _logger.LogWarning("Dokument med ID {Id} hittades inte vid nedladdning.", id);
                 return NotFound();
             }
 
@@ -239,14 +239,14 @@ public class DocumentController : ControllerBase
                 // Kontrollera om användaren har tillgång till dokumentets kategori
                 if (!await _roleValidationService.UserHasAccessToCategoryAsync(document.MainCategoryId, userRoles))
                 {
-                    _log.LogWarning("Användare utan behörighet försökte ladda ner dokument {Id}", id);
+                    _logger.LogWarning("Användare utan behörighet försökte ladda ner dokument {Id}", id);
                     return Forbid("Du har inte behörighet att ladda ner detta dokument.");
                 }
 
                 // Kontrollera att dokumentet inte är arkiverat (utom för admin)
                 if (document.IsArchived)
                 {
-                    _log.LogWarning("Försök att ladda ner arkiverat dokument {Id} av icke-admin", id);
+                    _logger.LogWarning("Försök att ladda ner arkiverat dokument {Id} av icke-admin", id);
                     return NotFound();
                 }
             }
@@ -254,7 +254,7 @@ public class DocumentController : ControllerBase
             var phys = Path.Combine(_env.ContentRootPath, "PrivateStorage", document.FilePath);
             if (!System.IO.File.Exists(phys))
             {
-                _log.LogWarning("Filen saknas på disk: {FilePath}", phys);
+                _logger.LogWarning("Filen saknas på disk: {FilePath}", phys);
                 return NotFound("Filen saknas.");
             }
 
@@ -264,7 +264,7 @@ public class DocumentController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid nedladdning av dokument med ID {Id}", id);
+            _logger.LogError(ex, "Fel vid nedladdning av dokument med ID {Id}", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid nedladdning av dokumentet.");
         }
     }
@@ -279,7 +279,7 @@ public class DocumentController : ControllerBase
             var document = await _db.Documents.FindAsync(id);
             if (document == null)
             {
-                _log.LogWarning("Dokument med ID {Id} hittades inte för arkivering.", id);
+                _logger.LogWarning("Dokument med ID {Id} hittades inte för arkivering.", id);
                 return NotFound();
             }
 
@@ -290,23 +290,23 @@ public class DocumentController : ControllerBase
 
             document.IsArchived = true;
             document.ArchivedAt = DateTime.UtcNow;
-            document.ArchivedBy = "Admin"; // Eller hämta från user context
+            document.ArchivedBy = "Admin";
 
             await _db.SaveChangesAsync();
 
-            _log.LogDebug("Dokument arkiverat: {FileName} (ID: {Id}) av {User}",
+            _logger.LogDebug("Dokument arkiverat: {FileName} (ID: {Id}) av {User}",
                 document.FileName, document.Id, document.ArchivedBy);
 
             return Ok("Dokumentet har arkiverats.");
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            _log.LogWarning(ex, "Samtidighetskonflikt vid arkivering av dokument {Id}", id);
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid arkivering av dokument {Id}", id);
             return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid arkivering av dokument med ID {Id}", id);
+            _logger.LogError(ex, "Fel vid arkivering av dokument med ID {Id}", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid arkivering av dokumentet.");
         }
     }
@@ -321,7 +321,7 @@ public class DocumentController : ControllerBase
             var document = await _db.Documents.FindAsync(id);
             if (document == null)
             {
-                _log.LogWarning("Dokument med ID {Id} hittades inte för återställning.", id);
+                _logger.LogWarning("Dokument med ID {Id} hittades inte för återställning.", id);
                 return NotFound();
             }
 
@@ -336,19 +336,19 @@ public class DocumentController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            _log.LogDebug("Dokument återställt: {FileName} (ID: {Id})",
+            _logger.LogDebug("Dokument återställt: {FileName} (ID: {Id})",
                 document.FileName, document.Id);
 
             return Ok("Dokumentet har återställts.");
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            _log.LogWarning(ex, "Samtidighetskonflikt vid återställning av dokument {Id}", id);
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid återställning av dokument {Id}", id);
             return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid återställning av dokument med ID {Id}", id);
+            _logger.LogError(ex, "Fel vid återställning av dokument med ID {Id}", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid återställning av dokumentet.");
         }
     }
@@ -363,7 +363,7 @@ public class DocumentController : ControllerBase
             var document = await _db.Documents.FindAsync(id);
             if (document == null)
             {
-                _log.LogWarning("Dokument med ID {Id} hittades inte vid uppdatering.", id);
+                _logger.LogWarning("Dokument med ID {Id} hittades inte vid uppdatering.", id);
                 return NotFound();
             }
 
@@ -371,7 +371,7 @@ public class DocumentController : ControllerBase
             var newMainCategory = await _db.MainCategories.FindAsync(req.MainCategoryId);
             if (newMainCategory == null || !newMainCategory.IsActive)
             {
-                _log.LogWarning("Ogiltig eller inaktiv ny huvudkategori vid uppdatering: {MainCategoryId}", req.MainCategoryId);
+                _logger.LogWarning("Ogiltig eller inaktiv ny huvudkategori vid uppdatering: {MainCategoryId}", req.MainCategoryId);
                 return BadRequest("Ogiltig eller inaktiv ny huvudkategori");
             }
 
@@ -394,7 +394,7 @@ public class DocumentController : ControllerBase
                     var sourceFilePath = Path.Combine(_env.ContentRootPath, "PrivateStorage", oldFilePath);
                     if (!System.IO.File.Exists(sourceFilePath))
                     {
-                        _log.LogWarning("Källfilen hittades inte vid flytt: {SourceFilePath}", sourceFilePath);
+                        _logger.LogWarning("Källfilen hittades inte vid flytt: {SourceFilePath}", sourceFilePath);
                         return NotFound("Källfilen hittades inte. Kan inte flytta filen.");
                     }
 
@@ -419,29 +419,29 @@ public class DocumentController : ControllerBase
 
                     document.FilePath = newRelativePath;
 
-                    _log.LogDebug("Fil flyttad från {OldPath} till {NewPath}", oldFilePath, newRelativePath);
+                    _logger.LogDebug("Fil flyttad från {OldPath} till {NewPath}", oldFilePath, newRelativePath);
                 }
                 catch (Exception ex)
                 {
-                    _log.LogError(ex, "Misslyckades med att flytta fil för dokument med ID {Id}", id);
+                    _logger.LogError(ex, "Misslyckades med att flytta fil för dokument med ID {Id}", id);
                     return StatusCode(500, "Kunde inte flytta filen: " + ex.Message);
                 }
             }
 
             await _db.SaveChangesAsync();
 
-            _log.LogDebug("Dokument uppdaterat: {FileName} (ID: {Id})", document.FileName, document.Id);
+            _logger.LogDebug("Dokument uppdaterat: {FileName} (ID: {Id})", document.FileName, document.Id);
 
             return Ok(document);
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            _log.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av dokument {Id}", id);
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av dokument {Id}", id);
             return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid uppdatering av dokument med ID {Id}", id);
+            _logger.LogError(ex, "Fel vid uppdatering av dokument med ID {Id}", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av dokumentet.");
         }
     }
@@ -462,17 +462,17 @@ public class DocumentController : ControllerBase
             _db.Documents.Remove(document);
             await _db.SaveChangesAsync();
 
-            _log.LogDebug("Dokument raderat: {FileName} (ID: {Id})", document.FileName, document.Id);
+            _logger.LogDebug("Dokument raderat: {FileName} (ID: {Id})", document.FileName, document.Id);
             return NoContent();
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            _log.LogWarning(ex, "Samtidighetskonflikt vid borttagning av dokument {Id}", id);
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid borttagning av dokument {Id}", id);
             return Conflict(new { message = "Dokumentet ändrades av någon annan. Ladda om och försök igen." });
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid borttagning av dokument med ID {Id}", id);
+            _logger.LogError(ex, "Fel vid borttagning av dokument med ID {Id}", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid borttagning av dokumentet.");
         }
     }

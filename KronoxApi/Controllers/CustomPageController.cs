@@ -107,11 +107,11 @@ public class CustomPageController : ControllerBase
             {
                 var cfg = navConfigs.FirstOrDefault(n => n.PageKey == staticPageKey);
 
-                // hoppa över om explicit inaktiv
+                // Hoppa över om explicit inaktiv
                 if (cfg is { IsActive: false })
                     continue;
 
-                // roller för statisk sida hämtas från NavigationConfig (CSV -> lista)
+                // Roller för statisk sida hämtas från NavigationConfig (CSV -> lista)
                 var requiredRolesForStatic = (cfg?.RequiredRoles ?? "")
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .ToList();
@@ -129,7 +129,7 @@ public class CustomPageController : ControllerBase
                         RequiredRoles = child.RequiredRoles
                     }).ToList();
 
-                // ta med statisk sida endast om den har barn eller det finns en NavigationConfig
+                // Ta med statisk sida endast om den har barn eller det finns en NavigationConfig
                 if (children.Any() || cfg != null)
                 {
                     navigationPages.Add(new NavigationPageDto
@@ -154,7 +154,7 @@ public class CustomPageController : ControllerBase
         }
     }
 
-    private string GetStaticPageDisplayName(string pageKey) => pageKey switch
+    private static string GetStaticPageDisplayName(string pageKey) => pageKey switch
     {
         "home" => "Startsida",
         "omkonsortiet" => "Om konsortiet",
@@ -167,7 +167,7 @@ public class CustomPageController : ControllerBase
         _ => pageKey
     };
 
-    private int GetStaticPageSortOrder(string pageKey) => pageKey switch
+    private static int GetStaticPageSortOrder(string pageKey) => pageKey switch
     {
         "home" => 0,
         "omkonsortiet" => 1,

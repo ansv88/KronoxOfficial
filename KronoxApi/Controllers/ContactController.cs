@@ -40,10 +40,7 @@ public class ContactController : ControllerBase
     [HttpPost("send")]
     public async Task<IActionResult> SendContactMessage([FromBody] ContactFormDto contactForm)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
@@ -157,10 +154,7 @@ public class ContactController : ControllerBase
     [RequireRole("Admin")]
     public async Task<ActionResult> UpdatePostalAddress([FromBody] ContactPostalAddressDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
@@ -229,10 +223,7 @@ public class ContactController : ControllerBase
     [RequireRole("Admin")]
     public async Task<ActionResult<ContactPagePersonDto>> CreateContactPerson([FromBody] UpsertContactPagePersonDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
@@ -284,10 +275,7 @@ public class ContactController : ControllerBase
     [RequireRole("Admin")]
     public async Task<ActionResult> UpdateContactPerson(int id, [FromBody] UpsertContactPagePersonDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
@@ -419,10 +407,7 @@ public class ContactController : ControllerBase
     [RequireRole("Admin")]
     public async Task<ActionResult<EmailListDto>> CreateEmailList([FromBody] UpsertEmailListDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
@@ -463,10 +448,7 @@ public class ContactController : ControllerBase
     [RequireRole("Admin")]
     public async Task<ActionResult> UpdateEmailList(int id, [FromBody] UpsertEmailListDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {

@@ -1,4 +1,4 @@
-@using KronoxFront.ViewModels
+Ôªø@using KronoxFront.ViewModels
 @using KronoxFront.Services
 @inject CmsService Cms
 @inject IToastService Toast
@@ -7,12 +7,12 @@
 <div class="card mb-4">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <h3 class="h5 mb-0">
-            <i class="fa-solid fa-layer-group me-2"></i>
+            <i class="fa-solid fa-layer-group me-2" aria-hidden="true"></i>
             Sidsektioner
         </h3>
     </div>
     <div class="card-body">
-        <p class="text-muted mb-3">V‰lj vilka sektioner som ska visas pÂ denna sida:</p>
+        <p class="text-muted mb-3">V√§lj vilka sektioner som ska visas p√• denna sida:</p>
         
         <div class="row">
             @foreach (var sectionItem in AvailableSections.OrderBy(s => s.SortOrder))
@@ -21,10 +21,11 @@
                     <div class="card @(sectionItem.IsEnabled ? "border-success" : "border-light")">
                         <div class="card-body p-3">
                             <div class="form-check">
-                                <input type="checkbox" 
-                                       class="form-check-input" 
+                                <input type="checkbox"
+                                       class="form-check-input"
                                        id="sectionItem-@sectionItem.Type"
                                        checked="@sectionItem.IsEnabled"
+                                       aria-label="Aktivera sektion @GetSectionDisplayName(sectionItem.Type)"
                                        @onchange="@(args => OnSectionCheckboxChanged(sectionItem, args))" />
                                 <label class="form-check-label fw-bold" for="sectionItem-@sectionItem.Type">
                                     @GetSectionDisplayName(sectionItem.Type)
@@ -39,10 +40,11 @@
                                 <div class="mt-2">
                                     <div class="input-group input-group-sm">
                                         <span class="input-group-text">Ordning:</span>
-                                        <input type="number" 
-                                               class="form-control" 
+                                        <input type="number"
+                                               class="form-control"
                                                style="max-width: 80px;"
                                                value="@sectionItem.SortOrder"
+                                               aria-label="Sorteringsordning @GetSectionDisplayName(sectionItem.Type)"
                                                @onchange="@(args => OnSortOrderChanged(sectionItem, args))"
                                                min="0" max="99" />
                                     </div>
@@ -56,8 +58,8 @@
         
         <div class="mt-3 text-end">
             <button type="button" class="btn btn-outline-secondary me-2" @onclick="ResetToDefaults">
-                <i class="fa-solid fa-undo me-1"></i>
-                ≈terst‰ll standard
+                <i class="fa-solid fa-undo me-1" aria-hidden="true"></i>
+                √Öterst√§ll standard
             </button>
             <button type="button" class="btn btn-success" @onclick="SaveConfiguration" disabled="@isSaving">
                 @if (isSaving)
@@ -66,7 +68,7 @@
                 }
                 else
                 {
-                    <i class="fa-solid fa-save me-1"></i>
+                    <i class="fa-solid fa-save me-1" aria-hidden="true"></i>
                 }
                 Spara konfiguration
             </button>
@@ -84,15 +86,16 @@
     
     protected override void OnInitialized()
     {
-        // S‰kerst‰ll att alltid alla tillg‰ngliga sektioner finns
+        // S√§kerst√§ll att alltid alla tillg√§ngliga sektioner finns
         EnsureAllSectionsAvailable();
+        NormalizeSortOrders();
     }
     
     private void EnsureAllSectionsAvailable()
     {
         var allSectionTypes = Enum.GetValues<SectionType>().ToList();
         
-        // Ta bort ContactForm frÂn alla sidor utom kontaktsidan
+        // Ta bort ContactForm fr√•n alla sidor utom kontaktsidan
         var pageKeyLower = PageKey.ToLowerInvariant();
         if (pageKeyLower != "kontaktaoss" && pageKeyLower != "kontakt")
         {
@@ -103,7 +106,7 @@
         {
             if (!AvailableSections.Any(s => s.Type == sectionType))
             {
-                // L‰gg till saknade sektioner som inaktiverade
+                // L√§gg till saknade sektioner (med rimlig default‚Äëstatus)
                 AvailableSections.Add(new SectionConfigItem
                 {
                     Type = sectionType,
@@ -113,18 +116,15 @@
             }
         }
     }
-    
-    private void InitializeDefaultSections()
+
+    // H√•ll sorteringsordning t√§t och deterministisk
+    private void NormalizeSortOrders()
     {
-        var allSections = Enum.GetValues<SectionType>()
-            .Select((type, index) => new SectionConfigItem
-            {
-                Type = type,
-                IsEnabled = GetDefaultEnabledState(type, PageKey),
-                SortOrder = index
-            }).ToList();
-            
-        AvailableSections.AddRange(allSections);
+        var ordered = AvailableSections.OrderBy(s => s.SortOrder).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].SortOrder = i;
+        }
     }
     
     private bool GetDefaultEnabledState(SectionType type, string pageKey)
@@ -161,15 +161,19 @@
     private async Task OnSectionCheckboxChanged(SectionConfigItem sectionItem, ChangeEventArgs args)
     {
         sectionItem.IsEnabled = (bool)(args.Value ?? false);
-        await OnConfigurationChanged.InvokeAsync();
+        NormalizeSortOrders();
+        if (OnConfigurationChanged.HasDelegate)
+            await OnConfigurationChanged.InvokeAsync();
     }
     
     private async Task OnSortOrderChanged(SectionConfigItem sectionItem, ChangeEventArgs args)
     {
         if (int.TryParse(args.Value?.ToString(), out int newOrder))
         {
-            sectionItem.SortOrder = newOrder;
-            await OnConfigurationChanged.InvokeAsync();
+            sectionItem.SortOrder = Math.Max(0, Math.Min(99, newOrder));
+            NormalizeSortOrders();
+            if (OnConfigurationChanged.HasDelegate)
+                await OnConfigurationChanged.InvokeAsync();
         }
     }
     
@@ -178,7 +182,15 @@
         isSaving = true;
         try
         {
-            await OnSave.InvokeAsync(AvailableSections);
+            NormalizeSortOrders();
+            Logger.LogDebug("Sparar sektionskonfiguration f√∂r {PageKey} med {Count} poster", PageKey, AvailableSections.Count);
+            if (OnSave.HasDelegate)
+                await OnSave.InvokeAsync(AvailableSections);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av sektionskonfiguration f√∂r {PageKey}", PageKey);
+            await Toast.Error("Kunde inte spara sektionskonfigurationen.");
         }
         finally
         {
@@ -191,8 +203,8 @@
         foreach (var sectionItem in AvailableSections)
         {
             sectionItem.IsEnabled = GetDefaultEnabledState(sectionItem.Type, PageKey);
-            sectionItem.SortOrder = (int)sectionItem.Type;
         }
+        NormalizeSortOrders();
         StateHasChanged();
     }
     
@@ -207,10 +219,10 @@
             SectionType.FaqSections => "FAQ-sektioner",
             SectionType.DocumentSection => "Dokumentsektion",
             SectionType.MemberLogos => "Medlemslogotyper",
-            SectionType.ContactForm => "Kontaktformul‰r",
+            SectionType.ContactForm => "Kontaktformul√§r",
             SectionType.NewsSection => "Nyhetssektion",
             SectionType.ActionPlanTable => "Handlingsplanstabell",
-            SectionType.DevelopmentSuggestionForm => "Utvecklingsfˆrslagformul‰r",
+            SectionType.DevelopmentSuggestionForm => "Utvecklingsf√∂rslagformul√§r",
             _ => type.ToString()
         };
     }
@@ -219,17 +231,17 @@
     {
         return type switch
         {
-            SectionType.Banner => "Stor bannerbild hˆgst upp pÂ sidan",
+            SectionType.Banner => "Stor bannerbild h√∂gst upp p√• sidan",
             SectionType.Intro => "Introduktionstext med valfri bild",
             SectionType.NavigationButtons => "Navigeringsknappar under intro",
-            SectionType.FeatureSections => "Flexibla innehÂllssektioner",
-            SectionType.FaqSections => "FrÂgor och svar (accordion)",
-            SectionType.DocumentSection => "L‰nk till dokumentsida",
+            SectionType.FeatureSections => "Flexibla inneh√•llssektioner",
+            SectionType.FaqSections => "Fr√•gor och svar (accordion)",
+            SectionType.DocumentSection => "L√§nk till dokumentsida",
             SectionType.MemberLogos => "Medlemsorganisationers logotyper",
-            SectionType.ContactForm => "Kontaktformul‰r och kontaktuppgifter",
+            SectionType.ContactForm => "Kontaktformul√§r och kontaktuppgifter",
             SectionType.NewsSection => "Nyhetssektion som visar publicerade nyheter",
             SectionType.ActionPlanTable => "Tabell med handlingsplaner",
-            SectionType.DevelopmentSuggestionForm => "Formul‰r fˆr utvecklingsfˆrslag frÂn medlemmar",
+            SectionType.DevelopmentSuggestionForm => "Formul√§r f√∂r utvecklingsf√∂rslag fr√•n medlemmar",
             _ => "Anpassad sektion"
         };
     }

@@ -1,11 +1,9 @@
 @page "/404"
 @using Microsoft.AspNetCore.Components.Authorization
-@inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 
 <HeadContent>
     <meta name="description" content="Sidan hittades inte - KronoX" />
-    <title>404 - Sidan hittades inte</title>
 </HeadContent>
 
 <PageTitle>Sidan hittades inte - KronoX</PageTitle>
@@ -17,9 +15,9 @@
                 <div class="mb-4">
                     <i class="fa-solid fa-exclamation-triangle text-warning" style="font-size: 4rem;"></i>
                 </div>
-                
+
                 <h1 class="h3 mb-3">Sidan hittades inte</h1>
-                
+
                 <AuthorizeView>
                     <NotAuthorized>
                         <div class="alert alert-info">
@@ -27,10 +25,7 @@
                                 Den sida du söker finns inte eller så har du inte behörighet att visa den.
                             </p>
                             <p class="mb-0">
-                                Om du tror att du borde ha åtkomst till denna sida, 
-                                <button class="btn btn-link p-0 align-baseline" @onclick="ShowLogin">
-                                    logga in här
-                                </button>.
+                                Om du tror att du borde ha åtkomst till denna sida, testa att logga in.
                             </p>
                         </div>
                     </NotAuthorized>
@@ -42,7 +37,7 @@
                         </div>
                     </Authorized>
                 </AuthorizeView>
-                
+
                 <div class="mt-4">
                     <a href="/" class="btn btn-primary me-2">
                         <i class="fa-solid fa-home me-1"></i>
@@ -59,14 +54,6 @@
 </div>
 
 @code {
-    private async Task ShowLogin()
-    {
-        // Gå till startsidan och trigga login-modal
-        await JS.InvokeVoidAsync("location.assign", "/");
-        await Task.Delay(100);
-        await JS.InvokeVoidAsync("eval", "document.querySelector('[data-bs-toggle=\"modal\"]')?.click()");
-    }
-    
     private async Task GoBack()
     {
         await JS.InvokeVoidAsync("history.back");

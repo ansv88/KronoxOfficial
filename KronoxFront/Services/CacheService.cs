@@ -73,7 +73,8 @@ public class CacheService
     // Cache för navigation (publikt men kan behöva uppdateras)
     public async Task<List<T>> GetNavigationAsync<T>(string cacheKey, Func<Task<List<T>>> factory)
     {
-        return await GetOrSetAsync(cacheKey, factory, MediumCache, "navigation") ?? new List<T>();
+        Func<Task<List<T>?>> nullableFactory = async () => await factory();
+        return await GetOrSetAsync(cacheKey, nullableFactory, MediumCache, "navigation") ?? new List<T>();
     }
 
     // Cache för auktoriseringsdata (kortare tid för säkerhet)

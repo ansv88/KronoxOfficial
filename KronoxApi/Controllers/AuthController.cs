@@ -51,7 +51,7 @@ public class AuthController : ControllerBase
             UserName = user.UserName!,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            Email = user.Email,
+            Email = user.Email!,
             Roles = roles.ToList()
         });
     }

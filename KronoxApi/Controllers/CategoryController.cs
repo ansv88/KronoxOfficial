@@ -21,16 +21,16 @@ public class CategoryController : ControllerBase
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IRoleValidationService _roleValidationService;
-    private readonly ILogger<CategoryController> _log;
+    private readonly ILogger<CategoryController> _logger;
 
     public CategoryController(
         ApplicationDbContext dbContext,
         IRoleValidationService roleValidationService,
-        ILogger<CategoryController> log)
+        ILogger<CategoryController> logger)
     {
         _dbContext = dbContext;
         _roleValidationService = roleValidationService;
-        _log = log;
+        _logger = logger;
     }
 
     // Hämtar alla huvudkategorier (endast admin).
@@ -55,7 +55,7 @@ public class CategoryController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid hämtning av huvudkategorier");
+            _logger.LogError(ex, "Fel vid hämtning av huvudkategorier");
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av kategorier.");
         }
     }
@@ -87,7 +87,7 @@ public class CategoryController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid hämtning av tillgängliga kategorier");
+            _logger.LogError(ex, "Fel vid hämtning av tillgängliga kategorier");
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av kategorier.");
         }
     }
@@ -111,7 +111,7 @@ public class CategoryController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Fel vid hämtning av underkategorier");
+            _logger.LogError(ex, "Fel vid hämtning av underkategorier");
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av underkategorier.");
         }
     }
@@ -126,7 +126,7 @@ public class CategoryController : ControllerBase
             var mainCategory = await _dbContext.MainCategories.FindAsync(id);
             if (mainCategory == null)
             {
-                _log.LogWarning("Huvudkategorin med ID {Id} hittades inte.", id);
+                _logger.LogWarning("Huvudkategorin med ID {Id} hittades inte.", id);
                 return NotFound("Kategorin hittades inte.");
             }
 
@@ -142,7 +142,7 @@ public class CategoryController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid hämtning av huvudkategorin med ID {Id}.", id);
+            _logger.LogError(ex, "Ett fel inträffade vid hämtning av huvudkategorin med ID {Id}.", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av kategorin.");
         }
     }
@@ -157,7 +157,7 @@ public class CategoryController : ControllerBase
             var subCategory = await _dbContext.SubCategories.FindAsync(id);
             if (subCategory == null)
             {
-                _log.LogWarning("Underkategorin med ID {Id} hittades inte.", id);
+                _logger.LogWarning("Underkategorin med ID {Id} hittades inte.", id);
                 return NotFound("Kategorin hittades inte.");
             }
 
@@ -171,7 +171,7 @@ public class CategoryController : ControllerBase
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid hämtning av underkategorin med ID {Id}.", id);
+            _logger.LogError(ex, "Ett fel inträffade vid hämtning av underkategorin med ID {Id}.", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid hämtning av kategorin.");
         }
     }
@@ -213,14 +213,14 @@ public class CategoryController : ControllerBase
                 IsActive = mainCategory.IsActive
             };
 
-            _log.LogDebug("Huvudkategori '{Name}' skapad med roller: {Roles}",
+            _logger.LogDebug("Huvudkategori '{Name}' skapad med roller: {Roles}",
                 mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
 
             return CreatedAtAction(nameof(GetMainCategory), new { id = mainCategory.Id }, dto);
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid skapande av huvudkategori.");
+            _logger.LogError(ex, "Ett fel inträffade vid skapande av huvudkategori.");
             return StatusCode(500, "Ett oväntat fel inträffade vid skapande av huvudkategori.");
         }
     }
@@ -251,13 +251,13 @@ public class CategoryController : ControllerBase
                 Name = subCategory.Name
             };
 
-            _log.LogDebug("Underkategori '{Name}' skapad", subCategory.Name);
+            _logger.LogDebug("Underkategori '{Name}' skapad", subCategory.Name);
 
             return CreatedAtAction(nameof(GetSubCategory), new { id = subCategory.Id }, dto);
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid skapande av underkategori.");
+            _logger.LogError(ex, "Ett fel inträffade vid skapande av underkategori.");
             return StatusCode(500, "Ett oväntat fel inträffade vid skapande av underkategori.");
         }
     }
@@ -277,7 +277,7 @@ public class CategoryController : ControllerBase
             var mainCategory = await _dbContext.MainCategories.FindAsync(id);
             if (mainCategory == null)
             {
-                _log.LogWarning("Huvudkategorin med ID {Id} hittades inte för uppdatering.", id);
+                _logger.LogWarning("Huvudkategorin med ID {Id} hittades inte för uppdatering.", id);
                 return NotFound("Kategorin hittades inte.");
             }
 
@@ -293,14 +293,14 @@ public class CategoryController : ControllerBase
 
             await _dbContext.SaveChangesAsync();
 
-            _log.LogDebug("Huvudkategori '{Name}' uppdaterad med roller: {Roles}",
+            _logger.LogDebug("Huvudkategori '{Name}' uppdaterad med roller: {Roles}",
                 mainCategory.Name, string.Join(", ", mainCategory.AllowedRoles));
 
             return Ok();
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid uppdatering av huvudkategorin med ID {Id}.", id);
+            _logger.LogError(ex, "Ett fel inträffade vid uppdatering av huvudkategorin med ID {Id}.", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av kategorin.");
         }
     }
@@ -320,20 +320,20 @@ public class CategoryController : ControllerBase
             var subCategory = await _dbContext.SubCategories.FindAsync(id);
             if (subCategory == null)
             {
-                _log.LogWarning("Underkategorin med ID {Id} hittades inte för uppdatering.", id);
+                _logger.LogWarning("Underkategorin med ID {Id} hittades inte för uppdatering.", id);
                 return NotFound("Underkategorin hittades inte.");
             }
 
             subCategory.Name = request.Name;
             await _dbContext.SaveChangesAsync();
 
-            _log.LogDebug("Underkategori '{Name}' uppdaterad", subCategory.Name);
+            _logger.LogDebug("Underkategori '{Name}' uppdaterad", subCategory.Name);
 
             return Ok();
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid uppdatering av underkategorin med ID {Id}.", id);
+            _logger.LogError(ex, "Ett fel inträffade vid uppdatering av underkategorin med ID {Id}.", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av underkategorin.");
         }
     }
@@ -348,7 +348,7 @@ public class CategoryController : ControllerBase
             var mainCategory = await _dbContext.MainCategories.FindAsync(id);
             if (mainCategory == null)
             {
-                _log.LogWarning("Huvudkategorin med ID {Id} hittades inte för borttagning.", id);
+                _logger.LogWarning("Huvudkategorin med ID {Id} hittades inte för borttagning.", id);
                 return NotFound("Huvudkategorin hittades inte.");
             }
 
@@ -359,7 +359,7 @@ public class CategoryController : ControllerBase
 
             if (activeDocuments > 0)
             {
-                _log.LogWarning("Försök att ta bort huvudkategori {Id} som används av {Count} aktiva dokument",
+                _logger.LogWarning("Försök att ta bort huvudkategori {Id} som används av {Count} aktiva dokument",
                     id, activeDocuments);
                 return BadRequest($"Kategorin används av {activeDocuments} aktiva dokument och kan inte tas bort.");
             }
@@ -370,13 +370,13 @@ public class CategoryController : ControllerBase
 
             await _dbContext.SaveChangesAsync();
 
-            _log.LogDebug("Huvudkategori '{Name}' inaktiverad", mainCategory.Name);
+            _logger.LogDebug("Huvudkategori '{Name}' inaktiverad", mainCategory.Name);
 
             return Ok($"Huvudkategori '{mainCategory.Name}' har inaktiverats.");
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid borttagning av huvudkategorin med ID {Id}.", id);
+            _logger.LogError(ex, "Ett fel inträffade vid borttagning av huvudkategorin med ID {Id}.", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid borttagning av huvudkategorin.");
         }
     }
@@ -391,7 +391,7 @@ public class CategoryController : ControllerBase
             var subCategory = await _dbContext.SubCategories.FindAsync(id);
             if (subCategory == null)
             {
-                _log.LogWarning("Underkategorin med ID {Id} hittades inte för borttagning.", id);
+                _logger.LogWarning("Underkategorin med ID {Id} hittades inte för borttagning.", id);
                 return NotFound("Underkategorin hittades inte.");
             }
 
@@ -402,7 +402,7 @@ public class CategoryController : ControllerBase
 
             if (documentsUsingCategory > 0)
             {
-                _log.LogWarning("Försök att ta bort underkategori {Id} som används av {Count} dokument",
+                _logger.LogWarning("Försök att ta bort underkategori {Id} som används av {Count} dokument",
                     id, documentsUsingCategory);
                 return BadRequest($"Underkategorin används av {documentsUsingCategory} dokument och kan inte tas bort.");
             }
@@ -410,13 +410,13 @@ public class CategoryController : ControllerBase
             _dbContext.SubCategories.Remove(subCategory);
             await _dbContext.SaveChangesAsync();
 
-            _log.LogDebug("Underkategori '{Name}' borttagen", subCategory.Name);
+            _logger.LogDebug("Underkategori '{Name}' borttagen", subCategory.Name);
 
             return Ok($"Underkategori '{subCategory.Name}' har tagits bort.");
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Ett fel inträffade vid borttagning av underkategorin med ID {Id}.", id);
+            _logger.LogError(ex, "Ett fel inträffade vid borttagning av underkategorin med ID {Id}.", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid borttagning av underkategorin.");
         }
     }

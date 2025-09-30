@@ -123,18 +123,18 @@ else
                     </div>
                 </div>
 
-                @* ---------- Navigeringsinställningar ----------- *@
+                @* Navigeringsinställningar *@
                 <NavigationSettings PageKey="@PageKey"
                                     InitialDisplayName="@customPage.DisplayName"
                                     OnDisplayNameChanged="@(EventCallback.Factory.Create<string>(this, OnNavigationNameChanged))" />
 
-                @* ---------- Section Configuration Manager ----------- *@
+                @* Sektionskonfiguration *@
                 <PageSectionConfigurator PageKey="@PageKey"
                                          AvailableSections="sectionConfigItems"
                                          OnConfigurationChanged="@(EventCallback.Factory.Create(this, OnSectionConfigurationChanged))"
                                          OnSave="@(EventCallback.Factory.Create<List<SectionConfigItem>>(this, SaveSectionConfiguration))" />
 
-                @* ---------- DYNAMISKA SEKTIONER BASERAT PÅ KONFIGURATION --------- *@
+                @* Dynamiska sektioner *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
                 {
                     @switch (sectionConfig.Type)
@@ -244,7 +244,6 @@ else
                     }
                 }
 
-                @* Visar meddelande om inga sektioner är aktiverade *@
                 @if (!sectionConfigItems.Any(s => s.IsEnabled))
                 {
                     <div class="card">
@@ -291,16 +290,14 @@ else
             // Rensa tidigare data först
             ClearPreviousPageData();
 
-            // Tvinga uppdatering av UI
             StateHasChanged();
 
-            // Ladda custom page data
+            // Ladda data för sidan
             await LoadPageData();
 
             // Ladda sektionskonfiguration
             sectionConfigItems = await Cms.GetPageSectionConfigAsync(PageKey);
 
-            // Om ingen konfiguration finns, skapa standardkonfiguration
             if (!sectionConfigItems.Any())
             {
                 sectionConfigItems = GetDefaultSectionConfig();
@@ -327,7 +324,6 @@ else
 
     private void ClearPreviousPageData()
     {
-        // Rensa all data från föregående sida
         customPage = null;
         introSection = new();
         featureSections = new();
@@ -336,7 +332,6 @@ else
         actionPlan = new();
         contactInfo = new();
 
-        // Rensa referenser till editorer
         introSectionEditorRef = null;
         featureSectionEditorRef = null;
         faqEditorRef = null;
@@ -359,34 +354,22 @@ else
     private async Task LoadSectionData()
     {
         var activeSections = sectionConfigItems.Where(s => s.IsEnabled).ToList();
-
-        // Ladda endast data för aktiverade sektioner för bättre prestanda
         var loadTasks = new List<Task>();
 
         if (activeSections.Any(s => s.Type == SectionType.Intro))
-        {
             loadTasks.Add(LoadIntroSection());
-        }
 
         if (activeSections.Any(s => s.Type == SectionType.FeatureSections))
-        {
             loadTasks.Add(LoadFeatureSections());
-        }
 
         if (activeSections.Any(s => s.Type == SectionType.FaqSections))
-        {
             loadTasks.Add(LoadFaqSections());
-        }
 
         if (activeSections.Any(s => s.Type == SectionType.ActionPlanTable))
-        {
             loadTasks.Add(LoadActionPlan());
-        }
 
         if (activeSections.Any(s => s.Type == SectionType.ContactForm))
-        {
             loadTasks.Add(LoadContactInfo());
-        }
 
         await Task.WhenAll(loadTasks);
     }
@@ -424,16 +407,13 @@ else
 
     private List<SectionConfigItem> GetDefaultSectionConfig()
     {
-        // Skapa alla tillgängliga sektioner för custom pages
-        var allSections = Enum.GetValues<SectionType>()
+        return Enum.GetValues<SectionType>()
             .Select((type, index) => new SectionConfigItem
             {
                 Type = type,
                 IsEnabled = GetDefaultEnabledState(type),
                 SortOrder = index
             }).ToList();
-
-        return allSections;
     }
 
     private bool GetDefaultEnabledState(SectionType type)
@@ -454,7 +434,6 @@ else
     {
         var activeSections = sectionConfigItems.Where(s => s.IsEnabled).ToList();
 
-        // Skapa standardinnehåll för aktiverade sektioner som saknar innehåll
         if (activeSections.Any(s => s.Type == SectionType.Intro) && string.IsNullOrEmpty(introSection.Title))
         {
             introSection.Title = customPage?.DisplayName ?? "Ny sida";
@@ -513,7 +492,7 @@ else
     {
         try
         {
-            Logger.LogInformation("=== Startar TinyMCE-initialisering för custom page {PageKey} ===", PageKey);
+            Logger.LogDebug("Startar TinyMCE-initialisering för custom page {PageKey}", PageKey);
 
             await JS.InvokeVoidAsync("eval", "if(typeof tinymce !== 'undefined') { tinymce.remove(); }");
             await Task.Delay(500);
@@ -535,7 +514,7 @@ else
                     try
                     {
                         await introSectionEditorRef.InitializeEditor();
-                        Logger.LogInformation("Intro-editor initialiserad framgångsrikt");
+                        Logger.LogDebug("Intro-editor initialiserad");
                     }
                     catch (Exception ex)
                     {
@@ -554,7 +533,7 @@ else
                     {
                         await Task.Delay(200);
                         await featureSectionEditorRef.InitializeEditorsOnly();
-                        Logger.LogInformation("Feature-editorer initialiserade");
+                        Logger.LogDebug("Feature-editorer initialiserade");
                     }
                     catch (Exception ex)
                     {
@@ -573,7 +552,7 @@ else
                     {
                         await Task.Delay(400);
                         await faqEditorRef.InitializeEditorsOnly();
-                        Logger.LogInformation("FAQ-editorer initialiserade");
+                        Logger.LogDebug("FAQ-editorer initialiserade");
                     }
                     catch (Exception ex)
                     {
@@ -587,11 +566,11 @@ else
                 await Task.WhenAll(initializationTasks);
             }
 
-            Logger.LogInformation("=== TinyMCE-initialisering slutförd för custom page {PageKey} ===", PageKey);
+            Logger.LogDebug("TinyMCE-initialisering slutförd för custom page {PageKey}", PageKey);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "=== KRITISKT FEL vid TinyMCE-initialisering för custom page {PageKey} ===", PageKey);
+            Logger.LogError(ex, "KRITISKT FEL vid TinyMCE-initialisering för custom page {PageKey}", PageKey);
         }
     }
 
@@ -617,34 +596,20 @@ else
             var activeSections = sectionConfigItems.Where(s => s.IsEnabled).ToList();
             var saveTasks = new List<Task>();
 
-            // Spara intro-sektion om aktiverad
             if (activeSections.Any(s => s.Type == SectionType.Intro))
-            {
                 saveTasks.Add(Cms.SaveIntroSectionAsync(PageKey, introSection));
-            }
 
-            // Spara feature-sektioner om aktiverade
             if (activeSections.Any(s => s.Type == SectionType.FeatureSections))
-            {
                 saveTasks.Add(Cms.SaveFeatureSectionsAsync(PageKey, featureSections));
-            }
 
-            // Spara FAQ-sektioner om aktiverade
             if (activeSections.Any(s => s.Type == SectionType.FaqSections))
-            {
                 saveTasks.Add(Cms.SaveFaqSectionsAsync(PageKey, faqSections));
-            }
 
-            // Spara handlingsplan om aktiverad
             if (activeSections.Any(s => s.Type == SectionType.ActionPlanTable))
-            {
                 saveTasks.Add(Cms.SaveActionPlanAsync(PageKey, actionPlan));
-            }
 
-            // Vänta på att alla sparningar slutförs
             await Task.WhenAll(saveTasks);
 
-            // Invalidera cache
             Cache.InvalidatePageCache(PageKey);
 
             await Toast.Success($"Innehållet för {customPage?.DisplayName} har sparats framgångsrikt!");
@@ -667,7 +632,7 @@ else
             try
             {
                 await introSectionEditorRef.SyncEditor();
-                Logger.LogInformation("Intro-editor synkroniserad för {PageKey}", PageKey);
+                Logger.LogDebug("Intro-editor synkroniserad för {PageKey}", PageKey);
             }
             catch (Exception ex)
             {
@@ -680,11 +645,9 @@ else
     {
         try
         {
-            Logger.LogInformation("Sektionskonfiguration ändrad för custom page {PageKey}, laddar om...", PageKey);
+            Logger.LogDebug("Sektionskonfiguration ändrad för custom page {PageKey}, laddar om...", PageKey);
 
-            // Ladda data för nyligen aktiverade sektioner
             await LoadSectionData();
-
             EnsureDefaultContent();
 
             StateHasChanged();
@@ -692,7 +655,7 @@ else
             await Task.Delay(200);
             await InitializeEditors();
 
-            Logger.LogInformation("Sektionskonfiguration och editorer uppdaterade för custom page {PageKey}", PageKey);
+            Logger.LogDebug("Sektionskonfiguration/editorer uppdaterade för custom page {PageKey}", PageKey);
         }
         catch (Exception ex)
         {
@@ -725,14 +688,19 @@ else
 
     private void OnBannerUploaded(PageImageViewModel? img)
     {
-        Toast.Success("Bannerbild uppdaterad!");
+        try
+        {
+            Cache.InvalidatePageCache(PageKey);
+            Toast.Success("Bannerbild uppdaterad!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte invalidera cache efter bannerändring för {PageKey}", PageKey);
+        }
         StateHasChanged();
     }
 
-    private void OnIntroSectionChanged()
-    {
-        StateHasChanged();
-    }
+    private void OnIntroSectionChanged() => StateHasChanged();
 
     private async Task SaveIntroSectionFromEditor(IntroSectionViewModel intro)
     {
@@ -762,11 +730,8 @@ else
             {
                 var imageUrl = await Cms.UploadImageAsync(info.File, PageKey);
                 info.Section.ImageUrl = imageUrl;
-                
-                // Publicera ändringen direkt så publika sidan får ny URL
-                await Cms.SaveFeatureSectionsAsync(PageKey, featureSections);
 
-                // Säkerställ att sidcachen töms
+                await Cms.SaveFeatureSectionsAsync(PageKey, featureSections);
                 Cache.InvalidatePageCache(PageKey);
 
                 info.CloseModal?.Invoke();
@@ -781,7 +746,6 @@ else
     }
 
     private void OnFeatureImageDeleted(ImageDeleteInfo info) { }
-
     private void OnFaqSectionsChanged() { }
 
     private async Task OnFaqImageUploaded(FaqImageUploadInfo info)
@@ -802,10 +766,7 @@ else
         }
     }
 
-    private void OnContactInfoChanged()
-    {
-        StateHasChanged();
-    }
+    private void OnContactInfoChanged() => StateHasChanged();
 
     private async Task OnNavigationNameChanged(string newDisplayName)
     {
@@ -814,7 +775,6 @@ else
 
         try
         {
-            // Uppdatera CustomPage.DisplayName via API
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
             customPage.DisplayName = newDisplayName;
             var response = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", customPage.ToUpdateRequest());
@@ -824,11 +784,9 @@ else
                 return;
             }
 
-            // Uppdatera endast breadcrumb i Intro (inte Intro.Title)
             introSection.BreadcrumbTitle = newDisplayName.ToUpperInvariant();
             await Cms.SaveIntroSectionAsync(PageKey, introSection);
 
-            // Invalidera cache
             Cache.InvalidatePageCache(PageKey);
 
             await Toast.Success("Navigationsnamn och breadcrumb uppdaterades.");
@@ -841,94 +799,27 @@ else
         }
     }
 
-    private string GetBreadcrumbPlaceholder()
+    private string GetBreadcrumbPlaceholder() => customPage?.DisplayName?.ToUpper() ?? "MIN SIDA";
+
+    private string GetDocumentSectionTitle() => $"Dokument för {customPage?.DisplayName ?? PageKey}";
+
+    private string GetDocumentSectionDescription() => $"Dokumentsektionen visar relevanta dokument för {customPage?.DisplayName ?? "denna sida"}.";
+
+    private string GetNavigationTypeText(string navigationType) => navigationType switch
     {
-        return customPage?.DisplayName?.ToUpper() ?? "MIN SIDA";
-    }
-
-    private string GetDocumentSectionTitle()
-    {
-        return $"Dokument för {customPage?.DisplayName ?? PageKey}";
-    }
-
-    private string GetDocumentSectionDescription()
-    {
-        return $"Dokumentsektionen visar relevanta dokument för {customPage?.DisplayName ?? "denna sida"}.";
-    }
-
-    // private RenderFragment GetPageSpecificButtons()
-    // {
-    //     var activeSections = sectionConfigItems.Where(s => s.IsEnabled).Select(s => s.Type).ToList();
-    //     var buttons = new List<RenderFragment>();
-
-    //     if (activeSections.Contains(SectionType.NewsSection))
-    //     {
-    //         buttons.Add(@<a href="/admin/news" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-newspaper me-1"></i>
-    //             Hantera nyheter
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.DocumentSection))
-    //     {
-    //         buttons.Add(@<a href="/admin/documents/manage" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-file me-1"></i>
-    //             Hantera dokument
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.DevelopmentSuggestionForm))
-    //     {
-    //         buttons.Add(@<a href="/admin/suggestions" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-lightbulb me-1"></i>
-    //             Visa förslag
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.MemberLogos))
-    //     {
-    //         buttons.Add(@<a href="/admin/memberlogos" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-users me-1"></i>
-    //             Hantera logotyper
-    //         </a>);
-    //     }
-
-    //     if (activeSections.Contains(SectionType.ActionPlanTable))
-    //     {
-    //         buttons.Add(@<a href="/admin/actionplan" class="btn btn-outline-primary">
-    //             <i class="fa-solid fa-tasks me-1"></i>
-    //             Hantera handlingsplan
-    //         </a>);
-    //     }
-
-    //     return builder =>
-    //     {
-    //         foreach (var button in buttons)
-    //         {
-    //             builder.AddContent(0, button);
-    //         }
-    //     };
-    // }
-
-    private string GetNavigationTypeText(string navigationType)
-    {
-        return navigationType switch
-        {
-            "main" => "Huvudnavigation",
-            "dropdown" => "Dropdown",
-            "footer" => "Footer",
-            "hidden" => "Dold",
-            _ => navigationType
-        };
-    }
+        "main" => "Huvudnavigation",
+        "dropdown" => "Dropdown",
+        "footer" => "Footer",
+        "hidden" => "Dold",
+        _ => navigationType
+    };
 
     public void Dispose()
     {
         try
         {
-            // Rensa alla TinyMCE-editorer
             _ = JS.InvokeVoidAsync("destroyAllEditors");
-            Logger.LogInformation("Disposed CustomPageAdmin för {PageKey}", PageKey);
+            Logger.LogDebug("Disposed CustomPageAdmin för {PageKey}", PageKey);
         }
         catch (Exception ex)
         {

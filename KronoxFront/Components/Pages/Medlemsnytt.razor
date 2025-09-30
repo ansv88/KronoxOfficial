@@ -1,5 +1,4 @@
 ﻿@page "/medlemsnytt"
-@using KronoxFront.Components.Admin
 @using KronoxFront.Components.Shared.Security
 @using KronoxFront.ViewModels
 @using KronoxFront.Services
@@ -55,7 +54,7 @@ else
                 break;
 
             case SectionType.NavigationButtons:
-                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                @if (introSection.ShowNavigationButtons && (introSection.NavigationButtons?.Any() == true))
                 {
                     <NavigationButtons Buttons="@introSection.NavigationButtons" />
                 }
@@ -185,7 +184,6 @@ else
     {
         try
         {
-            // Ladda grundläggande sidinnehåll för fallback-titel
             pageContent = await Cms.GetPageContentAsync("medlemsnytt")
                           ?? new PageContentViewModel
                           {
@@ -196,14 +194,10 @@ else
                               Images = new List<PageImageViewModel>()
                           };
 
-            // Ladda intro-sektion
             introSection = await Cms.GetIntroSectionAsync("medlemsnytt");
-            
-            // Ladda feature- och FAQ-sektioner
             featureSections = await Cms.GetFeatureSectionsAsync("medlemsnytt");
             faqSections = await Cms.GetFaqSectionsAsync("medlemsnytt");
             
-            // Sätt standardvärden om inget innehåll finns i intro
             if (string.IsNullOrEmpty(introSection.Title))
             {
                 introSection.Title = "För medlemmar";
@@ -214,10 +208,8 @@ else
                 introSection.BreadcrumbTitle = "MEDLEMSNYTT";
             }
 
-            // Ladda sektionskonfiguration
             sectionConfigurations = await Cms.GetPageSectionConfigAsync("medlemsnytt");
 
-            // Om ingen konfiguration finns, skapa standardkonfiguration
             if (!sectionConfigurations.Any())
             {
                 Logger.LogWarning("Ingen sektionskonfiguration hittades för medlemsnytt, skapar fallback");
@@ -233,7 +225,6 @@ else
                 };
             }
 
-            // Ladda handlingsplan om aktiverad
             if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
             {
                 try
@@ -247,12 +238,12 @@ else
                 }
             }
 
+            Logger.LogDebug("Medlemsnytt-sidan laddad med {SectionCount} sektioner", sectionConfigurations.Count);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid laddning av sidinnehåll för medlemsnytt");
             
-            // Fallback-innehåll
             pageContent = new PageContentViewModel
             {
                 PageKey = "medlemsnytt",
@@ -269,7 +260,6 @@ else
                 BreadcrumbTitle = "MEDLEMSNYTT"
             };
 
-            // Skapa minimal konfiguration
             sectionConfigurations = new List<SectionConfigItem>
             {
                 new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },

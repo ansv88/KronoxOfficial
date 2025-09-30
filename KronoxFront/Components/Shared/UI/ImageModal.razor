@@ -4,8 +4,8 @@
          role="dialog" aria-modal="true" aria-label="Förhandsgranskning av bild">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 bg-transparent">
-                <button type="button" class="btn-close btn-close-white ms-auto me-n4 mt-n4" @onclick="OnClose"></button>
-                <img src="@ImageUrl" class="img-fluid rounded-3" />
+                <button type="button" class="btn-close btn-close-white ms-auto me-n4 mt-n4" aria-label="Stäng" @onclick="OnClose"></button>
+                <img src="@ImageUrl" class="img-fluid rounded-3" alt="Förhandsgranskad bild" />
             </div>
         </div>
     </div>

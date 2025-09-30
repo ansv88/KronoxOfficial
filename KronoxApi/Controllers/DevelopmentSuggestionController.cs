@@ -36,10 +36,7 @@ public class DevelopmentSuggestionController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SubmitSuggestion([FromBody] DevelopmentSuggestionDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
@@ -57,7 +54,6 @@ public class DevelopmentSuggestionController : ControllerBase
             _context.DevelopmentSuggestions.Add(suggestion);
             await _context.SaveChangesAsync();
 
-            // Skicka e-post
             await SendDevelopmentSuggestionEmail(suggestion);
 
             return Ok(new { message = "Utvecklingsförslaget har skickats." });

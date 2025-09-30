@@ -57,7 +57,7 @@ else
                 break;
 
             case SectionType.NavigationButtons:
-                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                @if (introSection.ShowNavigationButtons && (introSection.NavigationButtons?.Any() == true))
                 {
                     <NavigationButtons Buttons="@introSection.NavigationButtons" />
                 }
@@ -277,12 +277,6 @@ else
                                                 <div class="document-category mb-5">
                                                     <h2 class="category-title border-bottom fs-3 pb-2 mb-3 text-dark h3">
                                                         @category.Name
-@*                                                         @if (isAdmin && category.AllowedRoles?.Any() == true)
-                                                        {
-                                                            <small class="text-muted fs-6">
-                                                                (Tillgänglig för: @string.Join(", ", category.AllowedRoles))
-                                                            </small>
-                                                        } *@
                                                     </h2>
                                                     <div class="document-list">
                                                         @foreach (var doc in categoryDocuments)
@@ -394,6 +388,14 @@ else
                     </section>
                 </div>
                 break;
+
+            case SectionType.ActionPlanTable:
+                <div class="wrapper-div py-3">
+                    <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
+                        <ActionPlanSection ActionPlan="@actionPlan" Title="Handlingsplan" />
+                    </section>
+                </div>
+                break;
         }
     }
 
@@ -417,6 +419,7 @@ else
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
     private List<SectionConfigItem> sectionConfigurations = new();
+    private ActionPlanTableViewModel actionPlan = new();
 
     // Dokumentspecifika variabler
     private List<DocumentViewModel> accessibleDocuments = new();
@@ -470,12 +473,26 @@ else
             {
                 sectionConfigurations = GetDefaultSectionConfig();
                 await Cms.SavePageSectionConfigAsync("dokument", sectionConfigurations);
-                Logger.LogInformation("Skapad standardkonfiguration för dokument-sidan");
+                Logger.LogDebug("Skapade standardkonfiguration för dokument-sidan");
+            }
+
+            // Ladda handlingsplan om aktiverad
+            if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
+            {
+                try
+                {
+                    actionPlan = await Cms.GetActionPlanAsync("dokument");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte hämta handlingsplan för dokument - fortsätter utan");
+                    actionPlan = new ActionPlanTableViewModel();
+                }
             }
 
             await LoadAccessibleData();
             
-            Logger.LogInformation("Dokument sida laddad framgångsrikt med {SectionCount} sektioner", sectionConfigurations.Count);
+            Logger.LogDebug("Dokument-sidan laddad med {SectionCount} sektioner", sectionConfigurations.Count);
         }
         catch (Exception ex)
         {
@@ -538,7 +555,7 @@ else
             
             ApplyFilters();
 
-            Logger.LogInformation("Hämtade {CategoryCount} tillgängliga kategorier och {DocumentCount} tillgängliga dokument", 
+            Logger.LogDebug("Hämtade {CategoryCount} kategorier och {DocumentCount} dokument", 
                 accessibleCategories.Count, accessibleDocuments.Count);
         }
         catch (Exception ex)

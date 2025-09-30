@@ -3,8 +3,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject CmsService Cms
 @inject AuthenticationStateProvider AuthState
+@inject ILogger<FeatureSections> Logger
 @implements IDisposable
-@inject CacheService Cache
 
 @if (Sections.Count > 0)
 {
@@ -25,7 +25,7 @@
                     else
                     {
                         <div class="bg-light p-4 text-center rounded">
-                            <i class="fa-solid fa-image text-muted fa-3x"></i>
+                            <i class="fa-solid fa-image text-muted fa-3x" aria-hidden="true"></i>
                         </div>
                     }
                 </div>
@@ -85,10 +85,17 @@ else
 
     private async Task LoadSectionsAsync()
     {
-        var authState = await AuthState.GetAuthenticationStateAsync();
-        isLoggedIn = authState.User.Identity?.IsAuthenticated == true;
-        Sections = await Cms.GetFeatureSectionsAsync(PageKey, includePrivate: isLoggedIn);
-        StateHasChanged();
+        try
+        {
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            isLoggedIn = authState.User.Identity?.IsAuthenticated == true;
+            Sections = await Cms.GetFeatureSectionsAsync(PageKey, includePrivate: isLoggedIn);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid laddning av sektioner för PageKey {PageKey}", PageKey);
+        }
     }
 
     private void AuthenticationStateChanged(Task<AuthenticationState> stateTask)
@@ -107,9 +114,9 @@ else
                 await LoadSectionsAsync();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Logga ev. fel
+            Logger.LogDebug(ex, "Kunde inte hantera auth-state för PageKey {PageKey}", PageKey);
         }
     }
 
@@ -119,7 +126,10 @@ else
         {
             AuthState.AuthenticationStateChanged -= AuthenticationStateChanged;
         }
-        catch { }
+        catch
+        {
+            // Ignorera avregistreringsfel
+        }
     }
 
     private string GetEnhancedContent(FeatureSectionViewModel featureItem)

@@ -6,14 +6,14 @@
     <div class="card mb-4">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h3 class="h5 mb-0">
-                <i class="fa-solid fa-list-check me-2"></i>
+                <i class="fa-solid fa-list-check me-2" aria-hidden="true"></i>
                 @(string.IsNullOrWhiteSpace(Title) ? "Handlingsplan" : Title)
             </h3>
 
             @if (ShowAdminButton)
             {
-                <a href="@AdminButtonUrl" class="btn btn-outline-primary btn-sm">
-                    <i class="fa-solid fa-clipboard-list me-1"></i>
+                <a href="@AdminButtonUrl" class="btn btn-outline-primary btn-sm" aria-label="Hantera handlingsplan">
+                    <i class="fa-solid fa-clipboard-list me-1" aria-hidden="true"></i>
                     Hantera handlingsplan
                 </a>
             }
@@ -21,12 +21,15 @@
         <div class="card-body">
             @RenderActionPlanTable()
 
-            @if (ActionPlan?.LastModified != default)
+            @{
+                var lastModified = ActionPlan?.LastModified;
+            }
+            @if (lastModified is DateTime dt && dt != default)
             {
                 <div class="text-center mt-3">
                     <small class="text-muted">
-                        <i class="fa-solid fa-clock me-1"></i>
-                        Senast uppdaterad: @ActionPlan.LastModified.ToString("yyyy-MM-dd HH:mm")
+                        <i class="fa-solid fa-clock me-1" aria-hidden="true"></i>
+                        Senast uppdaterad: @dt.ToString("yyyy-MM-dd HH:mm")
                     </small>
                 </div>
             }
@@ -43,12 +46,15 @@ else
 
         @RenderActionPlanTable()
 
-        @if (ActionPlan?.LastModified != default)
+        @{
+            var lastModified = ActionPlan?.LastModified;
+        }
+        @if (lastModified is DateTime dt && dt != default)
         {
             <div class="text-center mt-3">
                 <small class="text-muted">
-                    <i class="fa-solid fa-clock me-1"></i>
-                    Senast uppdaterad: @ActionPlan.LastModified.ToString("yyyy-MM-dd HH:mm")
+                    <i class="fa-solid fa-clock me-1" aria-hidden="true"></i>
+                    Senast uppdaterad: @dt.ToString("yyyy-MM-dd HH:mm")
                 </small>
             </div>
         }
@@ -64,9 +70,19 @@ else
 
     private HashSet<int> expandedDescriptions = new();
 
+    protected override void OnParametersSet()
+    {
+        // Trim och säkra standardvärden
+        Title = string.IsNullOrWhiteSpace(Title) ? "Handlingsplan" : Title!.Trim();
+        AdminButtonUrl = string.IsNullOrWhiteSpace(AdminButtonUrl) ? "/admin/actionplan" : AdminButtonUrl.Trim();
+    }
+
     private RenderFragment RenderActionPlanTable() => __builder =>
     {
-        if (ActionPlan?.Items?.Any() == true)
+        // Hämta en lokal referens till Items så kompilatorn förstår null-kontrollen
+        var items = ActionPlan?.Items;
+
+        if (items is not null && items.Any())
         {
             <div class="table-responsive">
                 <table class="table table-striped table-hover mb-0">
@@ -79,15 +95,15 @@ else
                     </colgroup>
                     <thead class="table-dark">
                         <tr>
-                            <th class="text-center">Prioritering</th>
-                            <th>Modul/del</th>
-                            <th>Aktivitet</th>
-                            <th class="text-center">Planerad leverans</th>
-                            <th class="text-center">Avklarad</th>
+                            <th scope="col" class="text-center">Prioritering</th>
+                            <th scope="col">Modul/del</th>
+                            <th scope="col">Aktivitet</th>
+                            <th scope="col" class="text-center">Planerad leverans</th>
+                            <th scope="col" class="text-center">Avklarad</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in ActionPlan.Items.OrderBy(i => i.SortOrder))
+                        @foreach (var item in items.OrderBy(i => i.SortOrder))
                         {
                             <tr>
                                 <td class="text-center"><span class="badge bg-secondary">@item.Priority</span></td>
@@ -100,8 +116,9 @@ else
                                             <button type="button"
                                                     class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
                                                     @onclick="() => ToggleDescription(item.Id)"
-                                                    title="Visa/dölj detaljerad beskrivning">
-                                                <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                                    title="Visa/dölj detaljerad beskrivning"
+                                                    aria-label="Visa eller dölj detaljer för @item.Activity">
+                                                <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")" aria-hidden="true"></i>
                                             </button>
                                         }
                                     </div>
@@ -111,7 +128,7 @@ else
                                     @if (!string.IsNullOrEmpty(item.Completed))
                                     {
                                         <span class="badge bg-success">
-                                            <i class="fa-solid fa-check me-1"></i>@item.Completed
+                                            <i class="fa-solid fa-check me-1" aria-hidden="true"></i>@item.Completed
                                         </span>
                                     }
                                     else
@@ -140,7 +157,7 @@ else
         else
         {
             <div class="text-center text-muted py-4">
-                <i class="fa-solid fa-table fa-2x mb-2"></i>
+                <i class="fa-solid fa-table fa-2x mb-2" aria-hidden="true"></i>
                 <p>Ingen handlingsplan har lagts till än.</p>
             </div>
         }

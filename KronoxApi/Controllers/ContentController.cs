@@ -87,7 +87,7 @@ public class ContentController : ControllerBase
         return Ok(resultDto);
     }
 
-    private string GetDefaultPageTitle(string pageKey)
+    private static string GetDefaultPageTitle(string pageKey)
     {
         return pageKey switch
         {
@@ -103,8 +103,7 @@ public class ContentController : ControllerBase
     [RequireRole("Admin")]
     public async Task<IActionResult> UpdateContent(string pageKey, [FromBody] ContentBlockDto dto)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
         try
         {
@@ -239,14 +238,14 @@ public class ContentController : ControllerBase
             baseName = "image";
 
         baseName = baseName.ToLowerInvariant();
-        baseName = Regex.Replace(baseName, @"\s+", "-");           // mellanslag -> bindestreck
+        baseName = Regex.Replace(baseName, @"\s+", "-");            // mellanslag -> bindestreck
         baseName = Regex.Replace(baseName, @"[^a-z0-9\-_]+", "");   // endast a-z0-9-_ kvar
         if (baseName.Length > 40) baseName = baseName[..40];        // begränsa längd
         if (string.IsNullOrWhiteSpace(baseName)) baseName = "image";
         return baseName;
     }
 
-    // Strippa ev. tidigare hash-suffix (-[0-9a-f]{8}) i slutet av basnamnet
+    // Ta bort ev. tidigare hash-suffix (-[0-9a-f]{8}) i slutet av basnamnet
     private static string StripExistingHashSuffix(string baseName)
         => Regex.Replace(baseName, "-[0-9a-f]{8}$", "", RegexOptions.IgnoreCase);
 

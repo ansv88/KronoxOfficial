@@ -1,22 +1,24 @@
 @namespace KronoxFront.Components.Shared.Admin
 @inherits ComponentBase
 
-<div class="card mb-4">
+<div class="card mb-4" role="region" aria-labelledby="@_headerId">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h3 class="h5 mb-0">
+        <h3 class="h5 mb-0" id="@_headerId">
             @if (!string.IsNullOrWhiteSpace(IconClass))
             {
-                <i class="@IconClass me-2"></i>
+                <i class="@IconClass me-2" aria-hidden="true"></i>
             }
             @Title
         </h3>
 
         @if (ShowAdminButton && !string.IsNullOrWhiteSpace(AdminButtonUrl))
         {
-            <a href="@AdminButtonUrl" class="btn btn-outline-primary btn-sm">
+            <a href="@AdminButtonUrl"
+               class="btn btn-outline-primary btn-sm"
+               aria-label="@(string.IsNullOrWhiteSpace(AdminButtonText) ? "Hantera" : AdminButtonText)">
                 @if (!string.IsNullOrWhiteSpace(AdminButtonIcon))
                 {
-                    <i class="@AdminButtonIcon me-1"></i>
+                    <i class="@AdminButtonIcon me-1" aria-hidden="true"></i>
                 }
                 @(string.IsNullOrWhiteSpace(AdminButtonText) ? "Hantera" : AdminButtonText)
             </a>
@@ -45,4 +47,16 @@
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? FooterContent { get; set; }
+
+    private string _headerId = $"admin-section-{Guid.NewGuid():N}";
+
+    protected override void OnParametersSet()
+    {
+        // Defensiv hantering av parametrar
+        Title = Title?.Trim() ?? "";
+        IconClass = IconClass?.Trim() ?? "";
+        AdminButtonText = string.IsNullOrWhiteSpace(AdminButtonText) ? "Hantera" : AdminButtonText!.Trim();
+        AdminButtonUrl = string.IsNullOrWhiteSpace(AdminButtonUrl) ? null : AdminButtonUrl!.Trim();
+        AdminButtonIcon = string.IsNullOrWhiteSpace(AdminButtonIcon) ? "fa-solid fa-clipboard-list" : AdminButtonIcon!.Trim();
+    }
 }

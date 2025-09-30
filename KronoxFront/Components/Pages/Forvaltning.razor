@@ -54,7 +54,7 @@ else
                 break;
 
             case SectionType.NavigationButtons:
-                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                @if (introSection.ShowNavigationButtons && (introSection.NavigationButtons?.Any() == true))
                 {
                     <NavigationButtons Buttons="@introSection.NavigationButtons" />
                 }

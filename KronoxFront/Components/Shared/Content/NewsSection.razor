@@ -2,6 +2,7 @@
 @using KronoxFront.ViewModels
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Globalization
 @inject NewsService NewsService
 @inject DocumentService DocumentService
 @inject AuthenticationStateProvider AuthState
@@ -65,21 +66,22 @@ else
             </div>
             <div class="col-md-6">
                 <div class="d-flex gap-2 flex-wrap">
-                    <select class="form-select form-select-sm" @onchange="OnSortChanged" style="max-width: 200px;">
-                        <option value="newest" selected="@(sortOrder == "newest")">Senaste först</option>
-                        <option value="oldest" selected="@(sortOrder == "oldest")">Äldsta först</option>
-                        <option value="title" selected="@(sortOrder == "title")">Titel A-Ö</option>
-                    </select>
-                    
+                    <!-- Stabil bindning med InputSelect och efter-hook -->
+                    <InputSelect class="form-select form-select-sm" @bind-Value="sortOrder" @bind-Value:after="OnSortChanged" style="max-width: 200px;">
+                        <option value="newest">Senaste först</option>
+                        <option value="oldest">Äldsta först</option>
+                        <option value="title">Titel A-Ö</option>
+                    </InputSelect>
+
                     @if (availableYears.Count > 1)
                     {
-                        <select class="form-select form-select-sm" @onchange="OnYearChanged" style="max-width: 120px;">
+                        <InputSelect class="form-select form-select-sm" @bind-Value="selectedYear" @bind-Value:after="OnYearChanged" style="max-width: 120px;">
                             <option value="">Alla år</option>
                             @foreach (var year in availableYears.OrderByDescending(y => y))
                             {
-                                <option value="@year" selected="@(selectedYear == year)">@year</option>
+                                <option value="@year">@year</option>
                             }
-                        </select>
+                        </InputSelect>
                     }
                 </div>
             </div>
@@ -291,21 +293,29 @@ else
     private string currentDocumentTitle = "";
     private Dictionary<int, List<NewsDocumentViewModel>> newsDocuments = new();
 
-    protected override async Task OnInitializedAsync()
+    // Nyckel för att undvika dubbel inläsning vid oförändrade parametrar
+    private string? lastParamsKey;
+
+    protected override Task OnInitializedAsync()
     {
         // Anpassa pageSize baserat på MaxItems om det specificeras
         if (MaxItems != 10)
         {
             pageSize = MaxItems;
         }
-        
-        await LoadNews();
+        // Första laddning sker i OnParametersSetAsync
+        return Task.CompletedTask;
     }
 
     protected override async Task OnParametersSetAsync()
     {
-        // Ladda om nyheter om parametrar ändras
-        await LoadNews();
+        // Ladda endast om relevanta parametrar förändrats
+        var key = $"{PageKey}|{MaxItems}|{ShowPagination}|{ShowFilters}|{ShowArchiveToggle}|{ShowAllNewsLink}";
+        if (key != lastParamsKey)
+        {
+            lastParamsKey = key;
+            await LoadNews();
+        }
     }
 
     private async Task LoadNews()
@@ -317,7 +327,7 @@ else
         {
             newsList = await NewsService.GetMemberNewsAsync(includeArchived, currentPage, pageSize);
             
-            // Ladda dokument för alla nyheter
+            // Ladda dokument för alla nyheter (parallellt, med säker uppsamling)
             await LoadNewsDocuments();
             
             // Uppdatera tillgängliga år och filtrerade nyheter
@@ -340,20 +350,28 @@ else
     private async Task LoadNewsDocuments()
     {
         newsDocuments.Clear();
-        
-        foreach (var news in newsList.Posts)
+
+        // Skapa uppgifter som returnerar (Id, Dokument)
+        var tasks = newsList.Posts.Select(async n =>
         {
             try
             {
-                var documents = await NewsService.GetNewsDocumentsAsync(news.Id);
-                if (documents.Any())
-                {
-                    newsDocuments[news.Id] = documents;
-                }
+                var docs = await NewsService.GetNewsDocumentsAsync(n.Id);
+                return (Id: n.Id, Docs: docs);
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Kunde inte ladda dokument för nyhet {NewsId}", news.Id);
+                Logger.LogError(ex, "Kunde inte ladda dokument för nyhet {NewsId}", n.Id);
+                return (Id: n.Id, Docs: new List<NewsDocumentViewModel>());
+            }
+        });
+
+        var results = await Task.WhenAll(tasks);
+        foreach (var r in results)
+        {
+            if (r.Docs != null && r.Docs.Any())
+            {
+                newsDocuments[r.Id] = r.Docs;
             }
         }
     }
@@ -397,17 +415,17 @@ else
         return sortedNews;
     }
 
-    private async Task OnSortChanged(ChangeEventArgs e)
+    private void OnSortChanged()
     {
-        sortOrder = e.Value?.ToString() ?? "newest";
+        // Sortering styrs i GetSortedNews; trigga omrendering
         StateHasChanged();
     }
 
-    private async Task OnYearChanged(ChangeEventArgs e)
+    private Task OnYearChanged()
     {
-        selectedYear = string.IsNullOrEmpty(e.Value?.ToString()) ? null : int.Parse(e.Value.ToString()!);
+        // Värdet är redan bundet; uppdatera filtrering
         FilterNews();
-        StateHasChanged();
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task ChangePage(int page)
@@ -419,15 +437,8 @@ else
         }
     }
 
-    private void ExpandItem(int itemId)
-    {
-        expandedItems.Add(itemId);
-    }
-
-    private void CollapseItem(int itemId)
-    {
-        expandedItems.Remove(itemId);
-    }
+    private void ExpandItem(int itemId) => expandedItems.Add(itemId);
+    private void CollapseItem(int itemId) => expandedItems.Remove(itemId);
 
     private string GetPlainTextPreview(string htmlContent)
     {
@@ -437,9 +448,20 @@ else
 
     private string FormatSwedishDateTime(DateTime dateTime)
     {
-        var swedishTime = TimeZoneInfo.ConvertTimeFromUtc(dateTime,
-            TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"));
-        return swedishTime.ToString("dd MMMM yyyy, HH:mm");
+        // Robust tidszon med Windows-ID och IANA, falla tillbaka till lokal
+        var tz = GetSwedenTimeZone();
+        var dt = dateTime.Kind == DateTimeKind.Utc ? TimeZoneInfo.ConvertTimeFromUtc(dateTime, tz) : TimeZoneInfo.ConvertTime(dateTime, tz);
+        return dt.ToString("dd MMMM yyyy, HH:mm", new CultureInfo("sv-SE"));
+    }
+
+    private static TimeZoneInfo GetSwedenTimeZone()
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"); } // Windows
+        catch
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm"); } // Linux/macOS
+            catch { return TimeZoneInfo.Local; }
+        }
     }
 
     private void OpenDocumentViewer(int documentId, string title)
@@ -464,7 +486,7 @@ else
             if (result.HasValue)
             {
                 var (stream, fileName) = result.Value;
-                var streamRef = new DotNetStreamReference(stream: stream);
+                using var streamRef = new DotNetStreamReference(stream: stream);
                 await JS.InvokeVoidAsync("downloadFileFromStream", streamRef, fileName);
             }
         }

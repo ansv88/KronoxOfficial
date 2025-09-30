@@ -2,7 +2,9 @@
 @using KronoxFront.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using System.Reflection
+@using System.Net.Http.Json
 @inject IHttpClientFactory HttpClientFactory
+@inject ILogger<PageStatusText> Logger
 
 @if (navigationStatus != null)
 {
@@ -57,9 +59,9 @@
                 };
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Handle error silently
+            Logger.LogDebug(ex, "Kunde inte ladda navigationsstatus för {PageKey}", PageKey);
         }
         
         StateHasChanged();
@@ -93,12 +95,17 @@
                                              .ToList();
                         pageAuthorizeRoles.AddRange(roles);
                     }
+                    else
+                    {
+                        // [Authorize] utan roller => kräver inloggning
+                        pageAuthorizeRoles.Add("RequiresAuthentication");
+                    }
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors in reflection
+            Logger.LogDebug(ex, "Kunde inte detektera Authorize-roller för {PageKey}", PageKey);
         }
     }
 

@@ -479,7 +479,7 @@ public class NewsController : ControllerBase
     }
 
     // Hjälpmetod för att kontrollera nyhetstillgång
-    private bool CanUserViewNews(NewsModel news, string[] userRoles)
+    private static bool CanUserViewNews(NewsModel news, string[] userRoles)
     {
         if (userRoles.Contains("Admin", StringComparer.OrdinalIgnoreCase))
             return true;

@@ -146,7 +146,7 @@ public class AdminController : ControllerBase
                     .Replace("{FirstName}", user.FirstName)
                     .Replace("{RoleName}", model.RoleName);
 
-                await _emailService.SendEmailAsync(user.Email, subject, body);
+                await _emailService.SendEmailAsync(user.Email!, subject, body);
             }
             catch (Exception ex)
             {
@@ -314,7 +314,7 @@ public class AdminController : ControllerBase
             }
 
             // Spara e-postadress och namn innan vi tar bort användaren
-            string userEmail = user.Email;
+            string userEmail = user.Email!;
             string firstName = user.FirstName;
 
             // Radera användaren från systemet
@@ -387,10 +387,10 @@ public class AdminController : ControllerBase
                 var roles = await _userManager.GetRolesAsync(user);
                 result.Add(new AdminUserDto
                 {
-                    UserName = user.UserName,
+                    UserName = user.UserName!,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
-                    Email = user.Email,
+                    Email = user.Email!,
                     Academy = user.Academy,
                     Roles = roles.ToList(),
                     CreatedDate = user.CreatedDate

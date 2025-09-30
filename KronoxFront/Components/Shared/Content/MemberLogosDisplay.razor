@@ -37,13 +37,13 @@
                                             <div class="d-flex justify-content-center align-items-center h-100">
                                                 @if (!string.IsNullOrEmpty(logo.LinkUrl))
                                                 {
-                                                    <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText" class="logo-link">
+                                                    <a href="@logo.LinkUrl" target="_blank" rel="noopener" title="Besök @logo.AltText" class="logo-link">
                                                         <img src="@logo.Url" class="img-fluid member-logo" loading="lazy" alt="@logo.AltText" />
                                                     </a>
                                                 }
                                                 else
                                                 {
-                                                    <img src="@logo.Url" class="img-fluid member-logo" alt="@logo.AltText" />
+                                                    <img src="@logo.Url" class="img-fluid member-logo" loading="lazy" alt="@logo.AltText" />
                                                 }
                                             </div>
                                         </div>
@@ -80,13 +80,13 @@
                                 <div class="d-flex justify-content-center align-items-center" style="min-height: 100px;">
                                     @if (!string.IsNullOrEmpty(logo.LinkUrl))
                                     {
-                                        <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText" class="logo-link">
-                                            <img src="@logo.Url" class="img-fluid member-logo-mobile" alt="@logo.AltText" />
+                                        <a href="@logo.LinkUrl" target="_blank" rel="noopener" title="Besök @logo.AltText" class="logo-link">
+                                            <img src="@logo.Url" class="img-fluid member-logo-mobile" loading="lazy" alt="@logo.AltText" />
                                         </a>
                                     }
                                     else
                                     {
-                                        <img src="@logo.Url" class="img-fluid member-logo-mobile" alt="@logo.AltText" />
+                                        <img src="@logo.Url" class="img-fluid member-logo-mobile" loading="lazy" alt="@logo.AltText" />
                                     }
                                 </div>
                             </div>
@@ -117,9 +117,10 @@
                         <div class="d-flex justify-content-center align-items-center" style="height: 80px">
                             @if (!string.IsNullOrEmpty(logo.LinkUrl))
                             {
-                                <a href="@logo.LinkUrl" target="_blank" title="Besök @logo.AltText">
+                                <a href="@logo.LinkUrl" target="_blank" rel="noopener" title="Besök @logo.AltText">
                                     <img src="@logo.Url" class="img-fluid" 
                                          style="max-height: 60px; max-width: 120px; object-fit: contain;" 
+                                         loading="lazy"
                                          alt="@logo.AltText" />
                                 </a>
                             }
@@ -127,6 +128,7 @@
                             {
                                 <img src="@logo.Url" class="img-fluid" 
                                      style="max-height: 60px; max-width: 120px; object-fit: contain;" 
+                                     loading="lazy"
                                      alt="@logo.AltText" />
                             }
                         </div>

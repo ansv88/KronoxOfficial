@@ -4,11 +4,12 @@
 @using KronoxFront.ViewModels
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.JSInterop
+@using System.Net
+@using System.Text.RegularExpressions
 @inject DocumentService DocumentService
 @inject CategoryService CategoryService
 @inject ILogger<DocumentSection> Logger
 @inject IJSRuntime JSRuntime
-@inject IToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
@@ -47,7 +48,7 @@ else
     {
         <div class="mb-4">
             <h2 class="h4 text-primary mb-3">
-                <i class="fas fa-file-alt me-2"></i>
+                <i class="fas fa-file-alt me-2" aria-hidden="true"></i>
                 @Title
             </h2>
         </div>
@@ -135,7 +136,7 @@ else
             {
                 <div class="col-12">
                     <h5 class="text-muted border-bottom pb-2 mb-3 mt-3">
-                        <i class="fas fa-folder me-2"></i>@category.Name
+                        <i class="fas fa-folder me-2" aria-hidden="true"></i>@category.Name
                         @if (FilteredDocuments.Count(d => d.MainCategoryId == category.Id) > MaxDocumentsPerCategory)
                         {
                             <small class="text-muted ms-2">(visar @MaxDocumentsPerCategory av @FilteredDocuments.Count(d => d.MainCategoryId == category.Id))</small>
@@ -151,7 +152,7 @@ else
                         <div class="card-body p-3">
                             <div class="d-flex align-items-center">
                                 <div class="me-3 text-center flex-shrink-0 document-icon">
-                                    <i class="@GetFileIcon(doc.FileName) fa-lg"></i>
+                                    <i class="@GetFileIcon(doc.FileName) fa-lg" aria-hidden="true"></i>
                                 </div>
                                 
                                 <div class="flex-grow-1">
@@ -164,8 +165,8 @@ else
                                     </h6>
                                     <div class="card-text">
                                         <small class="text-muted">
-                                            <i class="fas fa-calendar me-1"></i>@doc.UploadedAt.ToString("yyyy-MM-dd")
-                                            <i class="fas fa-hdd ms-3 me-1"></i>@FormatFileSize(doc.FileSize)
+                                            <i class="fas fa-calendar me-1" aria-hidden="true"></i>@doc.UploadedAt.ToString("yyyy-MM-dd")
+                                            <i class="fas fa-hdd ms-3 me-1" aria-hidden="true"></i>@FormatFileSize(doc.FileSize)
                                         </small>
                                     </div>
                                 </div>
@@ -175,12 +176,12 @@ else
                                         <button class="btn btn-outline-info" 
                                                 title="Visa dokument"
                                                 @onclick="() => ViewDocument(doc.Id, doc.FileName)">
-                                            <i class="fas fa-eye"></i>
+                                            <i class="fas fa-eye" aria-hidden="true"></i>
                                         </button>
                                         <button class="btn btn-outline-primary" 
                                                 title="Ladda ner"
                                                 @onclick="() => DownloadDocument(doc.Id)">
-                                            <i class="fas fa-download"></i>
+                                            <i class="fas fa-download" aria-hidden="true"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -196,7 +197,7 @@ else
     {
         <div class="text-center mt-4">
             <a href="/dokument" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-right me-2"></i>
+                <i class="fas fa-arrow-right me-2" aria-hidden="true"></i>
                 Visa alla dokument
             </a>
         </div>
@@ -252,7 +253,7 @@ else
             await LoadDocuments();
             
             // Sätt förinställd kategori efter att dokument laddats
-            await SetPresetCategory();
+            SetPresetCategory();
         }
         catch (Exception ex)
         {
@@ -265,7 +266,7 @@ else
         }
     }
 
-    private async Task SetPresetCategory()
+    private void SetPresetCategory()
     {
         // Om PresetCategoryName är satt, använd den
         if (!string.IsNullOrEmpty(PresetCategoryName))
@@ -404,8 +405,7 @@ else
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
             var query = searchQuery.ToLowerInvariant();
-            documents = documents.Where(d => 
-                d.FileName.ToLowerInvariant().Contains(query));
+            documents = documents.Where(d => d.FileName.ToLowerInvariant().Contains(query));
         }
 
         // Sortering
@@ -455,7 +455,7 @@ else
             if (result.HasValue)
             {
                 var (stream, fileName) = result.Value;
-                var streamRef = new DotNetStreamReference(stream: stream);
+                using var streamRef = new DotNetStreamReference(stream: stream);
                 await JSRuntime.InvokeVoidAsync("downloadFileFromStream", streamRef, fileName);
             }
         }
@@ -497,12 +497,18 @@ else
     private MarkupString HighlightSearchText(string text)
     {
         if (string.IsNullOrWhiteSpace(searchQuery))
-            return new MarkupString(text);
+            return new MarkupString(WebUtility.HtmlEncode(text));
 
-        var highlighted = text.Replace(searchQuery, 
-            $"<mark class='bg-warning bg-opacity-50'>{searchQuery}</mark>", 
-            StringComparison.OrdinalIgnoreCase);
-        
+        // HTML-enkoda först, markera sedan matchningar (skydd mot XSS)
+        var encoded = WebUtility.HtmlEncode(text);
+        var pattern = Regex.Escape(searchQuery);
+        var highlighted = Regex.Replace(
+            encoded,
+            pattern,
+            m => $"<mark class='bg-warning bg-opacity-50'>{WebUtility.HtmlEncode(m.Value)}</mark>",
+            RegexOptions.IgnoreCase
+        );
+
         return new MarkupString(highlighted);
     }
 }

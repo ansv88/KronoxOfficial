@@ -1,5 +1,4 @@
 ﻿@page "/omkonsortiet"
-@using System.Text.Json
 @using KronoxFront.Components.Shared.Security
 @using KronoxFront.DTOs
 @using KronoxFront.Services
@@ -56,69 +55,11 @@ else
                 break;
 
             case SectionType.NavigationButtons:
-                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                @if (introSection.ShowNavigationButtons && (introSection.NavigationButtons?.Any() == true))
                 {
                     <NavigationButtons Buttons="@introSection.NavigationButtons" />
                 }
                 break;
-
- @*            case SectionType.FeatureSections:
-                @if (featureSections.Any())
-                {
-                    <div class="wrapper-div py-3">
-                        <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
-                            <div style="max-width:800px; margin: 0 auto;">
-                                @foreach (var (featureItem, index) in featureSections.Select((s, i) => (s, i)))
-                                {
-                                    <div class="feature-section row align-items-center mb-5">
-                                        @if (featureItem.HasImage)
-                                        {
-                                            <div class="col-md-4 mb-3 mb-md-0">
-                                                @if (!string.IsNullOrEmpty(featureItem.ImageUrl))
-                                                {
-                                                    <img src="@featureItem.ImageUrl"
-                                                    class="img-thumbnail feature-thumb w-100"
-                                                    style="cursor:pointer"
-                                                    alt="@(!string.IsNullOrEmpty(featureItem.ImageAltText) ? featureItem.ImageAltText : $"Bild för {featureItem.Title}")"
-                                                    @onclick="() => ShowImage(featureItem.ImageUrl)" />
-                                                }
-                                                else
-                                                {
-                                                    <div class="bg-light p-4 text-center rounded">
-                                                        <i class="fa-solid fa-image text-muted fa-3x"></i>
-                                                    </div>
-                                                }
-                                            </div>
-                                            <div class="col-md-8">
-                                                @if (!string.IsNullOrWhiteSpace(featureItem.Title))
-                                                {
-                                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
-                                                }
-                                                <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="col-12 text-center">
-                                                @if (!string.IsNullOrWhiteSpace(featureItem.Title))
-                                                {
-                                                    <h3 class="mb-4 fw-bold">@featureItem.Title</h3>
-                                                }
-                                                <div>@((MarkupString)GetEnhancedContent(featureItem))</div>
-                                            </div>
-                                        }
-                                    </div>
-
-                                    @if (index < featureSections.Count - 1)
-                                    {
-                                        <div class="divider"></div>
-                                    }
-                                }
-                            </div>
-                        </section>
-                    </div>
-                }
-                break; *@
 
             case SectionType.FeatureSections:
                 @if (featureSections.Any())
@@ -218,10 +159,8 @@ else
     private List<FeatureSectionViewModel> featureSections = new();
     private List<FaqSectionViewModel> faqSections = new();
 
-    // Sektionskonfiguration
     private List<SectionConfigItem> sectionConfigurations = new();
 
-    // Institution URL mapping för medlemslärosäten
     private readonly Dictionary<string, string> institutionUrls = new(StringComparer.OrdinalIgnoreCase)
     {
         { "Högskolan i Borås", "https://www.hb.se" },
@@ -248,7 +187,6 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        // Prenumerera på ändringar i autentisering så vi kan uppdatera privat innehåll dynamiskt
         AuthState.AuthenticationStateChanged += AuthenticationStateChanged;
 
         var authState = await AuthState.GetAuthenticationStateAsync();
@@ -258,7 +196,6 @@ else
 
         try
         {
-            // Hämta grundläggande sidinnehåll (alltid tillgängligt)
             pageContent = await Cms.GetPageContentAsync("omkonsortiet") ?? new PageContentViewModel
             {
                 PageKey = "omkonsortiet",
@@ -268,19 +205,11 @@ else
                 Images = new List<PageImageViewModel>()
             };
 
-            // Hämta intro-sektion (alltid tillgänglig)
             introSection = await Cms.GetIntroSectionAsync("omkonsortiet");
-            
-            // Hämta feature-sektioner med privat innehåll endast för inloggade användare
             featureSections = await Cms.GetFeatureSectionsAsync("omkonsortiet", includePrivate: isLoggedIn);
-            
-            // Hämta FAQ-sektioner (alltid tillgängliga)
             faqSections = await Cms.GetFaqSectionsAsync("omkonsortiet");
-
-            // Hämta sektionskonfiguration för att veta vilka sektioner som ska visas
             sectionConfigurations = await Cms.GetPageSectionConfigAsync("omkonsortiet");
 
-            // Hämta handlingsplan om den är aktiverad
             if (sectionConfigurations.Any(s => s.Type == SectionType.ActionPlanTable && s.IsEnabled))
             {
                 try
@@ -294,15 +223,13 @@ else
                 }
             }
 
-            Logger.LogInformation("Omkonsortiet-sidan laddad framgångsrikt med {SectionCount} sektioner, " +
-                "användare inloggad: {IsLoggedIn}, admin: {IsAdmin}", 
+            Logger.LogDebug("Omkonsortiet-sidan laddad med {SectionCount} sektioner, inloggad: {IsLoggedIn}, admin: {IsAdmin}", 
                 sectionConfigurations.Count, isLoggedIn, isAdmin);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid inläsning av Om konsortiet-sidan: {Message}", ex.Message);
             
-            // Skapa fallback-innehåll som fungerar för alla användare
             pageContent = new PageContentViewModel
             {
                 PageKey = "omkonsortiet",
@@ -321,7 +248,6 @@ else
             featureSections = new List<FeatureSectionViewModel>();
             faqSections = new List<FaqSectionViewModel>();
 
-            // Skapa minimal standardkonfiguration som fallback
             sectionConfigurations = new List<SectionConfigItem>
             {
                 new() { Type = SectionType.Banner, SortOrder = 0, IsEnabled = true },
@@ -336,13 +262,11 @@ else
         }
     }
 
-    // Synchronous event handler that delegates to an async method
     private void AuthenticationStateChanged(Task<AuthenticationState> stateTask)
     {
         _ = HandleAuthenticationStateChangedAsync(stateTask);
     }
 
-    // The actual async handler where awaits are allowed
     private async Task HandleAuthenticationStateChangedAsync(Task<AuthenticationState> stateTask)
     {
         try
@@ -351,7 +275,6 @@ else
             var newIsLoggedIn = authState.User.Identity?.IsAuthenticated == true;
             var newIsAdmin = authState.User.IsInRole("Admin");
 
-            // Om inloggningsstatus har ändrats, hämta privata feature-sektioner på nytt
             if (newIsLoggedIn != isLoggedIn)
             {
                 isLoggedIn = newIsLoggedIn;
@@ -366,12 +289,10 @@ else
                     Logger.LogWarning(ex, "Kunde inte uppdatera feature-sektioner efter auth-ändring");
                 }
 
-                // Ensure UI updates
                 await InvokeAsync(StateHasChanged);
             }
             else
             {
-                // Uppdatera admin-flagga om endast rolländring skett
                 isAdmin = newIsAdmin;
             }
         }
@@ -395,18 +316,15 @@ else
 
     private string GetEnhancedContent(FeatureSectionViewModel featureItem)
     {
-        var content = featureItem.Content; // Publikt innehåll visas alltid
+        var content = featureItem.Content;
 
-        // Lägg till medlemsinformation endast för inloggade användare
         if (isLoggedIn && featureItem.HasPrivateContent)
         {
-            // Lägg till privat textinnehåll
             if (!string.IsNullOrEmpty(featureItem.PrivateContent))
             {
                 content += featureItem.PrivateContent;
             }
 
-            // Lägg till kontaktrubrik och kontakter för medlemmar
             if (featureItem.ContactPersons.Any())
             {
                 if (!string.IsNullOrEmpty(featureItem.ContactHeading))
@@ -419,7 +337,6 @@ else
                     if (string.IsNullOrEmpty(contact.Name)) continue;
 
                     var contactInfo = $"<div class='contact-enhanced py-2 ps-3 mb-3 border-start border-primary border-3'>";
-
                     contactInfo += $"<div class='fw-semibold mb-1'>{contact.Name}";
                     if (!string.IsNullOrEmpty(contact.Organization))
                     {
@@ -427,7 +344,6 @@ else
                     }
                     contactInfo += "</div>";
 
-                    // Visa e-post för medlemmar
                     if (!string.IsNullOrEmpty(contact.Email))
                     {
                         contactInfo += $"<div class='text-muted small ms-3 mb-1'>" +
@@ -435,7 +351,6 @@ else
                                       $"<a href='mailto:{contact.Email}' class='text-decoration-none'>{contact.Email}</a></div>";
                     }
 
-                    // Visa telefon för medlemmar
                     if (!string.IsNullOrEmpty(contact.Phone))
                     {
                         contactInfo += $"<div class='text-muted small ms-3 mb-1'>" +
@@ -457,20 +372,17 @@ else
 
     private void CloseModal() => activeImage = null;
 
-    // Hämta institution URL för givet institutionsnamn
     private string GetInstitutionUrl(string institutionName)
     {
         return institutionUrls.TryGetValue(institutionName, out var url) ? url : "";
     }
 
-    // Kontrollera om detta är medlemssektionen för speciell formatering
     private bool IsMembersSection(string title)
     {
         return title.Contains("medlemmar", StringComparison.OrdinalIgnoreCase) ||
                title.Contains("konsortiet", StringComparison.OrdinalIgnoreCase);
     }
 
-    // Avprenumerera event när komponenten tas bort
     public void Dispose()
     {
         try

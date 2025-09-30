@@ -1,5 +1,4 @@
 ﻿@page "/"
-@using System.Text.Json
 @using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
@@ -51,7 +50,7 @@ else
                 break;
 
             case SectionType.NavigationButtons:
-                @if (introSection.ShowNavigationButtons && introSection.NavigationButtons.Any())
+                @if (introSection.ShowNavigationButtons && (introSection.NavigationButtons?.Any() == true))
                 {
                     <NavigationButtons Buttons="@introSection.NavigationButtons" />
                 }
@@ -64,7 +63,7 @@ else
                         <section class="container mt-2 my-5 py-5 bg-white rounded-3" style="max-width:1000px">
                             <div style="max-width:800px; margin: 0 auto;">
                                 <FeatureSections IsAdmin="@isAdmin" 
-                                               PageKey="home" OnImageClick="@ShowImage" />
+                                                 PageKey="home" OnImageClick="@ShowImage" />
                             </div>
                         </section>
                     </div>
@@ -176,7 +175,7 @@ else
         {
             await JS.InvokeVoidAsync("initCarousel");
             await JS.InvokeVoidAsync("initFeatureImageClicks");
-            await JS.InvokeVoidAsync("initScrollTopButton"); // Lägg till denna!
+            await JS.InvokeVoidAsync("initScrollTopButton");
         }
     }
 
@@ -188,7 +187,6 @@ else
 
         try
         {
-            // Synkronisera bilder endast en gång per applikation
             if (!imagesSynced)
             {
                 await Cms.SyncImagesFromApiAsync();
@@ -208,13 +206,12 @@ else
                 actionPlan = await Cms.GetActionPlanAsync("home");
             }
             
-            Logger.LogInformation("Home sida laddad framgångsrikt med {SectionCount} sektioner", sectionConfigurations.Count);
+            Logger.LogDebug("Startsidan laddad med {SectionCount} sektioner", sectionConfigurations.Count);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid inläsning av startsidan: {Message}", ex.Message);
 
-            // Skapa fallback-innehåll
             introSection = new IntroSectionViewModel
             {
                 Title = "Välkommen till KronoX",

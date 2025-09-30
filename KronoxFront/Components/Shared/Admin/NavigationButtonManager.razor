@@ -1,4 +1,4 @@
-@using KronoxFront.ViewModels
+Ôªø@using KronoxFront.ViewModels
 @inject IConfiguration Configuration
 
 <div class="card mb-4">
@@ -17,8 +17,8 @@
             @if (HasAnyInvalidMaskedUrl)
             {
                 <div class="alert alert-warning" role="alert">
-                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                    En eller flera knappar anv‰nder en maskerad l‰nk via <code>/go/&lt;slug&gt;</code> som saknas i Redirects-konfigurationen. L‰gg till slug i <code>appsettings.json</code> under <code>Redirects</code>, eller ‰ndra URL.
+                    <i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>
+                    En eller flera knappar anv√§nder en maskerad l√§nk via <code>/go/&lt;slug&gt;</code> som saknas i Redirects‚Äëkonfigurationen. L√§gg till slug i <code>appsettings.json</code> under <code>Redirects</code>, eller √§ndra URL.
                 </div>
             }
 
@@ -29,62 +29,67 @@
                     @foreach (var (button, index) in NavigationButtons.OrderBy(b => b.SortOrder).Select((b, i) => (b, i)))
                     {
                         var missingSlug = GetMissingRedirectSlug(button.Url);
+                        var invalidUrl = !string.IsNullOrWhiteSpace(button.Url) && !IsValidUrlOrPath(button.Url);
                         <div class="row mb-3 p-3 border rounded">
                             <div class="col-md-4">
-                                <label class="form-label small fw-medium">Knapptext</label>
-                                <input type="text" class="form-control form-control-sm" 
-                                       placeholder="T.ex. Manualen" 
-                                       @bind="button.Text" />
+                                <label class="form-label small fw-medium" for="btn-text-@index">Knapptext</label>
+                                <input id="btn-text-@index" type="text" class="form-control form-control-sm"
+                                       placeholder="T.ex. Manualen"
+                                       @bind="button.Text" @bind:after="OnButtonFieldChanged" />
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small fw-medium">L‰nk</label>
-                                <input type="text" class="form-control form-control-sm" 
-                                       placeholder="T.ex. /go/manualen eller https://exempel.se" 
-                                       @bind="button.Url" />
+                                <label class="form-label small fw-medium" for="btn-url-@index">L√§nk</label>
+                                <input id="btn-url-@index" type="text" class="form-control form-control-sm"
+                                       placeholder="T.ex. /go/manualen eller https://exempel.se"
+                                       @bind="button.Url" @bind:after="OnButtonFieldChanged" />
                                 @if (!string.IsNullOrWhiteSpace(missingSlug))
                                 {
                                     <div class="form-text text-danger">
-                                        Slug <strong>@missingSlug</strong> saknas i Redirects. L‰gg till <code>@missingSlug</code> i appsettings under <code>Redirects</code> eller ‰ndra URL.
+                                        Slug <strong>@missingSlug</strong> saknas i Redirects. L√§gg till <code>@missingSlug</code> i appsettings under <code>Redirects</code> eller √§ndra URL.
+                                    </div>
+                                }
+                                else if (invalidUrl)
+                                {
+                                    <div class="form-text text-danger">
+                                        Ogiltig URL. Ange absolut URL (https://...) eller en relativ s√∂kv√§g som b√∂rjar med <code>/</code>.
                                     </div>
                                 }
                                 else
                                 {
                                     <div class="form-text">
-                                        Tips: Anv‰nd <code>/go/&lt;slug&gt;</code> om du vill maskera extern mÂl-URL (hover visar endast den interna v‰gen).
+                                        Tips: Anv√§nd <code>/go/&lt;slug&gt;</code> om du vill maskera extern m√•l‚ÄëURL (hover visar endast den interna v√§gen).
                                     </div>
                                 }
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label small fw-medium">Font Awesome ikon</label>
-                                <input type="text" class="form-control form-control-sm" 
-                                       placeholder="T.ex. fa-solid fa-arrow-right" 
-                                       @bind="button.IconClass" />
+                                <label class="form-label small fw-medium" for="btn-icon-@index">Font Awesome ikon</label>
+                                <input id="btn-icon-@index" type="text" class="form-control form-control-sm"
+                                       placeholder="T.ex. fa-solid fa-arrow-right"
+                                       @bind="button.IconClass" @bind:after="OnButtonFieldChanged" />
                                 <div class="form-text small">
-                                    <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small">
-                                        fontawesome.com/icons
-                                    </a>
+                                    <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small" rel="noopener">fontawesome.com/icons</a>
                                 </div>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label small fw-medium">≈tg‰rder</label>
+                                <label class="form-label small fw-medium">√Ötg√§rder</label>
                                 <div class="d-flex gap-1">
                                     @if (index > 0)
                                     {
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                @onclick="() => MoveButtonUp(button)" title="Flytta upp">
-                                            <i class="fa-solid fa-arrow-up"></i>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                @onclick="() => MoveButtonUp(button)" title="Flytta upp" aria-label="Flytta upp">
+                                            <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
                                         </button>
                                     }
                                     @if (index < NavigationButtons.Count - 1)
                                     {
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                @onclick="() => MoveButtonDown(button)" title="Flytta ner">
-                                            <i class="fa-solid fa-arrow-down"></i>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                @onclick="() => MoveButtonDown(button)" title="Flytta ner" aria-label="Flytta ner">
+                                            <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
                                         </button>
                                     }
-                                    <button type="button" class="btn btn-sm btn-outline-danger" 
-                                            @onclick="() => RemoveButton(button)" title="Ta bort">
-                                        <i class="fa-solid fa-times"></i>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            @onclick="() => RemoveButton(button)" title="Ta bort" aria-label="Ta bort">
+                                        <i class="fa-solid fa-times" aria-hidden="true"></i>
                                     </button>
                                 </div>
                             </div>
@@ -94,49 +99,55 @@
             }
 
             <div class="mb-3">
-                <h6>L‰gg till ny knapp:</h6>
+                <h6>L√§gg till ny knapp:</h6>
                 <div class="row">
                     <div class="col-md-4">
-                        <label class="form-label fw-medium">Knapptext</label>
-                        <input type="text" class="form-control" 
-                               placeholder="T.ex. Manualen" 
+                        <label class="form-label fw-medium" for="new-btn-text">Knapptext</label>
+                        <input id="new-btn-text" type="text" class="form-control"
+                               placeholder="T.ex. Manualen"
                                @bind="newButtonText" />
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-medium">L‰nk</label>
-                        <input type="text" class="form-control" 
-                               placeholder="T.ex. /go/manualen, /anvandartraff eller https://exempel.se" 
+                        <label class="form-label fw-medium" for="new-btn-url">L√§nk</label>
+                        <input id="new-btn-url" type="text" class="form-control"
+                               placeholder="T.ex. /go/manualen, /anvandartraff eller https://exempel.se"
                                @bind="newButtonUrl" />
                         @if (!string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl)))
                         {
                             <div class="form-text text-danger">
-                                Slug <strong>@GetMissingRedirectSlug(newButtonUrl)</strong> saknas i Redirects. L‰gg till i appsettings eller ‰ndra URL.
+                                Slug <strong>@GetMissingRedirectSlug(newButtonUrl)</strong> saknas i Redirects. L√§gg till i appsettings eller √§ndra URL.
+                            </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(newButtonUrl) && !IsValidUrlOrPath(newButtonUrl))
+                        {
+                            <div class="form-text text-danger">
+                                Ogiltig URL. Ange absolut URL (https://...) eller en relativ s√∂kv√§g som b√∂rjar med <code>/</code>.
                             </div>
                         }
                         else
                         {
                             <div class="form-text">
-                                Anv‰nd <code>/go/&lt;slug&gt;</code> fˆr att dˆlja extern mÂl-URL i hover/statusrad.
+                                Anv√§nd <code>/go/&lt;slug&gt;</code> f√∂r att d√∂lja extern m√•l‚ÄëURL i hover/statusrad.
                             </div>
                         }
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-medium">Font Awesome ikon</label>
-                        <input type="text" class="form-control" 
-                               placeholder="T.ex. fa-solid fa-arrow-right" 
+                        <label class="form-label fw-medium" for="new-btn-icon">Font Awesome ikon</label>
+                        <input id="new-btn-icon" type="text" class="form-control"
+                               placeholder="T.ex. fa-solid fa-arrow-right"
                                @bind="newButtonIcon" />
                         <div class="form-text small">
-                            <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small">
+                            <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small" rel="noopener">
                                 fontawesome.com/icons
                             </a>
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-medium">&nbsp;</label>
+                        <label class="form-label fw-medium" aria-hidden="true">&nbsp;</label>
                         <button type="button" class="btn btn-primary d-block"
                                 @onclick="AddButton"
                                 disabled="@IsNewButtonInvalid">
-                            <i class="fa-solid fa-plus"></i> L‰gg till
+                            <i class="fa-solid fa-plus" aria-hidden="true"></i> L√§gg till
                         </button>
                     </div>
                 </div>
@@ -145,12 +156,12 @@
             @if (NavigationButtons.Any())
             {
                 <div class="alert alert-info">
-                    <strong>Fˆrhandsgranskning:</strong><br />
+                    <strong>F√∂rhandsgranskning:</strong><br />
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         @foreach (var button in NavigationButtons.OrderBy(b => b.SortOrder))
                         {
                             <span class="btn btn-dark btn-sm px-3 py-2">
-                                @button.Text <i class="@button.IconClass ms-1"></i>
+                                @button.Text <i class="@button.IconClass ms-1" aria-hidden="true"></i>
                             </span>
                         }
                     </div>
@@ -170,7 +181,7 @@
     private string newButtonUrl = "";
     private string newButtonIcon = "fa-solid fa-arrow-right";
 
-    // Redirect-slugs h‰mtade frÂn appsettings: "Redirects": { "<slug>": "target" }
+    // Redirect-slugs h√§mtade fr√•n appsettings: "Redirects": { "<slug>": "target" }
     private HashSet<string> redirectSlugs = new(StringComparer.OrdinalIgnoreCase);
 
     protected override Task OnInitializedAsync()
@@ -184,25 +195,20 @@
         return Task.CompletedTask;
     }
 
-    // UI: sammanfattande flagga om nÂgon knapp har maskad URL utan slug i Redirects
     private bool HasAnyInvalidMaskedUrl =>
         NavigationButtons.Any(b => !string.IsNullOrWhiteSpace(GetMissingRedirectSlug(b.Url)));
 
-    // ƒr det en maskad /go/-URL?
     private static bool IsMaskedGoUrl(string? url)
         => !string.IsNullOrWhiteSpace(url) && url!.StartsWith("/go/", StringComparison.OrdinalIgnoreCase);
 
-    // Plocka slug ur /go/{slug}[?...] (utan query/hash)
     private static string ExtractGoSlug(string url)
     {
         if (!IsMaskedGoUrl(url)) return "";
-        var withoutPrefix = url[4..]; // hoppa ˆver "/go/"
-        // slug slutar vid fˆrsta '/', '?', '#', om sÂdana finns
+        var withoutPrefix = url[4..]; // hoppa √∂ver "/go/"
         var end = withoutPrefix.IndexOfAny(new[] { '/', '?', '#' });
         return end >= 0 ? withoutPrefix[..end] : withoutPrefix;
     }
 
-    // Returnerar slug om den saknas i Redirects; annars tomt
     private string GetMissingRedirectSlug(string? url)
     {
         if (string.IsNullOrWhiteSpace(url)) return "";
@@ -213,10 +219,18 @@
         return redirectSlugs.Contains(slug) ? "" : slug;
     }
 
+    private bool IsValidUrlOrPath(string url)
+    {
+        // Till√•t absolut http/https eller en relativ s√∂kv√§g som b√∂rjar med "/"
+        if (url.StartsWith("/", StringComparison.Ordinal)) return true;
+        return Uri.TryCreate(url, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps);
+    }
+
     private bool IsNewButtonInvalid =>
         string.IsNullOrWhiteSpace(newButtonText) ||
         string.IsNullOrWhiteSpace(newButtonUrl) ||
-        !string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl));
+        !string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl)) ||
+        !IsValidUrlOrPath(newButtonUrl);
 
     private async Task OnShowNavigationButtonsChanged()
     {
@@ -226,19 +240,31 @@
         }
     }
 
+    private async Task OnButtonFieldChanged()
+    {
+        // Trimmar f√§lt och notifierar f√∂r√§lder
+        foreach (var b in NavigationButtons)
+        {
+            b.Text = b.Text?.Trim() ?? "";
+            b.Url = b.Url?.Trim() ?? "";
+            b.IconClass = b.IconClass?.Trim() ?? "";
+        }
+        await NotifyChange();
+    }
+
     private async Task AddButton()
     {
         if (IsNewButtonInvalid) return;
 
         NavigationButtons.Add(new NavigationButtonViewModel
         {
-            Text = newButtonText,
-            Url = newButtonUrl,
-            IconClass = string.IsNullOrWhiteSpace(newButtonIcon) ? "fa-solid fa-arrow-right" : newButtonIcon,
+            Text = newButtonText.Trim(),
+            Url = newButtonUrl.Trim(),
+            IconClass = string.IsNullOrWhiteSpace(newButtonIcon) ? "fa-solid fa-arrow-right" : newButtonIcon.Trim(),
             SortOrder = NavigationButtons.Count
         });
 
-        // Rensa f‰lten
+        // Rensa f√§lten
         newButtonText = "";
         newButtonUrl = "";
         newButtonIcon = "fa-solid fa-arrow-right";
@@ -249,7 +275,6 @@
     private async Task RemoveButton(NavigationButtonViewModel button)
     {
         NavigationButtons.Remove(button);
-        // Uppdatera sorteringsordning
         for (int i = 0; i < NavigationButtons.Count; i++)
         {
             NavigationButtons[i].SortOrder = i;
@@ -264,7 +289,7 @@
         {
             NavigationButtons.RemoveAt(index);
             NavigationButtons.Insert(index - 1, button);
-            
+
             for (int i = 0; i < NavigationButtons.Count; i++)
                 NavigationButtons[i].SortOrder = i;
 

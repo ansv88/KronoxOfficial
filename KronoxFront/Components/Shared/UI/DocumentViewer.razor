@@ -16,7 +16,7 @@
             <div class="modal-content d-flex flex-column" style="max-height:90vh;">
                 <div class="modal-header">
                     <h4 class="modal-title">@DocumentTitle</h4>
-                    <button type="button" class="btn-close" @onclick="CloseViewer"></button>
+                    <button type="button" class="btn-close" aria-label="Stäng" @onclick="CloseViewer"></button>
                 </div>
                 <div class="modal-body flex-fill" style="overflow:auto; min-height:0; max-height:65vh;">
                     @if (isLoading)
@@ -42,7 +42,7 @@
                                 <div class="alert alert-info">
                                     <p class="mb-0">Använd <strong>Ladda ner</strong>-knappen nedan för att spara med rätt filnamn.</p>
                                 </div>
-                                <embed src="@dataUrl" type="application/pdf" width="100%" height="600px" style="border-radius:4px;" />
+                                <embed src="@dataUrl" type="application/pdf" style="width:100%; height:600px; border-radius:4px;" />
                             }
                             else
                             {
@@ -68,20 +68,11 @@
 }
 
 @code {
-    [Parameter]
-    public bool IsVisible { get; set; }
-
-    [Parameter]
-    public int DocumentId { get; set; }
-
-    [Parameter]
-    public string DocumentTitle { get; set; } = "";
-
-    [Parameter]
-    public EventCallback OnClose { get; set; }
-
-    [Parameter]
-    public EventCallback<int> OnDownload { get; set; }
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public int DocumentId { get; set; }
+    [Parameter] public string DocumentTitle { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<int> OnDownload { get; set; }
 
     private bool isLoading = true;
     private bool error = false;
@@ -116,19 +107,24 @@
 
             var (stream, fileName) = result.Value;
 
-            // Bestäm filtyp och om den kan visas
-            isPdf = fileName.ToLower().EndsWith(".pdf");
-
-            // Bara skapa data URL för PDF filer
-            if (isPdf)
+            try
             {
-                // Konvertera stream till base64
-                using (var memoryStream = new MemoryStream())
+                // Bestäm filtyp och om den kan visas
+                isPdf = fileName.ToLower().EndsWith(".pdf");
+
+                // Bara skapa data URL för PDF-filer
+                if (isPdf)
                 {
+                    using var memoryStream = new MemoryStream();
                     await stream.CopyToAsync(memoryStream);
                     var base64String = Convert.ToBase64String(memoryStream.ToArray());
                     dataUrl = $"data:application/pdf;base64,{base64String}";
                 }
+            }
+            finally
+            {
+                // Oavsett filtyp: stäng strömmen för att undvika läckor
+                stream.Dispose();
             }
         }
         catch (Exception ex)
@@ -143,15 +139,8 @@
         }
     }
 
-    private async Task CloseViewer()
-    {
-        await OnClose.InvokeAsync();
-    }
-
-    private async Task DownloadDocument()
-    {
-        await OnDownload.InvokeAsync(DocumentId);
-    }
+    private async Task CloseViewer() => await OnClose.InvokeAsync();
+    private async Task DownloadDocument() => await OnDownload.InvokeAsync(DocumentId);
 
     private string GetLargeFileIcon(string fileName)
     {

@@ -18,6 +18,7 @@
 
                 <EditForm Model="@formModel" OnValidSubmit="@SubmitForm">
                     <DataAnnotationsValidator />
+                    <ValidationSummary />
 
                     <div class="mb-3">
                         <label for="organization" class="form-label fw-medium">Lärosäte/organisation*</label>
@@ -152,12 +153,12 @@
             else
             {
                 await ToastService.Error("Ett fel uppstod vid skickande av förslaget. Försök igen.");
-                Logger.LogError("Failed to submit development suggestion: {StatusCode}", response.StatusCode);
+                Logger.LogError("Misslyckades att skicka utvecklingsförslag: {StatusCode}", response.StatusCode);
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error submitting development suggestion");
+            Logger.LogError(ex, "Fel vid skickande av utvecklingsförslag");
             await ToastService.Error("Ett oväntat fel uppstod. Försök igen senare.");
         }
         finally

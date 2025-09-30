@@ -27,59 +27,72 @@
                         </div>
                     }
 
-<EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+                    <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
 
-    <div class="form-group mb-2">
-        <label for="userName">Användarnamn</label>
-        <InputText id="userName" class="form-control" @bind-Value="registerModel.UserName" />
-    </div>
-    <div class="form-group mb-2">
-        <label for="firstName">Förnamn</label>
-        <InputText id="firstName" class="form-control" @bind-Value="registerModel.FirstName" />
-    </div>
-    <div class="form-group mb-2">
-        <label for="lastName">Efternamn</label>
-        <InputText id="lastName" class="form-control" @bind-Value="registerModel.LastName" />
-    </div>
-    <div class="form-group mb-2">
-        <label for="academy">Lärosäte</label>
-        <InputText id="academy" class="form-control" @bind-Value="registerModel.Academy" />
-    </div>
-    <div class="form-group mb-2">
-        <label for="email">E-post</label>
-        <InputText id="email" class="form-control" @bind-Value="registerModel.Email" />
-    </div>
+                        <div class="form-group mb-2">
+                            <label for="userName">Användarnamn</label>
+                            <InputText id="userName" class="form-control" @bind-Value="registerModel.UserName" required />
+                            <ValidationMessage For="@(() => registerModel.UserName)" />
+                        </div>
+
+                        <div class="form-group mb-2">
+                            <label for="firstName">Förnamn</label>
+                            <InputText id="firstName" class="form-control" @bind-Value="registerModel.FirstName" required />
+                            <ValidationMessage For="@(() => registerModel.FirstName)" />
+                        </div>
+
+                        <div class="form-group mb-2">
+                            <label for="lastName">Efternamn</label>
+                            <InputText id="lastName" class="form-control" @bind-Value="registerModel.LastName" required />
+                            <ValidationMessage For="@(() => registerModel.LastName)" />
+                        </div>
+
+                        <div class="form-group mb-2">
+                            <label for="academy">Lärosäte</label>
+                            <InputText id="academy" class="form-control" @bind-Value="registerModel.Academy" required />
+                            <ValidationMessage For="@(() => registerModel.Academy)" />
+                        </div>
+
+                        <div class="form-group mb-2">
+                            <label for="email">E-post</label>
+                            <InputText id="email" type="email" class="form-control" @bind-Value="registerModel.Email" required />
+                            <ValidationMessage For="@(() => registerModel.Email)" />
+                        </div>
+
                         <div class="form-group mb-2">
                             <label for="password">Lösenord</label>
                             <div class="input-group">
-                                <InputText id="password" type="@(showPassword ? "text" : "password")" class="form-control" @bind-Value="registerModel.Password" />
+                                <InputText id="password" type="@(showPassword ? "text" : "password")" class="form-control" @bind-Value="registerModel.Password" required autocomplete="new-password" aria-required="true" />
                                 <button type="button" class="btn btn-outline-secondary" @onclick="() => showPassword = !showPassword"
-                                    aria-label="@(showPassword ? "Dölj lösenord" : "Visa lösenord")"
+                                        aria-label="@(showPassword ? "Dölj lösenord" : "Visa lösenord")"
                                         title="@(showPassword ? "Dölj lösenord" : "Visa lösenord")">
                                     <i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
                                 </button>
                             </div>
+                            <ValidationMessage For="@(() => registerModel.Password)" />
                         </div>
+
                         <div class="form-group mb-2">
                             <label for="confirmPassword">Bekräfta lösenord</label>
                             <div class="input-group">
-                                <InputText id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")" class="form-control" @bind-Value="registerModel.ConfirmPassword" />
+                                <InputText id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")" class="form-control" @bind-Value="registerModel.ConfirmPassword" required autocomplete="new-password" aria-required="true" />
                                 <button type="button" class="btn btn-outline-secondary" @onclick="() => showConfirmPassword = !showConfirmPassword"
-                                    aria-label="@(showConfirmPassword ? "Dölj lösenord" : "Visa lösenord")"
+                                        aria-label="@(showConfirmPassword ? "Dölj lösenord" : "Visa lösenord")"
                                         title="@(showConfirmPassword ? "Dölj lösenord" : "Visa lösenord")">
                                     <i class="fa-solid @(showConfirmPassword ? "fa-eye-slash" : "fa-eye")"></i>
                                 </button>
                             </div>
+                            <ValidationMessage For="@(() => registerModel.ConfirmPassword)" />
                         </div>
 
-<!-- GDPR Checkbox -->
-    <div class="form-group mb-3">
-        <div class="form-check">
-            <InputCheckbox id="gdprConsent" class="form-check-input" @bind-Value="gdprConsent" />
-            <label class="form-check-label" for="gdprConsent">
-                Jag godkänner
+                        @* GDPR Checkbox *@
+                        <div class="form-group mb-3">
+                            <div class="form-check">
+                                <InputCheckbox id="gdprConsent" class="form-check-input" @bind-Value="gdprConsent" />
+                                <label class="form-check-label" for="gdprConsent">
+                                    Jag godkänner
                                     <button type="button"
                                             class="btn btn-link text-primary p-0 align-baseline"
                                             style="vertical-align: baseline;"
@@ -87,22 +100,22 @@
                                             aria-haspopup="dialog">
                                         behandling av personuppgifter
                                     </button>
-            </label>
-        </div>
-        @if (gdprConsentError)
-        {
-            <div class="text-danger mt-1">Du måste godkänna villkoren för att fortsätta</div>
-        }
-    </div>
+                                </label>
+                            </div>
+                            @if (gdprConsentError)
+                            {
+                                <div class="text-danger mt-1">Du måste godkänna villkoren för att fortsätta</div>
+                            }
+                        </div>
 
-    <div class="text-center">
-         <button type="submit" class="btn btn-primary my-4">Registrera</button>
-    </div>
-</EditForm>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary my-4" disabled="@(!gdprConsent)">Registrera</button>
+                        </div>
+                    </EditForm>
 
                     @if (!string.IsNullOrEmpty(message))
                     {
-                        <div class="alert @alertClass mt-4">
+                        <div class="alert @alertClass mt-4" role="alert">
                             @if (alertClass == "alert-success")
                             {
                                 <i class="fa-solid fa-check-circle me-2"></i>
@@ -120,7 +133,6 @@
     </div>
 </div>
 
-<!-- GDPR Terms Modal -->
 @if (showTermsModal)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
@@ -129,7 +141,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="gdprModalTitle">Behandling av personuppgifter</h5>
-                    <button type="button" class="btn-close" @onclick="CloseTermsModal"></button>
+                    <button type="button" class="btn-close" @onclick="CloseTermsModal" aria-label="Stäng villkor"></button>
                 </div>
                 <div class="modal-body">
                     <h4>Villkor för behandling av personuppgifter</h4>
@@ -198,7 +210,7 @@
     private bool showPassword = false;
     private bool showConfirmPassword = false;
 
-    // GDPR consent properties
+    // GDPR-relaterade states
     private bool gdprConsent = false;
     private bool gdprConsentError = false;
     private bool showTermsModal = false;
@@ -246,7 +258,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
@@ -258,15 +269,8 @@
         }
     }
 
-    private void ShowTermsModal()
-    {
-        showTermsModal = true;
-    }
-
-    private void CloseTermsModal()
-    {
-        showTermsModal = false;
-    }
+    private void ShowTermsModal() => showTermsModal = true;
+    private void CloseTermsModal() => showTermsModal = false;
 
     private void AcceptTerms()
     {

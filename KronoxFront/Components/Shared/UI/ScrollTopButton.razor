@@ -1,7 +1,9 @@
 ﻿@inject IJSRuntime JS
+@inject ILogger<ScrollTopButton> Logger
 
 <button id="scrollTopBtn"
-        class="to-top btn @ButtonClass rounded-circle shadow position-fixed bottom-0 end-0 m-3 d-none"
+        type="button"
+        class="to-top btn @ButtonClass rounded-circle shadow position-fixed @Position d-none"
         style="z-index:2000;"
         @onclick="ScrollToTop"
         aria-label="Tillbaka till toppen"
@@ -19,8 +21,6 @@
     private string ButtonClass => IsDarkMode ? "btn-dark" : "btn-light";
     private string TextClass => IsDarkMode ? "text-white" : "text-black";
 
-    private bool jsInitialized = false;
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -28,12 +28,10 @@
             try
             {
                 await JS.InvokeVoidAsync("initScrollTopButton");
-                jsInitialized = true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Logga eventuellt fel men fortsätt
-                jsInitialized = false;
+                Logger.LogWarning(ex, "Kunde inte initiera 'initScrollTopButton'. Knappen \"Tillbaka till toppen\" kanske inte fungerar som förväntat.");
             }
         }
     }

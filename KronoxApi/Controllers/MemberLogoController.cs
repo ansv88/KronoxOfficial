@@ -56,7 +56,6 @@ public class MemberLogoController : ControllerBase
         }
     }
 
-
     // Registrerar en befintlig bild som medlemslogotyp. Används när bilden redan finns på servern under wwwroot/images/members.
     [HttpPost("register")]
     [RequireRole("Admin")]
@@ -118,7 +117,6 @@ public class MemberLogoController : ControllerBase
         }
     }
 
-
     // Laddar upp en ny bild som medlemslogotyp. Tar emot en fil via multipart/form-data tillsammans med metadata.
     [HttpPost("upload")]
     [RequireRole("Admin")]
@@ -162,7 +160,6 @@ public class MemberLogoController : ControllerBase
         }
     }
 
-
     // Uppdaterar beskrivningen (alt-text) för en specifik medlemslogotyp.
     [HttpPut("{id}/description")]
     [RequireRole("Admin")]
@@ -195,7 +192,6 @@ public class MemberLogoController : ControllerBase
         }
     }
 
-
     // Uppdaterar webbadressen (länken) för en specifik medlemslogotyp. Används för att styra vart användaren hamnar vid klick på logotypen.
     [HttpPut("{id}/link")]
     [RequireRole("Admin")]
@@ -227,7 +223,6 @@ public class MemberLogoController : ControllerBase
             return StatusCode(500, "Ett fel uppstod vid uppdatering av länken");
         }
     }
-
 
     // Flyttar en medlemslogotyp uppåt eller nedåt i visningsordningen.
     [HttpPost("move")]
@@ -283,7 +278,6 @@ public class MemberLogoController : ControllerBase
             return StatusCode(500, "Ett fel uppstod vid flytt av logotypen");
         }
     }
-
 
     // Tar bort en medlemslogotyp från systemet. Raderar både databasposten och bildfilen från servern.
     [HttpDelete("{id}")]

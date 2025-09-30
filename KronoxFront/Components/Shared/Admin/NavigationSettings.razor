@@ -10,11 +10,12 @@
 @inject IToastService Toast
 @inject CacheService Cache
 @inject NavigationEvents NavEvents
+@inject ILogger<NavigationSettings> Logger
 
 <div class="card mb-4" id="navigation-settings-card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h5 class="h5 mb-0">
-            <i class="fa-solid fa-globe me-2"></i>
+            <i class="fa-solid fa-globe me-2" aria-hidden="true"></i>
             Sidtillgänglighet & navigation
         </h5>
         <div class="d-flex align-items-center gap-2">
@@ -34,7 +35,7 @@
                 }
             }
             <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ToggleSettings">
-                <i class="fa-solid fa-@(showSettings ? "eye-slash" : "cog")"></i>
+                <i class="fa-solid fa-@(showSettings ? "eye-slash" : "cog")" aria-hidden="true"></i>
                 @(showSettings ? "Dölj" : "Visa") inställningar
             </button>
         </div>
@@ -50,7 +51,7 @@
                     @if (PageKey.Equals("home", StringComparison.OrdinalIgnoreCase))
                     {
                         <div class="alert alert-warning d-flex align-items-center" role="alert">
-                            <i class="fa-solid fa-shield-halved me-2"></i>
+                            <i class="fa-solid fa-shield-halved me-2" aria-hidden="true"></i>
                             <div>
                                 Startsidan är en system‑sida. Den är alltid aktiv, synlig för alla och kan inte avaktiveras.
                             </div>
@@ -67,7 +68,7 @@
                             </div>
                             <div class="col-md-3 d-flex align-items-end">
                                 <span class="badge bg-warning text-dark">
-                                    <i class="fa-solid fa-shield-halved me-1"></i> System
+                                    <i class="fa-solid fa-shield-halved me-1" aria-hidden="true"></i> System
                                 </span>
                             </div>
                             <div class="col-12">
@@ -91,16 +92,16 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label fw-medium">Länktext i navigation</label>
-                                    <InputText class="form-control" @bind-Value="navigationConfig.DisplayName" />
+                                    <label class="form-label fw-medium" for="displayName">Länktext i navigation</label>
+                                    <InputText id="displayName" class="form-control" @bind-Value="navigationConfig.DisplayName" />
                                     <ValidationMessage For="() => navigationConfig.DisplayName" />
                                     <div class="form-text">Detta namn visas i navigationsmenyn</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="mb-3">
-                                    <label class="form-label fw-medium">Sorteringsordning</label>
-                                    <InputNumber class="form-control" @bind-Value="navigationConfig.SortOrder" />
+                                    <label class="form-label fw-medium" for="sortOrder">Sorteringsordning</label>
+                                    <InputNumber id="sortOrder" class="form-control" @bind-Value="navigationConfig.SortOrder" />
                                     <ValidationMessage For="() => navigationConfig.SortOrder" />
                                     <div class="form-text">Lägre nummer = högre upp</div>
                                 </div>
@@ -130,7 +131,7 @@
                                             {
                                                 <div class="alert alert-warning py-2 mb-0">
                                                     <small>
-                                                        <i class="fa-solid fa-eye-slash me-1"></i>
+                                                        <i class="fa-solid fa-eye-slash me-1" aria-hidden="true"></i>
                                                         Inaktiverad: Länken tas bort från navigationen och direktbesök ger 404.
                                                     </small>
                                                 </div>
@@ -139,7 +140,7 @@
                                             {
                                                 <div class="alert alert-success py-2 mb-0">
                                                     <small>
-                                                        <i class="fa-solid fa-eye me-1"></i>
+                                                        <i class="fa-solid fa-eye me-1" aria-hidden="true"></i>
                                                         @if (IsHomePage())
                                                         {
                                                             <span>Aktiv: Startsidan är alltid tillgänglig via /. Den visas inte som länk i navigationen.</span>
@@ -179,7 +180,7 @@
                                         {
                                             <div class="alert alert-danger py-2 mt-2 mb-0">
                                                 <small>
-                                                    <i class="fa-solid fa-exclamation-triangle me-1"></i>
+                                                    <i class="fa-solid fa-exclamation-triangle me-1" aria-hidden="true"></i>
                                                     <strong>Inaktiverad:</strong> Sidan är avpublicerad, ger 404 vid direktlänk och är borttagen från navigationen.
                                                 </small>
                                             </div>
@@ -188,7 +189,7 @@
                                         {
                                             <div class="alert alert-success py-2 mt-2 mb-0">
                                                 <small>
-                                                    <i class="fa-solid fa-check-circle me-1"></i>
+                                                    <i class="fa-solid fa-check-circle me-1" aria-hidden="true"></i>
                                                     <strong>Aktiv:</strong> Sidan är tillgänglig för användare och kan visas i navigationen.
                                                 </small>
                                             </div>
@@ -203,7 +204,7 @@
                                 <div class="card @GetAccessCardClass()">
                                     <div class="card-body py-3">
                                         <div class="d-flex align-items-center">
-                                            <i class="@GetAccessIcon() fa-lg me-3"></i>
+                                            <i class="@GetAccessIcon() fa-lg me-3" aria-hidden="true"></i>
                                             <div>
                                                 <h6 class="mb-1 @GetAccessTextClass()">@GetAccessTitle()</h6>
                                                 <small class="@GetAccessTextClass()">@GetAccessDescription()</small>
@@ -219,7 +220,7 @@
                             <div class="card border-info mb-3">
                                 <div class="card-header bg-info bg-opacity-10">
                                     <h6 class="mb-0 text-info-emphasis">
-                                        <i class="fa-solid fa-info-circle me-2"></i>
+                                        <i class="fa-solid fa-info-circle me-2" aria-hidden="true"></i>
                                         Fast systemsida
                                     </h6>
                                 </div>
@@ -243,14 +244,14 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <h6 class="fw-medium text-muted mb-2">
-                                                    <i class="fa-solid fa-globe me-2"></i>
+                                                    <i class="fa-solid fa-globe me-2" aria-hidden="true"></i>
                                                     Synlighet för gäster
                                                 </h6>
                                                 @if (navigationConfig.IsVisibleToGuests)
                                                 {
                                                     <div class="alert alert-success py-2 mb-0">
                                                         <small>
-                                                            <i class="fa-solid fa-check-circle me-1"></i>
+                                                            <i class="fa-solid fa-check-circle me-1" aria-hidden="true"></i>
                                                             <strong>Tillgänglig:</strong> Sidan kan besökas av oinloggade användare.
                                                             @if (!HasAnyRestrictions())
                                                             {
@@ -264,7 +265,7 @@
                                                 {
                                                     <div class="alert alert-warning py-2 mb-0">
                                                         <small>
-                                                            <i class="fa-solid fa-shield-alt me-1"></i>
+                                                            <i class="fa-solid fa-shield-alt me-1" aria-hidden="true"></i>
                                                             <strong>Begränsad:</strong> Sidan kräver inloggning eller specifika roller.
                                                         </small>
                                                     </div>
@@ -274,12 +275,12 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <h6 class="fw-medium text-muted mb-2">
-                                                    <i class="fa-solid fa-user-check me-2"></i>
+                                                    <i class="fa-solid fa-user-check me-2" aria-hidden="true"></i>
                                                     Synlighet för medlemmar
                                                 </h6>
                                                 <div class="alert alert-info py-2 mb-0">
                                                     <small>
-                                                        <i class="fa-solid fa-info-circle me-1"></i>
+                                                        <i class="fa-solid fa-info-circle me-1" aria-hidden="true"></i>
                                                         <strong>Automatisk:</strong> Alla inloggade användare ser länken i navigationen (om aktiv).
                                                     </small>
                                                 </div>
@@ -289,7 +290,7 @@
 
                                     <div class="alert alert-light border-info mt-3">
                                         <small class="text-muted">
-                                            <i class="fa-solid fa-lightbulb me-2"></i>
+                                            <i class="fa-solid fa-lightbulb me-2" aria-hidden="true"></i>
                                             <strong>Förklaring:</strong> Åtkomst styrs av <code>[Authorize]</code>-attribut eller policies i sidans kod.
                                             @if (PageKey.Equals("dokument", StringComparison.OrdinalIgnoreCase))
                                             {
@@ -317,7 +318,7 @@
                             <div class="card border-success mb-3">
                                 <div class="card-header bg-success bg-opacity-10">
                                     <h6 class="mb-0 text-success-emphasis">
-                                        <i class="fa-solid fa-edit me-2"></i>
+                                        <i class="fa-solid fa-edit me-2" aria-hidden="true"></i>
                                         Anpassad sida - Full kontroll
                                     </h6>
                                 </div>
@@ -329,12 +330,12 @@
                                     <div class="row">
                                         <div class="col-md-12">
                                             <div class="mb-3">
-                                                <label class="form-label fw-medium">
-                                                    <i class="fa-solid fa-globe me-1"></i>
+                                                <label class="form-label fw-medium" for="isVisibleGuests">
+                                                    <i class="fa-solid fa-globe me-1" aria-hidden="true"></i>
                                                     Publik synlighet
                                                 </label>
                                                 <div class="form-check">
-                                                    <InputCheckbox class="form-check-input"
+                                                    <InputCheckbox id="isVisibleGuests" class="form-check-input"
                                                                    @bind-Value="navigationConfig.IsVisibleToGuests"
                                                                    @onchange="OnPublicVisibilityChanged" />
                                                     <label class="form-check-label">Gör sidan publik (synlig för oinloggade)</label>
@@ -349,7 +350,7 @@
 
                                     <div class="alert alert-light border-success mt-3">
                                         <small class="text-muted">
-                                            <i class="fa-solid fa-info-circle me-2"></i>
+                                            <i class="fa-solid fa-info-circle me-2" aria-hidden="true"></i>
                                             <strong>Anpassad sida:</strong> Ändringar här påverkar både navigation och sidåtkomst.
                                         </small>
                                     </div>
@@ -367,7 +368,7 @@
                             }
                             else
                             {
-                                <i class="fa-solid fa-save me-1"></i>
+                                <i class="fa-solid fa-save me-1" aria-hidden="true"></i>
                                 <text>Spara navigationsinställningar</text>
                             }
                         </button>
@@ -377,7 +378,7 @@
             else
             {
                 <div class="alert alert-info">
-                    <i class="fa-solid fa-info-circle me-2"></i>
+                    <i class="fa-solid fa-info-circle me-2" aria-hidden="true"></i>
                     Laddar navigationsinställningar...
                 </div>
             }
@@ -395,7 +396,6 @@
     private bool isSaving = false;
 
     private CustomPageDto? customPage;
-    private bool hasNavigationConfig = false;
     private bool showInNavigation = true;
 
     private readonly List<string> pageAuthorizeRoles = new();
@@ -426,7 +426,6 @@
             var navResponse = await httpClient.GetAsync($"api/navigation/page/{PageKey}");
             if (navResponse.IsSuccessStatusCode)
             {
-                hasNavigationConfig = true;
                 var dto = await navResponse.Content.ReadFromJsonAsync<NavigationConfigDto>();
                 if (dto != null)
                 {
@@ -441,13 +440,12 @@
                         IsVisibleToMembers = dto.IsVisibleToMembers,
                         IsActive = dto.IsActive,
                         IsSystemItem = dto.IsSystemItem,
-                        RequiredRoles = dto.RequiredRoles
+                        RequiredRoles = dto.RequiredRoles ?? string.Empty
                     };
                 }
             }
             else if (navResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                hasNavigationConfig = false;
                 navigationConfig = new NavigationConfigViewModel
                 {
                     PageKey = PageKey,
@@ -456,7 +454,8 @@
                     SortOrder = 50,
                     IsVisibleToGuests = true,
                     IsVisibleToMembers = true,
-                    IsActive = true
+                    IsActive = true,
+                    RequiredRoles = string.Empty
                 };
             }
 
@@ -477,12 +476,13 @@
 
                     var roles = customPage.RequiredRoles ?? new List<string>();
                     navigationConfig.IsVisibleToGuests = roles.Count == 0;
-                    navigationConfig.RequiredRoles = roles.Count > 0 ? string.Join(",", roles) : null;
+                    navigationConfig.RequiredRoles = roles.Count > 0 ? string.Join(",", roles) : string.Empty;
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Kunde inte ladda navigationsinställningar för {PageKey}", PageKey);
             await Toast.Error("Kunde inte ladda navigationsinställningar");
         }
     }
@@ -529,9 +529,9 @@
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignorera reflektionfel
+            Logger.LogDebug(ex, "Kunde inte hämta Authorize‑attribut för {PageKey}", PageKey);
         }
     }
 
@@ -557,7 +557,7 @@
         if (customPage?.RequiredRoles is { } cpRoles && cpRoles.Any()) return cpRoles;
 
         if (!string.IsNullOrEmpty(navigationConfig?.RequiredRoles))
-            return navigationConfig.RequiredRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            return navigationConfig!.RequiredRoles!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
         return new List<string>();
     }
@@ -654,6 +654,14 @@
     {
         if (navigationConfig == null) return;
 
+        // Trimma och validera visningsnamn innan spar
+        navigationConfig.DisplayName = (navigationConfig.DisplayName ?? string.Empty).Trim();
+        if (!IsFixedPage() && string.IsNullOrWhiteSpace(navigationConfig.DisplayName))
+        {
+            await Toast.Error("Länktext i navigation får inte vara tom.");
+            return;
+        }
+
         if (IsFixedPage())
         {
             SyncVisibilityWithRoleRestrictions();
@@ -694,6 +702,8 @@
             var resp = await httpClient.PutAsJsonAsync($"api/custompage/{PageKey}", updateRequest);
             if (!resp.IsSuccessStatusCode)
             {
+                var err = await resp.Content.ReadAsStringAsync();
+                Logger.LogWarning("Fel vid PUT custompage/{PageKey}: {Status} - {Body}", PageKey, resp.StatusCode, err);
                 await Toast.Error("Fel vid sparning av sidinställningar");
                 return;
             }
@@ -705,18 +715,19 @@
             customPage.RequiredRoles = updatedRoles;
 
             navigationConfig.IsVisibleToGuests = updatedRoles.Count == 0;
-            navigationConfig.RequiredRoles = updatedRoles.Count > 0 ? string.Join(",", updatedRoles) : null;
+            navigationConfig.RequiredRoles = updatedRoles.Count > 0 ? string.Join(",", updatedRoles) : string.Empty;
 
             Cache.InvalidateGroup("navigation");
             await Toast.Success("Navigationsinställningar sparade!");
 
             if (OnDisplayNameChanged.HasDelegate)
-                await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
+                await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName ?? string.Empty);
 
             NavEvents.NotifyUpdated();
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid sparning av navigationsinställningar för {PageKey}", PageKey);
             await Toast.Error("Fel vid sparning av navigationsinställningar");
         }
         finally
@@ -728,6 +739,9 @@
     private async Task SaveNavigationConfigOnly()
     {
         if (navigationConfig == null) return;
+
+        // Trimma visningsnamn (kan vara viktigt om backend validerar)
+        navigationConfig.DisplayName = (navigationConfig.DisplayName ?? string.Empty).Trim();
 
         if (isSaving) return;
         isSaving = true;
@@ -747,13 +761,14 @@
                     IsVisibleToMembers = navigationConfig.IsVisibleToMembers,
                     IsActive = navigationConfig.IsActive,
                     IsSystemItem = navigationConfig.IsSystemItem,
-                    RequiredRoles = navigationConfig.RequiredRoles
+                    RequiredRoles = navigationConfig.RequiredRoles ?? string.Empty
                 };
 
                 var postResp = await httpClient.PostAsJsonAsync("api/navigation", createRequest);
                 if (!postResp.IsSuccessStatusCode)
                 {
                     var err = await postResp.Content.ReadAsStringAsync();
+                    Logger.LogWarning("Kunde inte skapa navigation för {PageKey}: {Status} - {Body}", PageKey, postResp.StatusCode, err);
                     await Toast.Error($"Kunde inte skapa navigation: {err}");
                     return;
                 }
@@ -779,13 +794,14 @@
                     IsVisibleToGuests = navigationConfig.IsVisibleToGuests,
                     IsVisibleToMembers = navigationConfig.IsVisibleToMembers,
                     IsActive = navigationConfig.IsActive,
-                    RequiredRoles = navigationConfig.RequiredRoles
+                    RequiredRoles = navigationConfig.RequiredRoles ?? string.Empty
                 };
 
                 var putResp = await httpClient.PutAsJsonAsync($"api/navigation/{navigationConfig.Id}", updateRequest);
                 if (!putResp.IsSuccessStatusCode)
                 {
                     var err = await putResp.Content.ReadAsStringAsync();
+                    Logger.LogWarning("Kunde inte uppdatera navigation {Id} för {PageKey}: {Status} - {Body}", navigationConfig.Id, PageKey, putResp.StatusCode, err);
                     await Toast.Error($"Kunde inte uppdatera navigation: {err}");
                     return;
                 }
@@ -794,11 +810,12 @@
             Cache.InvalidateGroup("navigation");
             await Toast.Success("Navigationsinställningar sparade!");
             if (OnDisplayNameChanged.HasDelegate)
-                await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName);
+                await OnDisplayNameChanged.InvokeAsync(navigationConfig.DisplayName ?? string.Empty);
             NavEvents.NotifyUpdated();
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Fel vid sparning av navigationskonfiguration för {PageKey}", PageKey);
             await Toast.Error("Fel vid sparning av navigationsinställningar");
         }
         finally

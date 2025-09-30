@@ -80,6 +80,6 @@ public class HealthService
     {
         public string Status { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
-        public string Version { get; set; }
+        public string? Version { get; set; }
     }
 }

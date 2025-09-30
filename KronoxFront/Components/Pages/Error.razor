@@ -1,26 +1,31 @@
-﻿@page "/Error"
+﻿@page "/error"
 @using System.Diagnostics
 @using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Authorization
 @inject ILogger<Error> Logger
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Nav
+@attribute [AllowAnonymous]
 
 <HeadContent>
     <meta name="description" content="Ett fel har inträffat. Sidan kunde inte visas. Kontakta support om problemet kvarstår." />
+    <!-- Hindra indexering av felsidan -->
+    <meta name="robots" content="noindex, nofollow" />
 </HeadContent>
 
 <PageTitle>Tekniskt fel - KronoX</PageTitle>
 
-<div class="container mt-5 mb-5">
+<div class="container mt-5 mb-5" role="region" aria-labelledby="errorTitle">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card shadow">
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
                         <i class="fas fa-exclamation-triangle text-danger fa-4x mb-3"></i>
-                        <h1 class="display-4">Tekniskt fel</h1>
+                        <h1 id="errorTitle" class="display-4">Tekniskt fel</h1>
                     </div>
 
-                    <div class="alert alert-danger">
+                    <div class="alert alert-danger" role="alert" aria-live="assertive">
                         <p class="mb-0">Ett oväntat fel har inträffat när din begäran behandlades. Vårt tekniska team har informerats om problemet.</p>
                     </div>
 
@@ -66,14 +71,50 @@
 
     protected override void OnInitialized()
     {
-        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+        // Stabil RequestId: försök med Activity (W3C trace id), sedan HttpContext.TraceIdentifier, annars vanlig GUID
+        RequestId = Activity.Current?.Id
+                    ?? HttpContext?.TraceIdentifier
+                    ?? Guid.NewGuid().ToString();
 
-        // Logga felet för att hjälpa med felsökning
-        Logger.LogError("Global error page reached. RequestId: {RequestId}", RequestId);
+        // Berika loggar med aktuell URL och referer (visas ej i UI)
+        var currentUrl = SafeGetCurrentUrl();
+        var referer = HttpContext?.Request?.Headers["Referer"].ToString();
+
+        Logger.LogError("Global felsida nådd. Referens-ID: {RequestId}, Url: {Url}, Referer: {Referer}",
+            RequestId, currentUrl, referer);
     }
 
     private async Task NavigateBack()
     {
-        await JSRuntime.InvokeVoidAsync("history.back");
+        try
+        {
+            // Gå tillbaka om det finns historik, annars navigera till startsidan
+            var historyLen = await JSRuntime.InvokeAsync<int>("eval", "history.length");
+            if (historyLen > 1)
+            {
+                await JSRuntime.InvokeVoidAsync("history.back");
+            }
+            else
+            {
+                Nav.NavigateTo("/");
+            }
+        }
+        catch
+        {
+            // Fallback om JS inte är tillgängligt eller blockerad
+            Nav.NavigateTo("/");
+        }
+    }
+
+    private string SafeGetCurrentUrl()
+    {
+        try
+        {
+            return Nav.Uri ?? "(okänd)";
+        }
+        catch
+        {
+            return "(okänd)";
+        }
     }
 }
