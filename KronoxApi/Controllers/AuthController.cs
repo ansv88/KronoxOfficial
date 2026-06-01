@@ -76,7 +76,7 @@ public class AuthController : ControllerBase
             _logger.LogWarning("Registrering misslyckades för {User}: {Errors}",
                 dto.UserName,
                 string.Join(", ", createResult.Errors.Select(e => e.Description)));
-            return BadRequest(string.Join(", ", createResult.Errors.Select(e => e.Description)));
+            return BadRequest(string.Join(" ", createResult.Errors.Select(e => e.Description)));
         }
 
         await _users.AddToRoleAsync(newUser, NewUserRole);

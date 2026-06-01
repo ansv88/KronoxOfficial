@@ -41,18 +41,18 @@ public class RegisterDto
     {
         var requirements = new List<string>
         {
-            $"Minst {options.RequiredLength} tecken"
+            $"Minst {options.RequiredLength} tecken."
         };
 
         if (options.RequireUppercase)
-            requirements.Add("Minst en stor bokstav");
+            requirements.Add("Minst en stor bokstav.");
         if (options.RequireLowercase)
-            requirements.Add("Minst en liten bokstav");
+            requirements.Add("Minst en liten bokstav.");
         if (options.RequireDigit)
-            requirements.Add("Minst en siffra");
+            requirements.Add("Minst en siffra.");
         if (options.RequireNonAlphanumeric)
-            requirements.Add("Minst ett specialtecken");
+            requirements.Add("Minst ett specialtecken.");
 
-        return string.Join(", ", requirements);
+        return string.Join(" ", requirements);
     }
 }

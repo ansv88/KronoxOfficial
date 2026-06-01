@@ -22,7 +22,7 @@ public class PageAuthorizationMiddleware
         "visioner",
         "kontaktaoss",
         "kontakt",
-        "registrera"
+        "ansok_till_kronox"
     };
 
     public PageAuthorizationMiddleware(RequestDelegate next, IHttpClientFactory httpClientFactory, ILogger<PageAuthorizationMiddleware> logger)

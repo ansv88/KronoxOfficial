@@ -26,7 +26,8 @@ public class Program
         // Lägg till Identity för användarhantering
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            .AddErrorDescriber<SwedishIdentityErrorDescriber>();
 
         // Lägg till stöd för Authorization
         builder.Services.AddAuthorization();

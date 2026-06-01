@@ -16,7 +16,8 @@
 <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-custom bg-dark fixed-top" style="z-index: 1030;">
     <div class="container-fluid d-flex align-items-center">
         <!-- Logga till vänster -->
-        <NavLink class="navbar-brand position-relative" href="/">
+@*      <NavLink class="navbar-brand position-relative" href="/"> *@
+        <NavLink class="navbar-brand position-relative" href="@(isAuthenticated ? "/medlemsnytt" : "/")">
             <img src="images/logo.png" alt="KronoX logga" class="logo" />
         </NavLink>
 
