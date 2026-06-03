@@ -14,6 +14,7 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Kontaktaoss> Logger
+@implements IDisposable
 
 <!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
 <RequirePageEnabled PageKey="kontaktaoss" FailClosed="true" />
@@ -165,6 +166,7 @@ else
         </div>
     }
 
+    <AdminPageEditButton IsAdmin="@isAdmin" PageKey="kontaktaoss" />
     <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
@@ -193,6 +195,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        AuthState.AuthenticationStateChanged += AuthenticationStateChanged;
+
         var authState = await AuthState.GetAuthenticationStateAsync();
         isAdmin = authState.User.IsInRole("Admin");
         loading = true;
@@ -315,4 +319,17 @@ else
     }
 
     private void CloseModal() => activeImage = null;
-}
+
+    private async void AuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        var authState = await task;
+        isAdmin = authState.User.IsInRole("Admin");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AuthState.AuthenticationStateChanged -= AuthenticationStateChanged;
+    }
+
+    }

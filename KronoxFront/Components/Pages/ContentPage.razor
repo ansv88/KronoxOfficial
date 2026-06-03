@@ -11,6 +11,7 @@
 @inject CmsService Cms
 @inject ILogger<ContentPage> Logger
 @inject AuthenticationStateProvider AuthState
+@implements IDisposable
 
 @*
    Dynamisk sidkomponent som visar innehåll baserat på PageKey från CMS.
@@ -184,6 +185,11 @@
     }
 </article>
 
+@if (isAdmin)
+{
+    <AdminPageEditButton IsAdmin="@isAdmin" PageKey="@PageKey" IsCustomPage="true" />
+}
+
 @code {
     [Parameter] public string PageKey { get; set; } = default!;
 
@@ -200,9 +206,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        AuthState.AuthenticationStateChanged += AuthenticationStateChanged;
+
         var authState = await AuthState.GetAuthenticationStateAsync();
         isAdmin = authState.User.IsInRole("Admin");
-        await LoadPageData(); // Första laddningen
+        await LoadPageData();
     }
 
     // Körs vid byte av URL-parameter
@@ -317,4 +325,17 @@
 
     private void ShowImage(string imageUrl) => activeImage = imageUrl;
     private void CloseModal() => activeImage = null;
+
+    private async void AuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        var authState = await task;
+        isAdmin = authState.User.IsInRole("Admin");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AuthState.AuthenticationStateChanged -= AuthenticationStateChanged;
+    }
+
 }

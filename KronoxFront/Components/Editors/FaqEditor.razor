@@ -168,9 +168,19 @@
     </ChildContent>
 
     <FooterContent>
-        <button type="button" class="btn btn-outline-primary" @onclick="AddFaqSection">
-            <i class="fa-solid fa-plus me-1"></i> Lägg till FAQ-sektion
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary" @onclick="SaveFaqSections" disabled="@isSaving" aria-label="Spara FAQ-sektioner">
+                @if (isSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                else
+                {
+                    <i class="fa-solid fa-save me-1"></i>
+                }
+                Spara FAQ-sektioner
+            </button>
+        </div>
     </FooterContent>
 </AdminSectionFrame>
 
@@ -224,7 +234,26 @@
     [Parameter] public List<FaqSectionViewModel> FaqSections { get; set; } = new();
     [Parameter] public EventCallback OnFaqSectionsChanged { get; set; }
     [Parameter] public EventCallback<FaqImageUploadInfo> OnFaqImageUpload { get; set; }
+    [Parameter] public EventCallback OnSaveSections { get; set; }
     [Parameter] public string PageKey { get; set; } = "";
+
+    private bool isSaving = false;
+
+    private async Task SaveFaqSections()
+    {
+        isSaving = true;
+        try
+        {
+            if (OnSaveSections.HasDelegate)
+                await OnSaveSections.InvokeAsync();
+            else
+                await Toast.Success("FAQ-sektioner sparade!");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
 
     private readonly CancellationTokenSource _cancellationTokenSource = new();
 

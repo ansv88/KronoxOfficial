@@ -1,4 +1,4 @@
-using KronoxFront.ViewModels;
+ï»¿using KronoxFront.ViewModels;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 
@@ -9,12 +9,12 @@ public class CacheService
     private readonly IMemoryCache _cache;
     private readonly ILogger<CacheService> _logger;
 
-    // Cache-tider för säkerhet
+    // Cache-tider fÃ¶r sÃ¤kerhet
     private static readonly TimeSpan ShortCache = TimeSpan.FromMinutes(3);    // Auktorisering
-    private static readonly TimeSpan MediumCache = TimeSpan.FromMinutes(8);   // Sidinnehåll
-    private static readonly TimeSpan LongCache = TimeSpan.FromMinutes(15);    // Statiskt innehåll
+    private static readonly TimeSpan MediumCache = TimeSpan.FromMinutes(8);   // SidinnehÃ¥ll
+    private static readonly TimeSpan LongCache = TimeSpan.FromMinutes(15);    // Statiskt innehÃ¥ll
 
-    // Thread-safe tracking av cache-grupper för säker invalidering
+    // Thread-safe tracking av cache-grupper fÃ¶r sÃ¤ker invalidering
     private readonly ConcurrentDictionary<string, ConcurrentBag<string>> _cacheGroups = new();
 
     public CacheService(IMemoryCache cache, ILogger<CacheService> logger)
@@ -23,7 +23,7 @@ public class CacheService
         _logger = logger;
     }
 
-    // Hämtar data från cache eller kör factory-funktion
+    // HÃ¤mtar data frÃ¥n cache eller kÃ¶r factory-funktion
     public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T?>> factory, TimeSpan expiration, string? group = null)
     {
         if (_cache.TryGetValue(key, out T? cachedItem))
@@ -41,11 +41,11 @@ public class CacheService
                 .SetSlidingExpiration(expiration)
                 .SetAbsoluteExpiration(expiration.Multiply(2)) // Max 2x sliding time
                 .SetPriority(CacheItemPriority.Normal)
-                .SetSize(1); // Hjälper med memory management
+                .SetSize(1); // HjÃ¤lper med memory management
 
             _cache.Set(key, item, options);
 
-            // Lägg till i grupp för enkel invalidering
+            // LÃ¤gg till i grupp fÃ¶r enkel invalidering
             if (!string.IsNullOrEmpty(group))
             {
                 _cacheGroups.AddOrUpdate(group,
@@ -59,27 +59,27 @@ public class CacheService
         return item;
     }
 
-    // Cache för publikt sidinnehåll (säkert att dela mellan användare)
+    // Cache fÃ¶r publikt sidinnehÃ¥ll (sÃ¤kert att dela mellan anvÃ¤ndare)
     public async Task<T?> GetPageContentAsync<T>(string pageKey, Func<Task<T?>> factory)
     {
         var cacheKey = $"content_{pageKey}";
         return await GetOrSetAsync(cacheKey, factory, MediumCache, $"page_{pageKey}");
     }
 
-    // Cache för navigation (publikt men kan behöva uppdateras)
+    // Cache fÃ¶r navigation (publikt men kan behÃ¶va uppdateras)
     public async Task<List<T>> GetNavigationAsync<T>(string cacheKey, Func<Task<List<T>>> factory)
     {
         Func<Task<List<T>?>> nullableFactory = async () => await factory();
         return await GetOrSetAsync(cacheKey, nullableFactory, MediumCache, "navigation") ?? new List<T>();
     }
 
-    // Cache för auktoriseringsdata (kortare tid för säkerhet)
+    // Cache fÃ¶r auktoriseringsdata (kortare tid fÃ¶r sÃ¤kerhet)
     public async Task<T?> GetAuthDataAsync<T>(string key, Func<Task<T?>> factory)
     {
         return await GetOrSetAsync(key, factory, ShortCache, "auth");
     }
 
-    // Cache för action plans (ändras sällan)
+    // Cache fÃ¶r action plans (Ã¤ndras sÃ¤llan)
     public async Task<T?> GetActionPlanAsync<T>(string pageKey, Func<Task<T?>> factory)
     {
         var cacheKey = $"actionplan_{pageKey}";
@@ -91,7 +91,7 @@ public class CacheService
         return await GetOrSetAsync("DocumentsWithCategories", factory, LongCache, "documents");
     }
 
-    // Bakåtkompatibilitet
+    // BakÃ¥tkompatibilitet
     public List<DocumentViewModel>? GetDocumentsFromCache()
     {
         return _cache.TryGetValue("DocumentsWithCategories", out List<DocumentViewModel>? documents) ? documents : null;
@@ -101,12 +101,12 @@ public class CacheService
     {
         var options = new MemoryCacheEntryOptions()
             .SetSlidingExpiration(LongCache)
-            .SetAbsoluteExpiration(TimeSpan.FromHours(1))
+            .SetAbsoluteExpiration(LongCache.Multiply(2))
             .SetSize(documents.Count);
 
         _cache.Set("DocumentsWithCategories", documents, options);
 
-        // Lägg till i grupp
+        // LÃ¤gg till i grupp
         _cacheGroups.AddOrUpdate("documents",
             new ConcurrentBag<string> { "DocumentsWithCategories" },
             (_, existing) => { existing.Add("DocumentsWithCategories"); return existing; });
@@ -132,17 +132,37 @@ public class CacheService
         _logger.LogDebug("Invalidated cache key: {Key}", key);
     }
 
-    // Invalidera all sidrelaterad cache
+    // Invalidera all sidrelaterad cache och rensar alla grupper och nycklar kopplade till en sida
     public void InvalidatePageCache(string? pageKey = null)
     {
         if (!string.IsNullOrEmpty(pageKey))
         {
+            // SidinnehÃ¥ll
             InvalidateGroup($"page_{pageKey}");
+            InvalidateKey($"content_{pageKey}");
+
+            // Feature-sektioner (publik + inloggad)
+            InvalidateGroup($"features_{pageKey}");
+            InvalidateKey($"features_public_{pageKey}");
+            InvalidateKey($"features_private_{pageKey}");
+
+            // FAQ
+            InvalidateGroup($"faq_{pageKey}");
+            InvalidateKey($"faq_{pageKey}");
+
+            // Action plan
+            InvalidateGroup("actionplans");
+            InvalidateKey($"actionplan_{pageKey}");
+
+            _logger.LogDebug("Invalidated all caches for page: {PageKey}", pageKey);
         }
         else
         {
+            // Rensa allt sidrelaterat
             InvalidateGroup("content");
             InvalidateGroup("navigation");
+            InvalidateGroup("actionplans");
+            _logger.LogDebug("Invalidated all page caches");
         }
     }
 
@@ -152,7 +172,7 @@ public class CacheService
         InvalidateGroup("documents");
     }
 
-    // Rensa all cache (för emergencies)
+    // Rensa all cache (fÃ¶r emergencies)
     public void ClearAll()
     {
         if (_cache is MemoryCache mc)
@@ -163,21 +183,15 @@ public class CacheService
         _logger.LogWarning("All cache cleared");
     }
 
-    // Invalidera cacher relaterade till specifik sida
+// Invalidera cacher relaterade till specifik sida
     public void InvalidateRelatedPageCaches(string pageKey)
     {
-        // Invalidera själva sidans cache
         InvalidatePageCache(pageKey);
 
-        // Om det är kontaktaoss, rensa eventuella gamla kontakt-cacher
+        // Extra: kontaktaoss har ett gammalt alias
         if (pageKey == "kontaktaoss")
         {
-            InvalidatePageCache("kontakt"); // För säkerhets skull
-            InvalidateKey("content_kontakt");
-            InvalidateKey("intro-section-kontakt");
-            InvalidateKey("features_public_kontakt");
-            InvalidateKey("features_private_kontakt");
-            InvalidateKey("faq_kontakt");
+            InvalidatePageCache("kontakt");
         }
 
         _logger.LogInformation("Invalidated caches for {PageKey} and related pages", pageKey);

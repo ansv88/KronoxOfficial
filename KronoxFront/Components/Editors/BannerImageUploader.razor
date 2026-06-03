@@ -173,7 +173,6 @@
 
             CurrentBanner = uploadedImage;
             if (OnUploaded.HasDelegate) await OnUploaded.InvokeAsync(uploadedImage);
-            await Toast.Success("Bannerbild uppdaterad!");
         }
         catch (Exception ex)
         {
@@ -226,7 +225,7 @@
             }
 
             CurrentBanner = newHero;
-            await Toast.Success("Bannerbild uppdaterad från biblioteket.");
+            if (OnUploaded.HasDelegate) await OnUploaded.InvokeAsync(newHero);
             CloseLibrary();
         }
         catch (Exception ex)

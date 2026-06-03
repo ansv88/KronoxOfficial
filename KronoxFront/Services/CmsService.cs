@@ -43,6 +43,7 @@ public class CmsService
 
             if (response.IsSuccessStatusCode)
             {
+                _cache.InvalidatePageCache(pageKey);
                 _logger.LogDebug("Alt-text uppdaterad för bild {ImageId} på {PageKey}", image.Id, pageKey);
                 return true;
             }
@@ -93,103 +94,6 @@ public class CmsService
 
         // Invalidera cache efter sparning
         _cache.InvalidatePageCache(pageKey);
-
-        // Synkronisera FeatureSections från metadata om det finns
-        try
-        {
-            if (!string.IsNullOrEmpty(model.Metadata))
-            {
-                var metadata = JsonDocument.Parse(model.Metadata);
-
-                if (metadata.RootElement.TryGetProperty("features", out var featuresElement))
-                {
-                    var featureSections = new List<FeatureSectionViewModel>();
-                    int index = 0;
-
-                    foreach (var feature in featuresElement.EnumerateArray())
-                    {
-                        var title = feature.TryGetProperty("title", out var titleProp)
-                            ? titleProp.GetString() ?? "" : "";
-                        var sectionContent = feature.TryGetProperty("content", out var contentProp)
-                            ? contentProp.GetString() ?? "" : "";
-                        var imageUrl = feature.TryGetProperty("imageUrl", out var imageUrlProp)
-                            ? imageUrlProp.GetString() ?? "" : "";
-                        var imageAltText = feature.TryGetProperty("imageAltText", out var altTextProp)
-                            ? altTextProp.GetString() ?? "" : "";
-                        var hasImage = feature.TryGetProperty("hasImage", out var hasImageProp)
-                            ? hasImageProp.GetBoolean() : !string.IsNullOrEmpty(imageUrl);
-
-                        // Läs privatfält
-                        var hasPrivateContent = feature.TryGetProperty("hasPrivateContent", out var hpProp)
-                            ? hpProp.GetBoolean() : false;
-                        var privateContent = feature.TryGetProperty("privateContent", out var pcProp)
-                            ? (pcProp.GetString() ?? "") : "";
-                        var contactHeading = feature.TryGetProperty("contactHeading", out var chProp)
-                            ? (chProp.GetString() ?? "") : "";
-
-                        // Läs kontaktpersoner
-                        var contacts = new List<ContactPersonViewModel>();
-                        if (feature.TryGetProperty("contactPersons", out var cpsProp) &&
-                            cpsProp.ValueKind == JsonValueKind.Array)
-                        {
-                            foreach (var cp in cpsProp.EnumerateArray())
-                            {
-                                contacts.Add(new ContactPersonViewModel
-                                {
-                                    Name = cp.TryGetProperty("name", out var n) ? (n.GetString() ?? "") : "",
-                                    Email = cp.TryGetProperty("email", out var e) ? (e.GetString() ?? "") : "",
-                                    Phone = cp.TryGetProperty("phone", out var p) ? (p.GetString() ?? "") : "",
-                                    Organization = cp.TryGetProperty("organization", out var o) ? (o.GetString() ?? "") : ""
-                                });
-                            }
-                        }
-
-                        featureSections.Add(new FeatureSectionViewModel
-                        {
-                            Title = title,
-                            Content = sectionContent,
-                            ImageUrl = imageUrl,
-                            ImageAltText = imageAltText,
-                            HasImage = hasImage,
-                            SortOrder = index++,
-                            HasPrivateContent = hasPrivateContent,
-                            PrivateContent = privateContent,
-                            ContactHeading = contactHeading,
-                            ContactPersons = contacts
-                        });
-                    }
-
-                    var syncContent = new StringContent(
-                        JsonSerializer.Serialize(featureSections),
-                        Encoding.UTF8,
-                        "application/json");
-
-                    try
-                    {
-                        var syncResp = await _http.PutAsync($"api/featuresections/{pageKey}", syncContent);
-                        if (!syncResp.IsSuccessStatusCode)
-                        {
-                            _logger.LogWarning("Kunde inte synkronisera FeatureSections. Status: {Status}", syncResp.StatusCode);
-                        }
-                        else
-                        {
-                            // Invalidera features-cache direkt efter lyckad sync
-                            _cache.InvalidateGroup($"features_{pageKey}");
-                            _cache.InvalidateKey($"features_public_{pageKey}");
-                            _cache.InvalidateKey($"features_private_{pageKey}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Fel vid anrop till API för synkronisering av FeatureSections");
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fel vid synkronisering av FeatureSections för {PageKey}", pageKey);
-        }
     }
 
     // SIDBILDER
@@ -239,6 +143,7 @@ public class CmsService
         _logger.LogDebug("Tar bort sidbild {ImageId} från sida {PageKey}", imageId, pageKey);
         var resp = await _http.DeleteAsync($"api/content/{pageKey}/images/{imageId}");
         resp.EnsureSuccessStatusCode();
+        _cache.InvalidatePageCache(pageKey);
     }
 
     public async Task<PageImageViewModel?> RegisterPageImageMetadataAsync(
@@ -532,8 +437,8 @@ public class CmsService
                 throw new HttpRequestException($"Fel vid sparande av feature-sektioner: {response.StatusCode}");
             }
 
-            _cache.InvalidateGroup($"features_{pageKey}");
-            await UpdateMetadataWithFeatureSections(pageKey, sections);
+            _cache.InvalidatePageCache(pageKey);
+            _logger.LogDebug("Feature-sektioner sparade för {PageKey}", pageKey);
         }
         catch (Exception ex)
         {
@@ -1548,94 +1453,11 @@ public class CmsService
     // PRIVATE HELPER METHODS
     private async Task<List<FeatureSectionViewModel>> GetFeatureSectionsFromMetadata(string pageKey)
     {
-        try
-        {
-            var page = await GetPageContentAsync(pageKey);
-            if (page != null && !string.IsNullOrEmpty(page.Metadata))
-            {
-                var metadata = JsonDocument.Parse(page.Metadata);
-                var root = metadata.RootElement;
-
-                if (root.TryGetProperty("features", out var featuresEl))
-                {
-                    var features = new List<FeatureSectionViewModel>();
-
-                    foreach (var feature in featuresEl.EnumerateArray())
-                    {
-                        var title = feature.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? "" : "";
-                        var content = feature.TryGetProperty("content", out var contentEl) ? contentEl.GetString() ?? "" : "";
-                        var imageUrl = feature.TryGetProperty("imageUrl", out var imageUrlEl) ? imageUrlEl.GetString() ?? "" : "";
-                        var imageAltText = feature.TryGetProperty("imageAltText", out var imageAltTextEl)
-                            ? imageAltTextEl.GetString() ?? ""
-                            : (string.IsNullOrEmpty(title) ? "" : title);
-                        var hasImage = feature.TryGetProperty("hasImage", out var hasImageEl)
-                            ? hasImageEl.GetBoolean() : !string.IsNullOrEmpty(imageUrl);
-
-                        // privatfält
-                        var hasPrivateContent = feature.TryGetProperty("hasPrivateContent", out var hpEl) && hpEl.GetBoolean();
-                        var privateContent = feature.TryGetProperty("privateContent", out var pcEl) ? (pcEl.GetString() ?? "") : "";
-                        var contactHeading = feature.TryGetProperty("contactHeading", out var chEl) ? (chEl.GetString() ?? "") : "";
-
-                        // kontaktpersoner
-                        var contacts = new List<ContactPersonViewModel>();
-                        if (feature.TryGetProperty("contactPersons", out var cpsEl) &&
-                            cpsEl.ValueKind == JsonValueKind.Array)
-                        {
-                            foreach (var cp in cpsEl.EnumerateArray())
-                            {
-                                contacts.Add(new ContactPersonViewModel
-                                {
-                                    Name = cp.TryGetProperty("name", out var n) ? (n.GetString() ?? "") : "",
-                                    Email = cp.TryGetProperty("email", out var e) ? (e.GetString() ?? "") : "",
-                                    Phone = cp.TryGetProperty("phone", out var p) ? (p.GetString() ?? "") : "",
-                                    Organization = cp.TryGetProperty("organization", out var o) ? (o.GetString() ?? "") : ""
-                            });
-                        }
-                    }
-
-                    features.Add(new FeatureSectionViewModel
-                    {
-                        Title = title,
-                        Content = content,
-                        ImageUrl = imageUrl,
-                        ImageAltText = imageAltText,
-                        HasImage = hasImage,
-                        HasPrivateContent = hasPrivateContent,
-                        PrivateContent = privateContent,
-                        ContactHeading = contactHeading,
-                        ContactPersons = contacts
-                    });
-                }
-
-                if (features.Any())
-                    return features;
-            }
-        }
-
-        return new List<FeatureSectionViewModel>
-        {
-            new()
-            {
-                Title = "Innehållet laddas",
-                Content = "<p>Innehållet för denna sida är under uppbyggnad.</p>",
-                HasImage = false
-            }
-        };
+        // Fallback: features lagras numera enbart i FeatureSection-tabellen via api/featuresections.
+        // Denna metod används bara om API-anropet misslyckas helt.
+        _logger.LogWarning("GetFeatureSectionsFromMetadata anropades för {PageKey} – API-anropet misslyckades", pageKey);
+        return new List<FeatureSectionViewModel>();
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Fel vid fallback-hämtning från metadata för {PageKey}", pageKey);
-        return new List<FeatureSectionViewModel>
-        {
-            new()
-            {
-                Title = "Ett fel uppstod",
-                Content = "<p>Det gick inte att hämta innehållet. Vänligen försök igen senare.</p>",
-                HasImage = false
-            }
-        };
-    }
-}
 
     private List<FeatureSectionViewModel> MapToViewModelsWithPrivate(List<FeatureSectionWithPrivateDto> dtos, bool includePrivate = true)
     {
@@ -1659,70 +1481,6 @@ public class CmsService
                 Organization = c.Organization,
             }).ToList()
         }).ToList();
-    }
-
-    private async Task UpdateMetadataWithFeatureSections(string pageKey, List<FeatureSectionViewModel> sections)
-    {
-        try
-        {
-            var pageContent = await GetPageContentAsync(pageKey) ?? new PageContentViewModel
-            {
-                PageKey = pageKey,
-                Title = GetDefaultPageTitle(pageKey),
-                HtmlContent = "",
-                LastModified = DateTime.Now
-            };
-
-            var existingMetadata = new Dictionary<string, object>();
-
-            if (!string.IsNullOrEmpty(pageContent.Metadata))
-            {
-                try
-                {
-                    var existing = JsonDocument.Parse(pageContent.Metadata);
-                    foreach (var prop in existing.RootElement.EnumerateObject())
-                    {
-                        existingMetadata[prop.Name] = prop.Value.Clone();
-                    }
-                }
-                catch (JsonException ex)
-                {
-                    _logger.LogWarning(ex, "Kunde inte tolka befintlig metadata för {PageKey}", pageKey);
-                }
-            }
-
-            // Inkludera kontaktpersoner + rubrik
-            existingMetadata["features"] = sections.Select(f => new
-            {
-                title = f.Title,
-                content = f.Content,
-                imageUrl = f.ImageUrl,
-                imageAltText = f.ImageAltText,
-                hasImage = f.HasImage,
-                hasPrivateContent = f.HasPrivateContent,
-                privateContent = f.PrivateContent,
-                contactHeading = f.ContactHeading,
-                contactPersons = f.ContactPersons.Select(c => new
-                {
-                    name = c.Name,
-                    email = c.Email,
-                    phone = c.Phone,
-                    organization = c.Organization
-                }).ToArray()
-            }).ToArray();
-
-            pageContent.Metadata = JsonSerializer.Serialize(existingMetadata);
-            pageContent.LastModified = DateTime.Now;
-
-            var metadataJson = JsonSerializer.Serialize(pageContent);
-            var metadataContent = new StringContent(metadataJson, Encoding.UTF8, "application/json");
-            var metadataResponse = await _http.PutAsync($"api/content/{pageKey}", metadataContent);
-            metadataResponse.EnsureSuccessStatusCode();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fel vid uppdatering av metadata för {PageKey}", pageKey);
-        }
     }
 
     private async Task EnsureMemberLogosLoaded(PageContentViewModel pageContent)
@@ -1933,6 +1691,7 @@ public class CmsService
             return null;
         }
 
+        _cache.InvalidatePageCache(pageKey);
         return await res.Content.ReadFromJsonAsync<PageImageViewModel>();
     }
 }

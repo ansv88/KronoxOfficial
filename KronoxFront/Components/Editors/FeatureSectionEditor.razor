@@ -370,20 +370,63 @@
         }
     }
 
+    public async Task SyncEditors()
+    {
+        try
+        {
+            foreach (var (index, section) in Sections.Select((s, i) => (i, s)))
+            {
+                var editorId = $"feature-editor-{index}";
+                try
+                {
+                    var exists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
+                    if (exists)
+                    {
+                        var content = await JS.InvokeAsync<string>("eval",
+                            $"tinymce.get('{editorId}') ? tinymce.get('{editorId}').getContent() : ''");
+                        if (content != null)
+                            section.Content = content;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Kunde inte synkronisera feature-editor {EditorId}", editorId);
+                }
+
+                if (section.HasPrivateContent)
+                {
+                    var privateEditorId = $"private-content-editor-{index}";
+                    try
+                    {
+                        var exists = await JS.InvokeAsync<bool>("tinymceExists", privateEditorId);
+                        if (exists)
+                        {
+                            var content = await JS.InvokeAsync<string>("eval",
+                                $"tinymce.get('{privateEditorId}') ? tinymce.get('{privateEditorId}').getContent() : ''");
+                            if (content != null)
+                                section.PrivateContent = content;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "Kunde inte synkronisera privat feature-editor {EditorId}", privateEditorId);
+                    }
+                }
+            }
+
+            Logger.LogDebug("Feature-editorer synkroniserade, {Count} sektioner", Sections.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Fel vid synkronisering av feature-editorer");
+        }
+    }
+
     private async Task SaveSections()
     {
         try
         {
-            // Se till att TinyMCE-innehåll skrivs tillbaka till textareas
-            try
-            {
-                await JS.InvokeVoidAsync("syncAllEditors");
-                await Task.Delay(50);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Kunde inte synkronisera editorer före sparning av featuresektioner");
-            }
+            await SyncEditors();
 
             if (OnSaveSections.HasDelegate)
             {

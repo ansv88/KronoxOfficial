@@ -867,12 +867,10 @@ public static class ContentSeed
             logger.LogDebug("Seedar standardinnehåll för startsidan...");
 
             var introSection = GetDefaultIntroSection();
-            var featureSections = GetDefaultFeatureSections();
 
             var metadataJson = JsonSerializer.Serialize(new
             {
                 introSection,
-                features = featureSections,
                 sectionConfig = new[]
                 {
                     new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
@@ -907,12 +905,10 @@ public static class ContentSeed
             logger.LogDebug("Seedar standardinnehåll för Om konsortiet-sidan...");
 
             var introSection = GetOmkonsortietsIntroSection();
-            var featureSections = GetOmkonsortietsFeatureSections();
 
             var metadataJson = JsonSerializer.Serialize(new
             {
                 introSection,
-                features = featureSections,
                 sectionConfig = new[]
                 {
                     new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
@@ -947,12 +943,10 @@ public static class ContentSeed
             logger.LogDebug("Seedar standardinnehåll för Visioner & Verksamhetsidé-sidan...");
 
             var visionerIntroSection = GetVisionerIntroSection();
-            var visionerFeatureSections = GetVisionerFeatureSections();
 
             var visionerMetadataJson = JsonSerializer.Serialize(new
             {
                 introSection = visionerIntroSection,
-                features = visionerFeatureSections,
                 sectionConfig = new[]
                 {
                     new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
@@ -987,12 +981,10 @@ public static class ContentSeed
             logger.LogDebug("Seedar standardinnehåll för Dokument-sidan...");
 
             var dokumentIntroSection = GetDokumentIntroSection();
-            var dokumentFeatureSections = GetDokumentFeatureSections();
 
             var dokumentMetadataJson = JsonSerializer.Serialize(new
             {
                 introSection = dokumentIntroSection,
-                features = dokumentFeatureSections,
                 sectionConfig = new[]
                 {
                     new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
@@ -1026,12 +1018,10 @@ public static class ContentSeed
             logger.LogDebug("Seedar standardinnehåll för Om systemet-sidan...");
 
             var omsystemetIntroSection = GetOmsystemetIntroSection();
-            var omsystemetFeatureSections = GetOmsystemetFeatureSections();
 
             var omsystemetMetadataJson = JsonSerializer.Serialize(new
             {
                 introSection = omsystemetIntroSection,
-                features = omsystemetFeatureSections,
                 sectionConfig = new[]
                 {
                     new { Type = "Banner", IsEnabled = true, SortOrder = 0 },
@@ -1372,11 +1362,7 @@ public static class ContentSeed
 
             if (string.IsNullOrEmpty(homeContent.Metadata))
             {
-                homeContent.Metadata = JsonSerializer.Serialize(new
-                {
-                    introSection,
-                    features = GetDefaultFeatureSections()
-                });
+                homeContent.Metadata = JsonSerializer.Serialize(new { introSection });
             }
             else
             {
@@ -1415,11 +1401,7 @@ public static class ContentSeed
                 }
                 catch (JsonException)
                 {
-                    homeContent.Metadata = JsonSerializer.Serialize(new
-                    {
-                        introSection,
-                        features = GetDefaultFeatureSections()
-                    });
+                    homeContent.Metadata = JsonSerializer.Serialize(new { introSection });
                 }
             }
 
@@ -1474,11 +1456,7 @@ public static class ContentSeed
 
             if (string.IsNullOrEmpty(omkonsortietsContent.Metadata))
             {
-                omkonsortietsContent.Metadata = JsonSerializer.Serialize(new
-                {
-                    introSection,
-                    features = GetOmkonsortietsFeatureSections()
-                });
+                omkonsortietsContent.Metadata = JsonSerializer.Serialize(new { introSection });
             }
             else
             {
@@ -1524,11 +1502,7 @@ public static class ContentSeed
                 }
                 catch (JsonException)
                 {
-                    omkonsortietsContent.Metadata = JsonSerializer.Serialize(new
-                    {
-                        introSection,
-                        features = GetOmkonsortietsFeatureSections()
-                    });
+                    omkonsortietsContent.Metadata = JsonSerializer.Serialize(new { introSection });
                 }
             }
 
@@ -1583,11 +1557,7 @@ public static class ContentSeed
 
             if (string.IsNullOrEmpty(visionerContent.Metadata))
             {
-                visionerContent.Metadata = JsonSerializer.Serialize(new
-                {
-                    introSection,
-                    features = GetVisionerFeatureSections()
-                });
+                visionerContent.Metadata = JsonSerializer.Serialize(new { introSection });
             }
             else
             {
@@ -1625,11 +1595,7 @@ public static class ContentSeed
                 }
                 catch (JsonException)
                 {
-                    visionerContent.Metadata = JsonSerializer.Serialize(new
-                    {
-                        introSection,
-                        features = GetVisionerFeatureSections()
-                    });
+                    visionerContent.Metadata = JsonSerializer.Serialize(new { introSection });
                 }
             }
 
@@ -1684,11 +1650,7 @@ public static class ContentSeed
 
             if (string.IsNullOrEmpty(dokumentContent.Metadata))
             {
-                dokumentContent.Metadata = JsonSerializer.Serialize(new
-                {
-                    introSection,
-                    features = GetDokumentFeatureSections()
-                });
+                dokumentContent.Metadata = JsonSerializer.Serialize(new { introSection });
             }
             else
             {
@@ -1735,11 +1697,7 @@ public static class ContentSeed
                 }
                 catch (JsonException)
                 {
-                    dokumentContent.Metadata = JsonSerializer.Serialize(new
-                    {
-                        introSection,
-                        features = GetDokumentFeatureSections()
-                    });
+                    dokumentContent.Metadata = JsonSerializer.Serialize(new { introSection });
                 }
             }
 
@@ -1794,11 +1752,7 @@ public static class ContentSeed
 
             if (string.IsNullOrEmpty(omsystemetContent.Metadata))
             {
-                omsystemetContent.Metadata = JsonSerializer.Serialize(new
-                {
-                    introSection,
-                    features = GetOmsystemetFeatureSections()
-                });
+                omsystemetContent.Metadata = JsonSerializer.Serialize(new { introSection });
             }
             else
             {
@@ -1845,11 +1799,7 @@ public static class ContentSeed
                 }
                 catch (JsonException)
                 {
-                    omsystemetContent.Metadata = JsonSerializer.Serialize(new
-                    {
-                        introSection,
-                        features = GetOmsystemetFeatureSections()
-                    });
+                    omsystemetContent.Metadata = JsonSerializer.Serialize(new { introSection });
                 }
             }
 

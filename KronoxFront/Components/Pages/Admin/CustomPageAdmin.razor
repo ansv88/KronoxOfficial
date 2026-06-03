@@ -173,7 +173,8 @@ else
                             <FaqEditor @ref="faqEditorRef"
                                        FaqSections="faqSections"
                                        OnFaqSectionsChanged="OnFaqSectionsChanged"
-                                       OnFaqImageUpload="OnFaqImageUploaded" />
+                                       OnFaqImageUpload="OnFaqImageUploaded"
+                                       OnSaveSections="SaveFaqSectionsFromEditor" />
                             break;
 
                         case SectionType.ContactForm:
@@ -579,8 +580,9 @@ else
         isSaving = true;
         try
         {
-            // Synkronisera intro-editor
+
             await SyncIntroEditor();
+            await SyncFeatureEditors();
 
             // Synkronisera alla editorer
             try
@@ -722,6 +724,21 @@ else
 
     private void OnFeatureSectionsChanged() { }
 
+    private async Task SyncFeatureEditors()
+    {
+        if (featureSectionEditorRef != null)
+        {
+            try
+            {
+                await featureSectionEditorRef.SyncEditors();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte synkronisera feature-editorer för {PageKey}", PageKey);
+            }
+        }
+    }
+
     private async Task OnFeatureImageUploaded(ImageUploadInfo info)
     {
         if (info.File != null && info.Section != null)
@@ -747,6 +764,21 @@ else
 
     private void OnFeatureImageDeleted(ImageDeleteInfo info) { }
     private void OnFaqSectionsChanged() { }
+
+    private async Task SaveFaqSectionsFromEditor()
+    {
+        try
+        {
+            await Cms.SaveFaqSectionsAsync(PageKey, faqSections);
+            Cache.InvalidatePageCache(PageKey);
+            await Toast.Success("FAQ-sektioner sparade!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av FAQ-sektioner för custom page {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid sparning av FAQ-sektioner.");
+        }
+    }
 
     private async Task OnFaqImageUploaded(FaqImageUploadInfo info)
     {

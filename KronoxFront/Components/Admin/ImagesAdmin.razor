@@ -5,6 +5,7 @@
 @using KronoxFront.Components.Shared.UI
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
 @inject CmsService Cms
 @inject IToastService Toast
@@ -13,6 +14,100 @@
 
 <h1 class="h5 mb-2"><i class="fa-solid fa-images me-2"></i>Hantera bilder</h1>
 
+@* ── Uppladdningssektion ── *@
+<div class="card mb-3 border-0 shadow-sm">
+    <div class="card-header bg-light py-2 d-flex align-items-center gap-2">
+        <i class="fa-solid fa-upload text-primary"></i>
+        <strong class="small">Ladda upp bilder till bildbiblioteket</strong>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-2">
+            <div class="col-12 col-sm-6 col-md-4">
+                <label class="form-label small mb-1">PageKey <span class="text-muted">(välj sida eller skriv egen)</span></label>
+                <input class="form-control form-control-sm"
+                       list="uploadPageKeysList"
+                       placeholder="t.ex. bibliotek"
+                       @bind="uploadPageKey" />
+                <datalist id="uploadPageKeysList">
+                    <option value="bibliotek"></option>
+                    @foreach (var key in pageKeys)
+                    {
+                        <option value="@key"></option>
+                    }
+                </datalist>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+                <label class="form-label small mb-1">Alt-text <span class="text-muted">(valfritt, gäller alla valda filer)</span></label>
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Beskriv bilderna..."
+                       @bind="uploadAltText" />
+            </div>
+            <div class="col-12 col-md-4 d-flex align-items-end">
+                <InputFile OnChange="FilesSelected"
+                           multiple
+                           accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                           class="form-control form-control-sm"
+                           aria-label="Välj bilder att ladda upp" />
+            </div>
+        </div>
+
+        @if (uploadQueue.Count > 0)
+        {
+            <div class="mt-3">
+                <div class="small fw-semibold mb-2">Valda filer (@uploadQueue.Count st):</div>
+                <ul class="list-group list-group-flush small mb-2">
+                    @foreach (var item in uploadQueue)
+                    {
+                        <li class="list-group-item px-0 py-1 d-flex align-items-center gap-2">
+                            @if (item.Status == UploadStatus.Pending)
+                            {
+                                <i class="fa-regular fa-circle text-muted"></i>
+                            }
+                            else if (item.Status == UploadStatus.Uploading)
+                            {
+                                <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                            }
+                            else if (item.Status == UploadStatus.Done)
+                            {
+                                <i class="fa-solid fa-check text-success"></i>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-xmark text-danger"></i>
+                            }
+                            <span class="text-truncate" style="max-width:280px" title="@item.FileName">@item.FileName</span>
+                            @if (!string.IsNullOrEmpty(item.ErrorMessage))
+                            {
+                                <span class="text-danger ms-1">— @item.ErrorMessage</span>
+                            }
+                        </li>
+                    }
+                </ul>
+                <button class="btn btn-sm btn-primary"
+                        @onclick="UploadAll"
+                        disabled="@(isUploading || uploadQueue.All(x => x.Status == UploadStatus.Done))">
+                    @if (isUploading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span>Laddar upp...</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-upload me-1"></i>
+                        <span>Ladda upp (@uploadQueue.Count(x => x.Status == UploadStatus.Pending) st)</span>
+                    }
+                </button>
+                <button class="btn btn-sm btn-outline-secondary ms-2"
+                        @onclick="ClearQueue"
+                        disabled="@isUploading">
+                    Rensa listan
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@* ── Filter och bildlista ── *@
 <div class="row g-2 mb-2 align-items-center">
     <div class="col-12 col-sm-8 col-md-6 col-lg-5">
         <input class="form-control form-control-sm"
@@ -161,6 +256,7 @@ else
 }
 
 @code {
+    // ── Befintlig state ──
     private bool isLoading;
     private string? filterPageKey;
     private List<PageImageViewModel> images = new();
@@ -174,6 +270,106 @@ else
 
     // Dynamiska PageKeys för datalist
     private List<string> pageKeys = new();
+
+    // ── Uppladdnings-state ──
+    private string uploadPageKey = "bibliotek";
+    private string uploadAltText = "";
+    private bool isUploading;
+    private List<UploadItem> uploadQueue = new();
+
+    private enum UploadStatus { Pending, Uploading, Done, Error }
+
+    private class UploadItem
+    {
+        public required IBrowserFile File { get; init; }
+        public string FileName => File.Name;
+        public UploadStatus Status { get; set; } = UploadStatus.Pending;
+        public string? ErrorMessage { get; set; }
+    }
+
+    private const int MaxFiles = 20;
+    private const long MaxFileSize = 10_000_000; // 10 MB
+
+    private void FilesSelected(InputFileChangeEventArgs e)
+    {
+        var selected = e.GetMultipleFiles(MaxFiles);
+        uploadQueue = selected
+            .Select(f => new UploadItem { File = f })
+            .ToList();
+    }
+
+    private async Task UploadAll()
+    {
+        if (string.IsNullOrWhiteSpace(uploadPageKey))
+        {
+            await Toast.Warning("Ange en PageKey innan uppladdning.");
+            return;
+        }
+
+        var pending = uploadQueue.Where(x => x.Status == UploadStatus.Pending).ToList();
+        if (pending.Count == 0) return;
+
+        isUploading = true;
+        int successCount = 0;
+
+        foreach (var item in pending)
+        {
+            item.Status = UploadStatus.Uploading;
+            StateHasChanged();
+
+            try
+            {
+                await using var stream = item.File.OpenReadStream(MaxFileSize);
+                var result = await Cms.UploadPageImageAsync(
+                    uploadPageKey.Trim(),
+                    stream,
+                    item.File.Name,
+                    uploadAltText);
+
+                if (result != null)
+                {
+                    item.Status = UploadStatus.Done;
+                    successCount++;
+                }
+                else
+                {
+                    item.Status = UploadStatus.Error;
+                    item.ErrorMessage = "Uppladdningen misslyckades.";
+                }
+            }
+            catch (IOException)
+            {
+                item.Status = UploadStatus.Error;
+                item.ErrorMessage = $"Filen är för stor (max {MaxFileSize / 1_000_000} MB).";
+            }
+            catch (Exception ex)
+            {
+                item.Status = UploadStatus.Error;
+                item.ErrorMessage = ex.Message;
+                Logger.LogError(ex, "Fel vid uppladdning av {FileName}", item.FileName);
+            }
+
+            StateHasChanged();
+        }
+
+        isUploading = false;
+
+        if (successCount > 0)
+        {
+            await Toast.Success($"{successCount} bild(er) laddades upp till '{uploadPageKey}'.");
+            await Load();
+        }
+
+        var errorCount = pending.Count(x => x.Status == UploadStatus.Error);
+        if (errorCount > 0)
+            await Toast.Error($"{errorCount} bild(er) misslyckades – se listan ovan.");
+    }
+
+    private void ClearQueue()
+    {
+        uploadQueue.Clear();
+        uploadAltText = "";
+    }
 
     protected override async Task OnInitializedAsync()
     {

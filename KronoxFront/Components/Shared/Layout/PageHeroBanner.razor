@@ -19,19 +19,11 @@
         </div>
     }
 
-    @if (IsAdmin)
-    {
-        <div class="position-absolute top-0 end-0 m-3">
-            <a href="@($"/admin/{PageKey}")" class="btn btn-dark btn-sm opacity-75">
-                <i class="fa-solid fa-edit me-1"></i> Redigera sida
-            </a>
-        </div>
-    }
-</section>
+    </section>
 
-@code {
-    [Parameter] public string ImageUrl { get; set; } = "";
-    [Parameter] public string AltText { get; set; } = "";
-    [Parameter] public bool IsAdmin { get; set; } = false;
-    [Parameter] public string PageKey { get; set; } = "";
+    @code {
+        [Parameter] public string ImageUrl { get; set; } = "";
+        [Parameter] public string AltText { get; set; } = "";
+        [Parameter] public bool IsAdmin { get; set; } = false;
+        [Parameter] public string PageKey { get; set; } = "";
 }

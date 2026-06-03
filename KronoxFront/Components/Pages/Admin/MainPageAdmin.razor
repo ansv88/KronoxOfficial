@@ -173,7 +173,8 @@ else
                             <FaqEditor @ref="faqEditorRef"
                                        FaqSections="faqSections"
                                        OnFaqSectionsChanged="OnFaqSectionsChanged"
-                                       OnFaqImageUpload="OnFaqImageUploaded" />
+                                       OnFaqImageUpload="OnFaqImageUploaded"
+                                       OnSaveSections="SaveFaqSectionsFromEditor" />
                             break;
 
                         case SectionType.ContactForm:
@@ -836,6 +837,7 @@ else
         try
         {
             await SyncIntroEditor();
+            await SyncFeatureEditors();
 
             try
             {
@@ -958,8 +960,38 @@ else
     }
 
     private void OnFeatureSectionsChanged() { }
+
+    private async Task SyncFeatureEditors()
+    {
+        if (featureSectionEditorRef != null)
+        {
+            try
+            {
+                await featureSectionEditorRef.SyncEditors();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte synkronisera feature-editorer för {PageKey}", PageKey);
+            }
+        }
+    }
     private void OnFeatureImageDeleted(ImageDeleteInfo info) { }
     private void OnFaqSectionsChanged() { }
+
+    private async Task SaveFaqSectionsFromEditor()
+    {
+        try
+        {
+            await Cms.SaveFaqSectionsAsync(PageKey, faqSections);
+            Cache.InvalidatePageCache(PageKey);
+            await Toast.Success("FAQ-sektioner sparade!");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av FAQ-sektioner för {PageKey}", PageKey);
+            await Toast.Error("Ett fel inträffade vid sparning av FAQ-sektioner.");
+        }
+    }
 
     private Task OnShowNavigationButtonsChanged(bool value)
     {

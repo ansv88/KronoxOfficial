@@ -13,6 +13,7 @@
 @inject AuthenticationStateProvider AuthState
 @inject ILogger<Home> Logger
 @inject IServiceProvider ServiceProvider
+@implements IDisposable
 
 <HeadContent>
     <meta name="description" content="KronoX – Schemaläggning och bokningssystem för högre utbildning. Upptäck funktioner, nyheter och medlemsinformation." />
@@ -152,6 +153,7 @@ else
         }
     }
 
+    <AdminPageEditButton IsAdmin="@isAdmin" PageKey="home" />
     <ScrollTopButton />
     <ImageModal ImageUrl="@activeImage" OnClose="@CloseModal" />
 }
@@ -181,6 +183,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        AuthState.AuthenticationStateChanged += AuthenticationStateChanged;
+
         var authState = await AuthState.GetAuthenticationStateAsync();
         isAdmin = authState.User.IsInRole("Admin");
         loading = true;
@@ -252,4 +256,17 @@ else
     }
 
     private void CloseModal() => activeImage = null;
+
+    private async void AuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        var authState = await task;
+        isAdmin = authState.User.IsInRole("Admin");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AuthState.AuthenticationStateChanged -= AuthenticationStateChanged;
+    }
+
 }
