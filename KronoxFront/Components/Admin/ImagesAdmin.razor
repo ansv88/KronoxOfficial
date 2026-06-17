@@ -12,68 +12,106 @@
 @inject IJSRuntime JS
 @inject ILogger<ImagesAdmin> Logger
 
-<h1 class="h5 mb-2"><i class="fa-solid fa-images me-2"></i>Hantera bilder</h1>
+<h1 class="h5 mb-3"><i class="fa-solid fa-images me-2"></i>Hantera bilder</h1>
 
-@* ── Uppladdningssektion ── *@
-<div class="card mb-3 border-0 shadow-sm">
-    <div class="card-header bg-light py-2 d-flex align-items-center gap-2">
+@* ── Informationsruta ── *@
+<div class="alert alert-info border-0 shadow-sm mb-4" role="note">
+    <div class="d-flex align-items-start gap-2">
+        <i class="fa-solid fa-circle-info mt-1 flex-shrink-0"></i>
+        <div>
+            <strong>Så fungerar bildhanteringen</strong>
+            <ul class="mb-0 mt-1 ps-3 small">
+                <li>Här laddar du upp och tar bort bilder. Biblioteket är en <strong>lagringsplats</strong> – själva placeringen av bilder styrs på respektive sida.</li>
+                <li><span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Bannerbild</span> visar att bilden just nu används som <strong>bannerbild</strong> på en sida.</li>
+                <li>För att byta banner-, intro- eller sektionsbild går du till motsvarande sida och redigerar den där.</li>
+                <li>Bilder som <strong>används</strong> någonstans kan inte tas bort – byt ut eller ta bort dem på sidan först.</li>
+                <li>Medlemslogotyper hanteras separat under <a href="/admin/memberlogos" class="alert-link">Medlemslogotyper</a>.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@* ── Ladda upp nya bilder ── *@
+<div class="card mb-4 shadow-sm border-primary border-opacity-25">
+    <div class="card-header bg-primary bg-opacity-10 py-2 d-flex align-items-center gap-2">
         <i class="fa-solid fa-upload text-primary"></i>
-        <strong class="small">Ladda upp bilder till bildbiblioteket</strong>
+        <strong class="small text-primary">Ladda upp nya bilder</strong>
     </div>
     <div class="card-body p-3">
-        <div class="row g-2">
-            <div class="col-12 col-sm-6 col-md-4">
-                <label class="form-label small mb-1">PageKey <span class="text-muted">(välj sida eller skriv egen)</span></label>
-                <input class="form-control form-control-sm"
-                       list="uploadPageKeysList"
-                       placeholder="t.ex. bibliotek"
-                       @bind="uploadPageKey" />
-                <datalist id="uploadPageKeysList">
-                    <option value="bibliotek"></option>
-                    @foreach (var key in pageKeys)
-                    {
-                        <option value="@key"></option>
-                    }
-                </datalist>
-            </div>
-            <div class="col-12 col-sm-6 col-md-4">
-                <label class="form-label small mb-1">Alt-text <span class="text-muted">(valfritt, gäller alla valda filer)</span></label>
-                <input type="text" class="form-control form-control-sm"
-                       placeholder="Beskriv bilderna..."
-                       @bind="uploadAltText" />
-            </div>
-            <div class="col-12 col-md-4 d-flex align-items-end">
-                <InputFile OnChange="FilesSelected"
-                           multiple
-                           accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-                           class="form-control form-control-sm"
-                           aria-label="Välj bilder att ladda upp" />
-            </div>
+
+        @* Steg 1: Välj filer *@
+        <div class="mb-3">
+            <label class="form-label small fw-semibold mb-1">
+                <span class="badge bg-primary me-1">1</span> Välj bilder att ladda upp
+            </label>
+            <InputFile OnChange="FilesSelected"
+                       multiple
+                       accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                       class="form-control form-control-sm"
+                       aria-label="Välj bilder att ladda upp" />
+            <div class="form-text">Tillåtna format: JPG, PNG, GIF, WebP, SVG. Max 10 MB per fil, max @MaxFiles filer åt gången.</div>
         </div>
 
+        @* Steg 2 – visas när filer valts *@
         @if (uploadQueue.Count > 0)
         {
-            <div class="mt-3">
-                <div class="small fw-semibold mb-2">Valda filer (@uploadQueue.Count st):</div>
-                <ul class="list-group list-group-flush small mb-2">
+            <div class="border rounded p-3 bg-light mb-3">
+                <div class="small fw-semibold mb-2">
+                    <span class="badge bg-primary me-1">2</span> Ange information om bilderna
+                </div>
+                <div class="row g-2">
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small mb-1">
+                            Sida (sidnyckel) <span class="text-danger">*</span>
+                            <span class="text-muted fw-normal">– vilken sida tillhör bilderna?</span>
+                        </label>
+                        <input class="form-control form-control-sm"
+                               list="uploadPageKeysList"
+                               placeholder="Välj eller skriv sidnyckel, t.ex. home"
+                               @bind="uploadPageKey" />
+                        <datalist id="uploadPageKeysList">
+                            <option value="bibliotek"></option>
+                            @foreach (var key in pageKeys)
+                            {
+                                <option value="@key"></option>
+                            }
+                        </datalist>
+                        <div class="form-text">Välj från listan eller skriv en ny nyckel.</div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small mb-1">
+                            Bildbeskrivning (alt-text)
+                            <span class="text-muted fw-normal">– valfritt, gäller alla valda filer</span>
+                        </label>
+                        <input type="text" class="form-control form-control-sm"
+                               placeholder="Beskriv bildernas innehåll..."
+                               @bind="uploadAltText" />
+                        <div class="form-text">Används av skärmläsare och sökmotorer.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="small fw-semibold mb-1">Valda filer (@uploadQueue.Count st):</div>
+                <ul class="list-group list-group-flush small">
                     @foreach (var item in uploadQueue)
                     {
                         <li class="list-group-item px-0 py-1 d-flex align-items-center gap-2">
                             @if (item.Status == UploadStatus.Pending)
                             {
-                                <i class="fa-regular fa-circle text-muted"></i>
+                                <i class="fa-regular fa-circle text-muted" title="Väntar"></i>
                             }
                             else if (item.Status == UploadStatus.Uploading)
                             {
-                                <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                                <span class="spinner-border spinner-border-sm text-primary" role="status" aria-label="Laddar upp"></span>
                             }
                             else if (item.Status == UploadStatus.Done)
                             {
-                                <i class="fa-solid fa-check text-success"></i>
+                                <i class="fa-solid fa-check text-success" title="Klar"></i>
                             }
                             else
                             {
-                                <i class="fa-solid fa-xmark text-danger"></i>
+                                <i class="fa-solid fa-xmark text-danger" title="Misslyckades"></i>
                             }
                             <span class="text-truncate" style="max-width:280px" title="@item.FileName">@item.FileName</span>
                             @if (!string.IsNullOrEmpty(item.ErrorMessage))
@@ -83,6 +121,9 @@
                         </li>
                     }
                 </ul>
+            </div>
+
+            <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-primary"
                         @onclick="UploadAll"
                         disabled="@(isUploading || uploadQueue.All(x => x.Status == UploadStatus.Done))">
@@ -97,181 +138,141 @@
                         <span>Ladda upp (@uploadQueue.Count(x => x.Status == UploadStatus.Pending) st)</span>
                     }
                 </button>
-                <button class="btn btn-sm btn-outline-secondary ms-2"
+                <button class="btn btn-sm btn-outline-secondary"
                         @onclick="ClearQueue"
                         disabled="@isUploading">
-                    Rensa listan
+                    <i class="fa-solid fa-xmark me-1"></i>Rensa listan
                 </button>
             </div>
         }
     </div>
 </div>
 
-@* ── Filter och bildlista ── *@
-<div class="row g-2 mb-2 align-items-center">
-    <div class="col-12 col-sm-8 col-md-6 col-lg-5">
-        <input class="form-control form-control-sm"
-               list="pageKeysList"
-               placeholder="Filtrera på PageKey (valfritt)"
-               @bind="filterPageKey" />
-        <datalist id="pageKeysList">
-            @foreach (var key in pageKeys)
+@* ── Bildbibliotek ── *@
+<div class="card shadow-sm border-success border-opacity-25">
+    <div class="card-header bg-success bg-opacity-10 py-2 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fa-solid fa-images text-success"></i>
+            <strong class="small text-success">Bildbibliotek</strong>
+            @if (images.Count > 0)
             {
-                <option value="@key"></option>
+                <span class="badge bg-success bg-opacity-75">@images.Count st</span>
             }
-        </datalist>
-    </div>
-    <div class="col-auto">
-        <button class="btn btn-sm btn-outline-primary" @onclick="Load">Ladda</button>
-    </div>
-    <div class="col-12">
-        <div class="small text-muted">
-            Tips: PageKey motsvarar sidans nyckel (väljs från listan eller skriv egen).
         </div>
-        <div class="small text-muted mt-1">
-            <i class="fa-solid fa-circle-info me-1"></i>
-            Medlemslogotyper hanteras separat på sidan
-            <a href="/admin/memberlogos" class="text-decoration-underline">Medlemslogotyper</a>.
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <input class="form-control form-control-sm"
+                   style="max-width: 220px;"
+                   list="pageKeysList"
+                   placeholder="Filtrera på sida..."
+                   @bind="filterPageKey" />
+            <datalist id="pageKeysList">
+                @foreach (var key in pageKeys)
+                {
+                    <option value="@key"></option>
+                }
+            </datalist>
+            <button class="btn btn-sm btn-success" @onclick="Load" title="Filtrera bildbiblioteket">
+                <i class="fa-solid fa-filter me-1"></i>Filtrera
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ShowAll" title="Rensa filter och visa alla bilder">
+                <i class="fa-solid fa-list me-1"></i>Visa alla
+            </button>
         </div>
     </div>
-</div>
-
-@if (isLoading)
-{
-    <div class="text-muted">Laddar...</div>
-}
-else if (images.Count == 0)
-{
-    <div class="alert alert-info py-2 mb-2">Inga bilder hittades.</div>
-}
-else
-{
-    <div class="row g-2">
-        @foreach (var img in images)
+    <div class="card-body p-3">
+        @if (isLoading)
         {
-            <div class="col-6 col-sm-4 col-md-3 col-lg-3">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="ratio ratio-1x1" role="button" title="Förhandsgranska" @onclick="() => Preview(img.Url)">
-                        <img src="@img.Url"
-                             alt="@img.AltText"
-                             class="w-100 h-100 rounded-top"
-                             loading="lazy"
-                             decoding="async"
-                             style="object-fit: cover;" />
-                    </div>
-                    <div class="card-body p-2">
-                        <div class="small text-muted text-truncate" title="@img.Url">@img.Url</div>
-                        @if (!string.IsNullOrWhiteSpace(img.AltText))
-                        {
-                            <div class="small text-muted text-truncate" title="@img.AltText">@img.AltText</div>
-                        }
-                        <div class="mt-2 d-flex gap-1">
-                            <button class="btn btn-outline-secondary btn-sm px-2 py-1"
-                                    title="Visa var just den här fil-URL:en används"
-                                    @onclick="() => OpenUsageAsync(img.Url)">
-                                <i class="fa-solid fa-list"></i>
-                            </button>
-                            <button class="btn btn-outline-danger btn-sm px-2 py-1"
-                                    title="Ta bort alla registrerade användningar av just den här fil-URL:en"
-                                    @onclick="() => DeleteEverywhere(img)">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+            <div class="text-muted py-3 text-center">
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>Laddar bilder...
+            </div>
+        }
+        else if (images.Count == 0)
+        {
+            <div class="alert alert-info py-2 mb-0">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                @(string.IsNullOrWhiteSpace(filterPageKey)
+                    ? "Inga bilder finns uppladdade än."
+                    : $"Inga bilder hittades för sidan \"{filterPageKey}\".")
+            </div>
+        }
+        else
+        {
+            <div class="row g-2">
+                @foreach (var img in images)
+                {
+                    <div class="col-6 col-sm-4 col-md-3">
+                        <div class="card h-100 shadow-sm position-relative"
+                             style="@(img.IsActive ? "border: 2px solid #198754;" : "border: 1px solid rgba(0,0,0,.125);")">
+
+                            <div class="ratio ratio-1x1" role="button" title="Klicka för att förhandsgranska" @onclick="() => Preview(img.Url)">
+                                <img src="@img.Url"
+                                     alt="@img.AltText"
+                                     class="w-100 h-100 rounded-top"
+                                     loading="lazy"
+                                     decoding="async"
+                                     style="object-fit: cover;" />
+                            </div>
+
+                            @if (img.IsActive)
+                            {
+                                <div class="position-absolute top-0 start-0 m-1">
+                                    <span class="badge bg-success" title="Används som bannerbild på @img.PageKey"><i class="fa-solid fa-circle-check me-1"></i>Bannerbild</span>
+                                </div>
+                            }
+
+                            <div class="card-body p-2">
+                                @if (!string.IsNullOrWhiteSpace(img.PageKey))
+                                {
+                                    <span class="badge bg-secondary mb-1" title="Sidan denna bild tillhör">@img.PageKey</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-muted border mb-1" title="Ingen sida kopplad">Ingen sida</span>
+                                }
+
+                                <div class="small text-truncate fw-semibold" title="@img.Url">
+                                    @System.IO.Path.GetFileName(img.Url)
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(img.AltText))
+                                {
+                                    <div class="small text-muted fst-italic text-truncate" title="@img.AltText">@img.AltText</div>
+                                }
+
+                                <div class="mt-2 d-flex gap-1 flex-wrap">
+                                    <button class="btn btn-outline-danger btn-sm px-2 py-1"
+                                            title="@(img.IsActive ? $"Används som bannerbild på '{img.PageKey}' – byt ut bilden på sidan först" : "Ta bort bilden permanent")"
+                                            disabled="@img.IsActive"
+                                            @onclick="() => DeleteEverywhere(img)">
+                                        <i class="fa-solid fa-trash me-1"></i><span class="d-none d-sm-inline">Ta bort</span>
+                                    </button>
+                                </div>
+
+                                @if (img.IsActive)
+                                {
+                                    <div class="text-muted mt-1" style="font-size: 0.7rem; line-height: 1.3;">
+                                        <i class="fa-solid fa-lock me-1"></i>Bilden används som bannerbild på <em>@img.PageKey</em>. Byt ut den på sidan för att kunna ta bort den.
+                                    </div>
+                                }
+                            </div>
                         </div>
                     </div>
-                </div>
+                }
             </div>
         }
     </div>
-}
+</div>
 
 <ImageModal ImageUrl="@previewUrl" OnClose="@ClosePreview" />
 
-@* Användar/Delete-modal *@
-@if (usageOpen)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5);" role="dialog" aria-modal="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation>
-            <div class="modal-content">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title mb-0">
-                        <i class="fa-solid fa-list me-2"></i>Användning
-                        @if (!string.IsNullOrEmpty(usageImageUrl)) { <small class="text-muted">@usageImageUrl</small> }
-                    </h6>
-                    <button type="button" class="btn-close" @onclick="CloseUsage"></button>
-                </div>
-                <div class="modal-body p-2">
-                    <div class="small text-muted mb-2">
-                        Här visas sidor (PageKeys) där exakt den här filens URL är registrerad. Att ta bort all användning raderar filen när sista referensen försvinner.
-                    </div>
-                    @if (usageLoading)
-                    {
-                        <div class="text-muted">Laddar...</div>
-                    }
-                    else if (usageList.Count == 0)
-                    {
-                        <div class="alert alert-info py-2 mb-0">Inga registrerade användningar.</div>
-                    }
-                    else
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="py-2">PageKey</th>
-                                        <th class="py-2">Alt‑text</th>
-                                        <th class="py-2 text-end" style="width:10%;">Ta bort</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var u in usageList)
-                                    {
-                                        <tr>
-                                            <td class="py-2"><code>@u.PageKey</code></td>
-                                            <td class="py-2 text-truncate">@u.AltText</td>
-                                            <td class="py-2 text-end">
-                                                <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                                        title="Ta bort från sidan"
-                                                        @onclick="() => DeleteUsage(u.PageKey, u.Id)">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
-                <div class="modal-footer py-2">
-                    <button class="btn btn-sm btn-secondary" @onclick="CloseUsage">Stäng</button>
-                    <button class="btn btn-sm btn-danger"
-                            @onclick="DeleteAllUsages"
-                            disabled="@(usageLoading || usageList.Count == 0)">
-                        Ta bort alla användningar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
-    // ── Befintlig state ──
     private bool isLoading;
     private string? filterPageKey;
     private List<PageImageViewModel> images = new();
     private string? previewUrl;
 
-    // Usage/Delete state
-    private bool usageOpen;
-    private bool usageLoading;
-    private string? usageImageUrl;
-    private List<CmsService.ImageUsageItem> usageList = new();
-
-    // Dynamiska PageKeys för datalist
     private List<string> pageKeys = new();
 
-    // ── Uppladdnings-state ──
     private string uploadPageKey = "bibliotek";
     private string uploadAltText = "";
     private bool isUploading;
@@ -302,7 +303,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(uploadPageKey))
         {
-            await Toast.Warning("Ange en PageKey innan uppladdning.");
+            await Toast.Warning("Ange en sidnyckel innan uppladdning.");
             return;
         }
 
@@ -386,7 +387,7 @@ else
         catch (Exception ex)
         {
             Logger.LogError(ex, "Kunde inte hämta PageKeys");
-            await Toast.Warning($"Kunde inte hämta PageKeys: {ex.Message}");
+            await Toast.Warning($"Kunde inte hämta sidnycklar: {ex.Message}");
         }
     }
 
@@ -409,125 +410,39 @@ else
         }
     }
 
+    private async Task ShowAll()
+    {
+        filterPageKey = null;
+        await Load();
+    }
+
     private void Preview(string url) => previewUrl = url;
     private void ClosePreview() => previewUrl = null;
 
-    // Usage/Delete
-    private async Task OpenUsageAsync(string imageUrl)
-    {
-        usageOpen = true;
-        usageImageUrl = imageUrl;
-        await LoadUsage(imageUrl);
-    }
-
-    private async Task LoadUsage(string imageUrl)
-    {
-        usageLoading = true;
-        usageList.Clear();
-        StateHasChanged();
-
-        try
-        {
-            usageList = await Cms.GetImageUsageAsync(imageUrl);
-        }
-        catch (Exception ex)
-        {
-            await Toast.Error($"Kunde inte hämta användningar: {ex.Message}");
-        }
-        finally
-        {
-            usageLoading = false;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    private void CloseUsage()
-    {
-        usageOpen = false;
-        usageImageUrl = null;
-        usageList.Clear();
-    }
-
-    private async Task DeleteUsage(string pageKey, int id)
-    {
-        try
-        {
-            await Cms.DeletePageImageAsync(pageKey, id);
-
-            await Toast.Success($"Tog bort användning på '{pageKey}'.");
-            if (!string.IsNullOrEmpty(usageImageUrl))
-                await LoadUsage(usageImageUrl);
-            await Load();
-        }
-        catch (Exception ex)
-        {
-            await Toast.Error($"Fel vid borttagning: {ex.Message}");
-        }
-    }
-
     private async Task DeleteEverywhere(PageImageViewModel img)
     {
+        if (img.IsActive)
+        {
+            await Toast.Warning("Bilden används som bannerbild och kan inte tas bort. Byt ut den på sidan först.");
+            return;
+        }
+
         try
         {
-            var usages = await Cms.GetImageUsageAsync(img.Url);
-            var count = usages.Count;
-
-            if (count == 0)
-            {
-                await Toast.Info("Inga registrerade användningar hittades. Om bilden fortfarande visas på någon sida behöver referensen i sidans innehåll tas bort manuellt.");
-                return;
-            }
-
-            var previewList = string.Join(", ", usages.Select(u => u.PageKey).Distinct().Take(5));
-            var message = count <= 5
-                ? $"Ta bort bilden från {count} plats(er): {previewList}? Sista referensen tar även bort filen."
-                : $"Ta bort bilden från {count} plats(er) (t.ex. {previewList}...)? Sista referensen tar även bort filen.";
-
-            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", message);
+            var ok = await JS.InvokeAsync<bool>("showConfirmDialog",
+                $"Ta bort bilden '{System.IO.Path.GetFileName(img.Url)}'? Filen raderas permanent.");
             if (!ok) return;
 
+            var usages = await Cms.GetImageUsageAsync(img.Url);
             foreach (var u in usages)
-            {
                 await Cms.DeletePageImageAsync(u.PageKey, u.Id);
-            }
 
-            await Toast.Success($"Tog bort bilden från {count} plats(er).");
+            await Toast.Success("Bilden har tagits bort.");
             await Load();
         }
         catch (Exception ex)
         {
             await Toast.Error($"Kunde inte ta bort: {ex.Message}");
-        }
-    }
-
-    private async Task DeleteAllUsages()
-    {
-        try
-        {
-            if (usageList.Count == 0) return;
-
-            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", $"Ta bort alla {usageList.Count} användningar?");
-            if (!ok) return;
-
-            foreach (var u in usageList.ToList())
-            {
-                try
-                {
-                    await Cms.DeletePageImageAsync(u.PageKey, u.Id);
-                }
-                catch (Exception ex)
-                {
-                    await Toast.Warning($"Kunde inte ta bort från '{u.PageKey}' (id {u.Id}): {ex.Message}");
-                }
-            }
-
-            await Toast.Success("Alla registrerade användningar har tagits bort.");
-            await Load();
-            CloseUsage();
-        }
-        catch (Exception ex)
-        {
-            await Toast.Error($"Fel vid massborttagning: {ex.Message}");
         }
     }
 }

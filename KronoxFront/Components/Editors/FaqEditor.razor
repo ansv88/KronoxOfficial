@@ -583,10 +583,12 @@
 
         try
         {
-            // Registrera referens på sidan om PageKey finns
+            // Registrera referens och markera som aktiv (deactivateOthers=false: flera FAQ-bilder kan vara aktiva)
             if (!string.IsNullOrWhiteSpace(PageKey))
             {
-                _ = await Cms.RegisterExistingImageAsync(PageKey, img.Url, img.AltText ?? "");
+                var registered = await Cms.RegisterExistingImageAsync(PageKey, img.Url, img.AltText ?? "");
+                if (registered != null)
+                    _ = await Cms.SetImageActiveAsync(PageKey, registered.Id, true, deactivateOthers: false);
             }
 
             var item = FaqSections[sectionIndex].FaqItems[itemIndex];

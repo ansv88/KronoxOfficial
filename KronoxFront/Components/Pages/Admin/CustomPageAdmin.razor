@@ -745,8 +745,10 @@ else
         {
             try
             {
-                var imageUrl = await Cms.UploadImageAsync(info.File, PageKey);
-                info.Section.ImageUrl = imageUrl;
+                var uploaded = await Cms.UploadImageAsync(info.File, PageKey);
+                info.Section.ImageUrl = uploaded?.Url ?? "";
+                if (uploaded != null)
+                    _ = await Cms.SetImageActiveAsync(PageKey, uploaded.Id, true, deactivateOthers: false);
 
                 await Cms.SaveFeatureSectionsAsync(PageKey, featureSections);
                 Cache.InvalidatePageCache(PageKey);
@@ -786,8 +788,10 @@ else
         {
             try
             {
-                var imageUrl = await Cms.UploadImageAsync(info.File, PageKey);
-                info.Item.ImageUrl = imageUrl;
+                var uploaded = await Cms.UploadImageAsync(info.File, PageKey);
+                info.Item.ImageUrl = uploaded?.Url ?? "";
+                if (uploaded != null)
+                    _ = await Cms.SetImageActiveAsync(PageKey, uploaded.Id, true, deactivateOthers: false);
                 await Toast.Success("FAQ-bild uppladdad!");
             }
             catch (Exception ex)

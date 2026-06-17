@@ -18,11 +18,11 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @attribute [Authorize]
 
-<!-- Garantierad avstängning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
+<!-- Garantierad avstï¿½ngning: Redirecta till 404 om NavigationConfig markerar sidan som inaktiv -->
 <RequirePageEnabled PageKey="dokument" FailClosed="true" />
 
 <HeadContent>
-    <meta name="description" content="Ladda ner och läs viktiga dokument, manualer och riktlinjer för KronoX-systemet och dess användning." />
+    <meta name="description" content="Ladda ner och lï¿½s viktiga dokument, manualer och riktlinjer fï¿½r KronoX-systemet och dess anvï¿½ndning." />
 </HeadContent>
 
 <PageTitle>@($"{(string.IsNullOrWhiteSpace(pageContent?.Title) ? "Dokument" : pageContent!.Title)} - KronoX")</PageTitle>
@@ -38,7 +38,7 @@
 }
 else
 {
-    @* Dynamisk rendering baserat på sektionskonfiguration *@
+    @* Dynamisk rendering baserat pï¿½ sektionskonfiguration *@
     @foreach (var section in sectionConfigurations.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
     {
         @switch (section.Type)
@@ -80,29 +80,29 @@ else
                                 else if (loadError)
                                 {
                                     <div class="alert alert-danger text-center">
-                                        Ett fel uppstod vid laddning av dokument. Vänligen försök igen senare.
+                                        Ett fel uppstod vid laddning av dokument. Vï¿½nligen fï¿½rsï¿½k igen senare.
                                     </div>
                                 }
                                 else if (!accessibleDocuments.Any())
                                 {
                                     <div class="alert alert-info text-center">
-                                        Inga dokument finns tillgängliga för din behörighetsnivå.
+                                        Inga dokument finns tillgï¿½ngliga fï¿½r din behï¿½righetsnivï¿½.
                                     </div>
                                 }
                                 else
                                 {
-                                    @* ---------- Filter- och Söksektion ------------------------- *@
+                                    @* ---------- Filter- och Sï¿½ksektion ------------------------- *@
                                     <div class="card mb-4 border-0 bg-light">
                                         <div class="card-body">
                                             @* Desktop layout - 3 kolumner *@
                                             <div class="row g-3 d-none d-lg-flex">
-                                                @* Sökfält *@
+                                                @* Sï¿½kfï¿½lt *@
                                                 <div class="col-lg-5">
                                                     <label class="form-label fw-semibold">
-                                                        <i class="fas fa-search me-1"></i>Sök dokument
+                                                        <i class="fas fa-search me-1"></i>Sï¿½k dokument
                                                     </label>
                                                     <input type="text" class="form-control" 
-                                                           placeholder="Sök efter filnamn eller innehåll..." 
+                                                           placeholder="Sï¿½k efter filnamn eller innehï¿½ll..." 
                                                            @bind="searchQuery" 
                                                            @bind:after="ApplyFilters"
                                                            @onkeypress="OnSearchKeyPress" />
@@ -128,23 +128,23 @@ else
                                                         <i class="fas fa-sort me-1"></i>Sortera
                                                     </label>
                                                     <select class="form-select" @bind="sortOption" @bind:after="ApplyFilters">
-                                                        <option value="newest">Nyast först</option>
-                                                        <option value="oldest">Äldst först</option>
-                                                        <option value="name">Namn A-Ö</option>
-                                                        <option value="name-desc">Namn Ö-A</option>
+                                                        <option value="newest">Nyast fï¿½rst</option>
+                                                        <option value="oldest">ï¿½ldst fï¿½rst</option>
+                                                        <option value="name">Namn A-ï¿½</option>
+                                                        <option value="name-desc">Namn ï¿½-A</option>
                                                     </select>
                                                 </div>
                                             </div>
 
                                             @* Tablet layout - 2 rader med 2 kolumner *@
                                             <div class="row g-3 d-none d-md-flex d-lg-none">
-                                                @* Första raden *@
+                                                @* Fï¿½rsta raden *@
                                                 <div class="col-md-8">
                                                     <label class="form-label fw-semibold">
-                                                        <i class="fas fa-search me-1"></i>Sök dokument
+                                                        <i class="fas fa-search me-1"></i>Sï¿½k dokument
                                                     </label>
                                                     <input type="text" class="form-control" 
-                                                           placeholder="Sök efter filnamn eller innehåll..." 
+                                                           placeholder="Sï¿½k efter filnamn eller innehï¿½ll..." 
                                                            @bind="searchQuery" 
                                                            @bind:after="ApplyFilters"
                                                            @onkeypress="OnSearchKeyPress" />
@@ -154,10 +154,10 @@ else
                                                         <i class="fas fa-sort me-1"></i>Sortera
                                                     </label>
                                                     <select class="form-select" @bind="sortOption" @bind:after="ApplyFilters">
-                                                        <option value="newest">Nyast först</option>
-                                                        <option value="oldest">Äldst först</option>
-                                                        <option value="name">Namn A-Ö</option>
-                                                        <option value="name-desc">Namn Ö-A</option>
+                                                        <option value="newest">Nyast fï¿½rst</option>
+                                                        <option value="oldest">ï¿½ldst fï¿½rst</option>
+                                                        <option value="name">Namn A-ï¿½</option>
+                                                        <option value="name-desc">Namn ï¿½-A</option>
                                                     </select>
                                                 </div>
                                                 @* Andra raden *@
@@ -177,19 +177,19 @@ else
 
                                             @* Mobil layout - staplade kolumner *@
                                             <div class="row g-3 d-flex d-md-none">
-                                                @* Sökfält *@
+                                                @* Sï¿½kfï¿½lt *@
                                                 <div class="col-12">
                                                     <label class="form-label fw-semibold">
-                                                        <i class="fas fa-search me-1"></i>Sök dokument
+                                                        <i class="fas fa-search me-1"></i>Sï¿½k dokument
                                                     </label>
                                                     <input type="text" class="form-control" 
-                                                           placeholder="Sök efter filnamn..." 
+                                                           placeholder="Sï¿½k efter filnamn..." 
                                                            @bind="searchQuery" 
                                                            @bind:after="ApplyFilters"
                                                            @onkeypress="OnSearchKeyPress" />
                                                 </div>
 
-                                                @* Filter och sortering på samma rad på mobil *@
+                                                @* Filter och sortering pï¿½ samma rad pï¿½ mobil *@
                                                 <div class="col-6">
                                                     <label class="form-label fw-semibold small">
                                                         <i class="fas fa-filter me-1"></i>Kategori
@@ -209,14 +209,14 @@ else
                                                     </label>
                                                     <select class="form-select form-select-sm" @bind="sortOption" @bind:after="ApplyFilters">
                                                         <option value="newest">Nyast</option>
-                                                        <option value="oldest">Äldst</option>
-                                                        <option value="name">A-Ö</option>
-                                                        <option value="name-desc">Ö-A</option>
+                                                        <option value="oldest">ï¿½ldst</option>
+                                                        <option value="name">A-ï¿½</option>
+                                                        <option value="name-desc">ï¿½-A</option>
                                                     </select>
                                                 </div>
                                             </div>
 
-                                            @* Resultaträknare och rensa-knapp (samma för alla breakpoints) *@
+                                            @* Resultatrï¿½knare och rensa-knapp (samma fï¿½r alla breakpoints) *@
                                             <div class="row mt-3">
                                                 <div class="col-8">
                                                     <small class="text-muted">
@@ -238,7 +238,7 @@ else
                                                 </div>
                                             </div>
 
-                                            @* Arkivfilter för admin *@
+                                            @* Arkivfilter fï¿½r admin *@
                                             @if (isAdmin)
                                             {
                                                 <div class="row mt-2">
@@ -261,7 +261,7 @@ else
                                     {
                                         <div class="alert alert-warning text-center">
                                             <i class="fas fa-search me-2"></i>
-                                            Inga dokument matchade dina sökkriterier. Prova att ändra filtren ovan.
+                                            Inga dokument matchade dina sï¿½kkriterier. Prova att ï¿½ndra filtren ovan.
                                         </div>
                                     }
                                     else
@@ -315,7 +315,7 @@ else
                                                                             @if (doc.IsArchived)
                                                                             {
                                                                                 <button class="btn btn-sm btn-success"
-                                                                                        title="Återställ dokument"
+                                                                                        title="ï¿½terstï¿½ll dokument"
                                                                                         @onclick="() => UnarchiveDocument(doc.Id)">
                                                                                     <i class="fas fa-undo"></i>
                                                                                 </button>
@@ -374,7 +374,7 @@ else
 
             case SectionType.MemberLogos:
                 <div class="wrapper-div py-3">
-                    <MemberLogosSection Title="Våra medlemmar:" IsDarkBackground="true" />
+                    <MemberLogosSection Title="Vï¿½ra medlemmar:" IsDarkBackground="true" />
                 </div>
                 break;
 
@@ -434,7 +434,7 @@ else
     private int selectedDocumentId = 0;
     private string selectedDocumentName = "";
 
-    // Variabler för filter och sök
+    // Variabler fï¿½r filter och sï¿½k
     private string searchQuery = "";
     private int selectedCategoryFilter = 0;
     private string sortOption = "newest";
@@ -444,7 +444,7 @@ else
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         isAdmin = authState.User.IsInRole("Admin");
         
-        // Hämta användarroller
+        // Hï¿½mta anvï¿½ndarroller
         userRoles = authState.User.Claims
             .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
             .Select(c => c.Value)
@@ -473,7 +473,7 @@ else
             {
                 sectionConfigurations = GetDefaultSectionConfig();
                 await Cms.SavePageSectionConfigAsync("dokument", sectionConfigurations);
-                Logger.LogDebug("Skapade standardkonfiguration för dokument-sidan");
+                Logger.LogDebug("Skapade standardkonfiguration fï¿½r dokument-sidan");
             }
 
             // Ladda handlingsplan om aktiverad
@@ -485,7 +485,7 @@ else
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarning(ex, "Kunde inte hämta handlingsplan för dokument - fortsätter utan");
+                    Logger.LogWarning(ex, "Kunde inte hï¿½mta handlingsplan fï¿½r dokument - fortsï¿½tter utan");
                     actionPlan = new ActionPlanTableViewModel();
                 }
             }
@@ -526,14 +526,14 @@ else
 
     private string GetHeroBannerUrl()
     {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
         return heroBanner?.Url ?? "";
     }
 
     private string GetHeroBannerAlt()
     {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
-        return heroBanner?.AltText?.Substring(5) ?? "";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
+        return heroBanner?.AltText ?? "";
     }
 
     private void ShowImage(string imageUrl)
@@ -547,20 +547,20 @@ else
     {
         try
         {
-            // Hämta kategorier baserat på användarens roller
+            // Hï¿½mta kategorier baserat pï¿½ anvï¿½ndarens roller
             accessibleCategories = await CategoryService.GetAccessibleMainCategoriesAsync();
 
-            // Hämta dokument baserat på användarens roller
+            // Hï¿½mta dokument baserat pï¿½ anvï¿½ndarens roller
             accessibleDocuments = await DocumentService.GetAccessibleDocumentsAsync();
             
             ApplyFilters();
 
-            Logger.LogDebug("Hämtade {CategoryCount} kategorier och {DocumentCount} dokument", 
+            Logger.LogDebug("Hï¿½mtade {CategoryCount} kategorier och {DocumentCount} dokument", 
                 accessibleCategories.Count, accessibleDocuments.Count);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid laddning av tillgänglig data");
+            Logger.LogError(ex, "Fel vid laddning av tillgï¿½nglig data");
             errorMessage = ex.Message;
             loadError = true;
         }
@@ -613,7 +613,7 @@ else
         ApplyFilters();
     }
 
-    // Hantera Enter-tangent i sökfält
+    // Hantera Enter-tangent i sï¿½kfï¿½lt
     private void OnSearchKeyPress(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
@@ -622,7 +622,7 @@ else
         }
     }
 
-    // Highlighta söktermer
+    // Highlighta sï¿½ktermer
     private MarkupString HighlightSearchText(string text)
     {
         if (string.IsNullOrWhiteSpace(searchQuery))
@@ -686,17 +686,17 @@ else
             if (success)
             {
                 await LoadAccessibleData();
-                await ToastService.Success("Dokumentet har återställts");
+                await ToastService.Success("Dokumentet har ï¿½terstï¿½llts");
             }
             else
             {
-                await ToastService.Error("Kunde inte återställa dokumentet");
+                await ToastService.Error("Kunde inte ï¿½terstï¿½lla dokumentet");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid återställning av dokument");
-            await ToastService.Error("Ett fel uppstod vid återställning");
+            Logger.LogError(ex, "Fel vid ï¿½terstï¿½llning av dokument");
+            await ToastService.Error("Ett fel uppstod vid ï¿½terstï¿½llning");
         }
     }
 
@@ -721,7 +721,7 @@ else
 
             if (result == null)
             {
-                Logger.LogWarning("Kunde inte ladda ner dokument {DocumentId}: Null-resultat från DocumentService", id);
+                Logger.LogWarning("Kunde inte ladda ner dokument {DocumentId}: Null-resultat frï¿½n DocumentService", id);
                 await ToastService.Error("Kunde inte ladda ner dokumentet");
                 return;
             }
@@ -733,7 +733,7 @@ else
         catch (Exception ex)
         {
             Logger.LogError(ex, "Fel vid nedladdning av dokument {DocumentId}", id);
-            await ToastService.Error($"Ett fel inträffade vid nedladdning: {ex.Message}");
+            await ToastService.Error($"Ett fel intrï¿½ffade vid nedladdning: {ex.Message}");
         }
     }
 

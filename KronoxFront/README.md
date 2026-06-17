@@ -13,6 +13,21 @@ Admin‑gränssnittet hanterar sidor, navigation, sektioner, nyheter, dokument, 
   - Lägg till API‑nyckel i requestheader (t.ex. `X-API-Key`)
 - Tjänsten `CmsService` sköter alla anrop, caching och synk mot API.
 
+## Konfiguration (appsettings)
+
+### Nyheter – förhandsvisningens längd
+- Antal tecken som visas i nyheternas förhandsvisning (innan texten kortas av med "...") styrs centralt i `appsettings.json`: "NewsSettings": { "PreviewLength": 300 }
+- Bindning sker i `Program.cs` via `builder.Services.Configure<NewsSettings>(...)` till klassen `Configuration/NewsSettings.cs`.
+- Komponenten `Components/Shared/Content/NewsSection.razor` läser värdet med `IOptionsMonitor<NewsSettings>`, vilket innebär att ändringar i `appsettings.json` slår igenom **utan omstart** (vid nästa rendering av nyhetslistan).
+- Standardvärde om sektionen saknas: `300` (default i `NewsSettings`).
+- En enskild sida kan fortfarande override värdet per anrop, t.ex. `<NewsSection PreviewLength="500" ... />`. Sätts ingen parameter används värdet från `appsettings.json`.
+
+### Maskerade länkar (Redirects)
+- Maskerade navigeringslänkar mappas slug → mål‑URL i `appsettings.json`: "Redirects": { "manualen": "https://exempel.se/manual" }
+- Endpointen `/go/{slug}` i `Program.cs` slår upp slug och gör en 302‑redirect till målet. I produktion krävs ett `https://`‑mål (annars blockeras det).
+- Konfigurationen läses in vid uppstart, så **starta om appen** efter ändringar.
+- Mer detaljerad info (admin‑UI, slug‑validering, felsökning av 404/400/302): se [`README-Navigeringsknappar.md`](README-Navigeringsknappar.md).
+
 ## Körning
 - Visual Studio: starta `KronoxFront` (Blazor Server).
 - dotnet CLI: `dotnet run --project KronoxFront`

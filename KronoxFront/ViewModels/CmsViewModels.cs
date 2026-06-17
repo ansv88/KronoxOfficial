@@ -20,6 +20,8 @@ public class PageImageViewModel
     public int Id { get; set; }
     public string Url { get; set; } = "";
     public string AltText { get; set; } = "";
+    public string PageKey { get; set; } = "";
+    public bool IsActive { get; set; }
 }
 
 // Motsvarar MemberLogoDto

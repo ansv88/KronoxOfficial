@@ -15,15 +15,12 @@
                 <span class="form-label">Nuvarande bannerbild:</span>
                 <div class="position-relative">
                     <img src="@CurrentBanner.Url" class="img-fluid img-thumbnail mb-2"
-                         alt="@CurrentBanner.AltText?.Replace("hero:","")" />
+                         alt="@CurrentBanner.AltText" />
                 </div>
                 <div class="mb-3 mt-2">
                     <label class="form-label" for="bannerAltText">Bildbeskrivning:</label>
-                    <div class="input-group">
-                        <span class="input-group-text">hero:</span>
-                        <input type="text" class="form-control" id="bannerAltText" value="@(CurrentBanner.AltText?.Replace("hero:",""))"
-                               @onchange="@(e => UpdateAltText(e.Value?.ToString()))" aria-label="Beskrivning av nuvarande bannerbild" />
-                    </div>
+                    <input type="text" class="form-control" id="bannerAltText" value="@CurrentBanner.AltText"
+                           @onchange="@(e => UpdateAltText(e.Value?.ToString()))" aria-label="Beskrivning av nuvarande bannerbild" />
                 </div>
             </div>
         }
@@ -118,7 +115,9 @@
     private async Task LoadCurrentBanner()
     {
         var page = await Cms.GetPageContentAsync(PageKey);
-        CurrentBanner = page?.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        // Föredra IsActive-flaggan, med fallback på hero:-prefix för befintliga bilder
+        CurrentBanner = page?.Images?.FirstOrDefault(i => i.IsActive)
+            ?? page?.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
     }
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
@@ -142,14 +141,14 @@
 
             await Toast.Info("Laddar upp bild...");
 
-            // 1) Ladda upp ny först (API deduperar och återanvänder fil vid identiskt innehåll)
+            // 1) Ladda upp ny bild
             using var stream = e.File.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             ms.Position = 0;
 
             var uploadedImage = await Cms.UploadPageImageAsync(
-                PageKey, ms, e.File.Name, $"hero:Bannerbild för {PageKey}");
+                PageKey, ms, e.File.Name, $"Bannerbild för {PageKey}");
 
             if (uploadedImage == null)
             {
@@ -157,19 +156,9 @@
                 return;
             }
 
-            // 2) Avpublicera föregående hero (ta bort hero:-prefix, radera ej)
-            if (CurrentBanner != null && CurrentBanner.Id != uploadedImage.Id)
-            {
-                var oldAlt = CurrentBanner.AltText ?? "";
-                var newAlt = oldAlt.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) ? oldAlt[5..] : oldAlt;
-
-                await Cms.UpdatePageImageAltTextAsync(PageKey, new PageImageViewModel
-                {
-                    Id = CurrentBanner.Id,
-                    Url = CurrentBanner.Url,
-                    AltText = newAlt
-                });
-            }
+            // 2) Sätt ny bild som aktiv (inaktiverar automatiskt föregående via API)
+            await Cms.SetImageActiveAsync(PageKey, uploadedImage.Id, true);
+            uploadedImage.IsActive = true;
 
             CurrentBanner = uploadedImage;
             if (OnUploaded.HasDelegate) await OnUploaded.InvokeAsync(uploadedImage);
@@ -203,26 +192,16 @@
             // Trimma ledande slash så API:et säkert får 'images/pages/...'
             var sourcePath = url.TrimStart('/');
 
-            var newHero = await Cms.RegisterExistingImageAsync(PageKey, sourcePath, $"hero:Bannerbild för {PageKey}");
+            var newHero = await Cms.RegisterExistingImageAsync(PageKey, sourcePath, img.AltText ?? "");
             if (newHero == null)
             {
                 await Toast.Error("Kunde inte registrera vald bild.");
                 return;
             }
 
-            // Avpublicera tidigare hero (behåll filen)
-            if (CurrentBanner != null && CurrentBanner.Id != newHero.Id)
-            {
-                var oldAlt = CurrentBanner.AltText ?? "";
-                var newAlt = oldAlt.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) ? oldAlt[5..] : oldAlt;
-
-                await Cms.UpdatePageImageAltTextAsync(PageKey, new PageImageViewModel
-                {
-                    Id = CurrentBanner.Id,
-                    Url = CurrentBanner.Url,
-                    AltText = newAlt
-                });
-            }
+            // Sätt ny bild som aktiv (inaktiverar automatiskt övriga via API)
+            await Cms.SetImageActiveAsync(PageKey, newHero.Id, true);
+            newHero.IsActive = true;
 
             CurrentBanner = newHero;
             if (OnUploaded.HasDelegate) await OnUploaded.InvokeAsync(newHero);
@@ -268,7 +247,9 @@
             {
                 Id = CurrentBanner.Id,
                 Url = CurrentBanner.Url,
-                AltText = $"hero:{newAltText}"
+                AltText = newAltText,
+                IsActive = CurrentBanner.IsActive,
+                PageKey = CurrentBanner.PageKey
             };
 
             var success = await Cms.UpdatePageImageAltTextAsync(PageKey, updated);

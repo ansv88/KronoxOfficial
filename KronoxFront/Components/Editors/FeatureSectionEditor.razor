@@ -915,10 +915,12 @@
         {
             var section = Sections[idx];
 
-            // Registrera referens till sidan så filen inte raderas om den återanvänds
+            // Registrera referens till sidan och markera som aktiv (deactivateOthers=false: flera featuresektioner kan ha aktiva bilder)
             if (!string.IsNullOrWhiteSpace(section.PageKey))
             {
-                _ = await Cms.RegisterExistingImageAsync(section.PageKey, img.Url, img.AltText ?? "");
+                var registered = await Cms.RegisterExistingImageAsync(section.PageKey, img.Url, img.AltText ?? "");
+                if (registered != null)
+                    _ = await Cms.SetImageActiveAsync(section.PageKey, registered.Id, true, deactivateOthers: false);
             }
 
             section.ImageUrl = img.Url;

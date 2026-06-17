@@ -3,10 +3,13 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Globalization
+@using Microsoft.Extensions.Options
+@using KronoxFront.Configuration
 @inject NewsService NewsService
 @inject DocumentService DocumentService
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
+@inject IOptionsMonitor<NewsSettings> NewsOptions
 @inject ILogger<NewsSection> Logger
 
 @if (isLoadingNews)
@@ -165,18 +168,18 @@ else
                                 var plainText = GetPlainTextPreview(newsItem.Content);
                                 var hasDocuments = newsDocuments.ContainsKey(newsItem.Id) && newsDocuments[newsItem.Id].Any();
                                 
-                                @if (plainText.Length > PreviewLength)
-                                {
-                                    <p>@(plainText.Substring(0, PreviewLength))...</p>
-                                }
-                                else
-                                {
-                                    @((MarkupString)newsItem.Content)
-                                }
-                                
-                                @* Visa alltid "Läs mer" om det finns mer innehåll eller dokument *@
-                                @if (plainText.Length > PreviewLength || hasDocuments)
-                                {
+     @if (plainText.Length > EffectivePreviewLength)
+                {
+                    <p>@(plainText.Substring(0, EffectivePreviewLength))...</p>
+                }
+                else
+                {
+                    @((MarkupString)newsItem.Content)
+                }
+
+                @* Visa alltid "Läs mer" om det finns mer innehåll eller dokument *@
+                @if (plainText.Length > EffectivePreviewLength || hasDocuments)
+                {
                                     <button class="btn btn-primary btn-sm mt-3" @onclick="() => ExpandItem(newsItem.Id)">
                                         <i class="fa-solid fa-chevron-down me-1"></i> 
                                         Läs mer
@@ -267,7 +270,7 @@ else
     [Parameter] public string PageKey { get; set; } = "";
     [Parameter] public string Title { get; set; } = "Nyheter";
     [Parameter] public int MaxItems { get; set; } = 10;
-    [Parameter] public int PreviewLength { get; set; } = 300;
+    [Parameter] public int? PreviewLength { get; set; }
     [Parameter] public bool ShowFilters { get; set; } = true;
     [Parameter] public bool ShowPagination { get; set; } = true;
     [Parameter] public bool ShowArchiveToggle { get; set; } = true;
@@ -280,6 +283,7 @@ else
     private int currentPage = 1;
     private int pageSize = 10;
     private HashSet<int> expandedItems = new();
+    private int EffectivePreviewLength => PreviewLength ?? NewsOptions.CurrentValue.PreviewLength;
 
     // Filtreringsvariabler
     private string sortOrder = "newest";

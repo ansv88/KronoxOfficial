@@ -6,8 +6,12 @@
         <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 my-4">
             @foreach (var button in Buttons.OrderBy(b => b.SortOrder))
             {
-                <a class="btn btn-dark px-4 py-3 btn-arrow" href="@button.Url">
-                    @button.Text <i class="@button.IconClass ms-2"></i>
+                var external = IsExternal(button.Url);
+                <a class="btn btn-dark px-4 py-3 btn-arrow"
+                   href="@button.Url"
+                   target="@(external ? "_blank" : null)"
+                   rel="@(external ? "noopener noreferrer" : null)">
+                    @button.Text <i class="@button.IconClass ms-2" aria-hidden="true"></i>
                 </a>
             }
         </div>
@@ -16,4 +20,18 @@
 
 @code {
     [Parameter] public List<NavigationButtonViewModel> Buttons { get; set; } = new();
+
+    // Externa = maskerade /go/-länkar (redirectar externt) samt absoluta http/https-URL:er.
+    // Interna relativa länkar (t.ex. /dokument) öppnas i samma flik.
+    private static bool IsExternal(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+
+        // Maskerade länkar går via /go/<slug> och pekar mot ett externt mål.
+        if (url.StartsWith("/go/", StringComparison.OrdinalIgnoreCase)) return true;
+
+        // Absoluta http/https-länkar är externa.
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
 }

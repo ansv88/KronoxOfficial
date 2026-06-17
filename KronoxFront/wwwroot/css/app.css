@@ -370,6 +370,24 @@ html {
     color: white;
 }
 
+/* Global modal-scroll: säkrar scrollning i alla webbläsare (särskilt Firefox).
+   Ger varje modal-body ett eget scroll-område i stället för att förlita sig på
+   scroll-chaining till overlayen, vilket Firefox inte gör från inre element
+   (t.ex. TinyMCE-iframes). Fungerar även när <EditForm>/<form> ligger mellan
+   .modal-content och .modal-body, eftersom regeln sätts direkt på kroppen. */
+.modal .modal-body {
+    max-height: calc(100vh - 12rem); /* budget för header, footer och dialogmarginaler */
+    overflow-y: auto;
+    overscroll-behavior: contain; /* hindrar att scroll läcker till sidan bakom */
+}
+
+/* Mindre skärmar: ge kroppen mer höjd eftersom header/footer tar proportionellt mer plats */
+@media (max-width: 576px) {
+    .modal .modal-body {
+        max-height: calc(100vh - 9rem);
+    }
+}
+
 @media (max-width: 991.98px) {
     .dropdown-menu {
         position: static !important;

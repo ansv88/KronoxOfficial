@@ -61,7 +61,9 @@ public class ContentController : ControllerBase
                 {
                     Id = pi.Id,
                     Url = pi.Url,
-                    AltText = pi.AltText
+                    AltText = pi.AltText,
+                    PageKey = pi.PageKey,
+                    IsActive = pi.IsActive
                 }).ToList()
             };
 
@@ -80,7 +82,9 @@ public class ContentController : ControllerBase
             {
                 Id = pi.Id,
                 Url = pi.Url,
-                AltText = pi.AltText
+                AltText = pi.AltText,
+                PageKey = pi.PageKey,
+                IsActive = pi.IsActive
             }).ToList()
         };
 
@@ -198,7 +202,9 @@ public class ContentController : ControllerBase
             {
                 Id = pi.Id,
                 Url = pi.Url,
-                AltText = pi.AltText
+                AltText = pi.AltText,
+                PageKey = pi.PageKey,
+                IsActive = pi.IsActive
             })
             .ToListAsync();
 
@@ -216,6 +222,37 @@ public class ContentController : ControllerBase
             .Select(pi => new { pi.Id, pi.PageKey, pi.AltText })
             .ToListAsync();
         return Ok(usage);
+    }
+
+    // Sätt IsActive för en bild och inaktivera övriga bilder med samma PageKey (om activate=true)
+    [HttpPut("{pageKey}/images/{id}/active")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> SetImageActive(string pageKey, int id, [FromBody] SetImageActiveDto dto)
+    {
+        try
+        {
+            var image = await _db.PageImages.FirstOrDefaultAsync(pi => pi.Id == id && pi.PageKey == pageKey);
+            if (image == null) return NotFound();
+
+            if (dto.IsActive && dto.DeactivateOthers)
+            {
+                // Inaktivera alla övriga bilder på samma sida (banner-beteende)
+                var others = await _db.PageImages
+                    .Where(pi => pi.PageKey == pageKey && pi.Id != id && pi.IsActive)
+                    .ToListAsync();
+                foreach (var other in others)
+                    other.IsActive = false;
+            }
+
+            image.IsActive = dto.IsActive;
+            await _db.SaveChangesAsync();
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av IsActive för bild {Id} på {PageKey}", id, pageKey);
+            return StatusCode(500, "Ett fel inträffade.");
+        }
     }
 
     // Mappa MIME->ext (fallback)
@@ -329,13 +366,13 @@ public class ContentController : ControllerBase
                 _db.PageImages.Add(pageImage);
                 await _db.SaveChangesAsync();
 
-                return Ok(new PageImageDto { Id = pageImage.Id, Url = pageImage.Url, AltText = pageImage.AltText });
+                return Ok(new PageImageDto { Id = pageImage.Id, Url = pageImage.Url, AltText = pageImage.AltText, PageKey = pageImage.PageKey, IsActive = pageImage.IsActive });
             }
             else
             {
                 existing.AltText = altText;
                 await _db.SaveChangesAsync();
-                return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText });
+                return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText, PageKey = existing.PageKey, IsActive = existing.IsActive });
             }
         }
         catch (DbUpdateConcurrencyException ex)
@@ -383,13 +420,13 @@ public class ContentController : ControllerBase
                 _db.PageImages.Add(pageImage);
                 await _db.SaveChangesAsync();
 
-                return Ok(new PageImageDto { Id = pageImage.Id, Url = pageImage.Url, AltText = pageImage.AltText });
+                return Ok(new PageImageDto { Id = pageImage.Id, Url = pageImage.Url, AltText = pageImage.AltText, PageKey = pageImage.PageKey, IsActive = pageImage.IsActive });
             }
             else
             {
                 existing.AltText = dto.AltText;
                 await _db.SaveChangesAsync();
-                return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText });
+                return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText, PageKey = existing.PageKey, IsActive = existing.IsActive });
             }
         }
         catch (DbUpdateConcurrencyException ex)
@@ -470,13 +507,13 @@ public class ContentController : ControllerBase
                 var pageImage = new PageImage { Url = url, AltText = dto.AltText, PageKey = pageKey };
                 _db.PageImages.Add(pageImage);
                 await _db.SaveChangesAsync();
-                return Ok(new PageImageDto { Id = pageImage.Id, Url = pageImage.Url, AltText = pageImage.AltText });
+                return Ok(new PageImageDto { Id = pageImage.Id, Url = pageImage.Url, AltText = pageImage.AltText, PageKey = pageImage.PageKey, IsActive = pageImage.IsActive });
             }
             else
             {
                 existing.AltText = dto.AltText;
                 await _db.SaveChangesAsync();
-                return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText });
+                return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText, PageKey = existing.PageKey, IsActive = existing.IsActive });
             }
         }
         catch (DbUpdateConcurrencyException ex)
@@ -501,6 +538,8 @@ public class ContentController : ControllerBase
             var image = await _db.PageImages.FirstOrDefaultAsync(pi => pi.Id == id && pi.PageKey == pageKey);
             if (image == null) return NotFound();
 
+            if (image.IsActive)
+                return Conflict(new { message = "Bilden är aktivt använd på sidan och kan inte tas bort. Byt ut bilden först." });
             _db.PageImages.Remove(image);
             await _db.SaveChangesAsync();
 

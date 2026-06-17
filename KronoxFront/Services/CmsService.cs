@@ -127,7 +127,7 @@ public class CmsService
             else
             {
                 var errorContent = await resp.Content.ReadAsStringAsync();
-                _logger.LogError("Bilduppladning misslyckades: {StatusCode} - {Content}", resp.StatusCode, errorContent);
+                _logger.LogError("Bilduppladdning misslyckades: {StatusCode} - {Content}", resp.StatusCode, errorContent);
                 return null;
             }
         }
@@ -144,6 +144,31 @@ public class CmsService
         var resp = await _http.DeleteAsync($"api/content/{pageKey}/images/{imageId}");
         resp.EnsureSuccessStatusCode();
         _cache.InvalidatePageCache(pageKey);
+    }
+
+    public async Task<bool> SetImageActiveAsync(string pageKey, int imageId, bool isActive, bool deactivateOthers = true)
+    {
+        try
+        {
+            var resp = await _http.PutAsJsonAsync(
+                $"api/content/{pageKey}/images/{imageId}/active",
+                new { IsActive = isActive, DeactivateOthers = deactivateOthers });
+
+            if (resp.IsSuccessStatusCode)
+            {
+                _cache.InvalidatePageCache(pageKey);
+                return true;
+            }
+
+            var err = await resp.Content.ReadAsStringAsync();
+            _logger.LogWarning("SetImageActiveAsync misslyckades ({Status}): {Error}", resp.StatusCode, err);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid SetImageActiveAsync för bild {ImageId} på {PageKey}", imageId, pageKey);
+            return false;
+        }
     }
 
     public async Task<PageImageViewModel?> RegisterPageImageMetadataAsync(
@@ -1297,7 +1322,7 @@ public class CmsService
     }
 
     // IMAGE UPLOAD
-    public async Task<string> UploadImageAsync(IBrowserFile file, string pageKey)
+    public async Task<PageImageViewModel?> UploadImageAsync(IBrowserFile file, string pageKey)
     {
         try
         {
@@ -1315,7 +1340,6 @@ public class CmsService
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var imageResult = json.ToImageViewModel();
-                var url = imageResult?.Url ?? "";
 
                 // rensa relevanta cacher så nya bilder/URLs syns direkt
                 _cache.InvalidatePageCache(pageKey);
@@ -1323,7 +1347,7 @@ public class CmsService
                 _cache.InvalidateKey($"features_public_{pageKey}");
                 _cache.InvalidateKey($"features_private_{pageKey}");
 
-                return url;
+                return imageResult;
             }
 
             throw new Exception("Bilduppladdning misslyckades");

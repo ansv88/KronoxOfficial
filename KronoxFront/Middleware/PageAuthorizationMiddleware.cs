@@ -14,6 +14,14 @@ public class PageAuthorizationMiddleware
         "", "home", "404", "error", "robots.txt", "notfound"
     };
 
+    // Kända statiska filändelser som ska hoppa över sidkontrollen
+    private static readonly string[] StaticFileExtensions =
+    {
+        ".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg",
+        ".webp", ".ico", ".woff", ".woff2", ".ttf", ".eot", ".json",
+        ".txt", ".xml", ".pdf"
+    };
+
     // Lista över publika sidor som inte kräver inloggning
     private static readonly HashSet<string> PublicPages = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -22,7 +30,7 @@ public class PageAuthorizationMiddleware
         "visioner",
         "kontaktaoss",
         "kontakt",
-        "ansok_till_kronox"
+        "registrera_kronox"
     };
 
     public PageAuthorizationMiddleware(RequestDelegate next, IHttpClientFactory httpClientFactory, ILogger<PageAuthorizationMiddleware> logger)
@@ -175,7 +183,7 @@ public class PageAuthorizationMiddleware
                path.StartsWith("_blazor") ||
                path.StartsWith("_vs") ||
                path.Contains("negotiate") ||
-               path.Contains('.') ||
+               StaticFileExtensions.Any(ext => path.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) ||
                path.StartsWith("images");
     }
 }

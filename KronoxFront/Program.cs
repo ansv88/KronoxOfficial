@@ -1,4 +1,5 @@
 ﻿using KronoxFront.Components;
+using KronoxFront.Configuration;
 using KronoxFront.DTOs;
 using KronoxFront.Middleware;
 using KronoxFront.Services;
@@ -139,6 +140,10 @@ public class Program
         builder.Services.AddScoped<IToastService, ToastService>();
 
         builder.Services.AddScoped<NavigationEvents>();
+
+        // Bind NewsSettings från appsettings.json (läses om automatiskt via IOptionsMonitor)
+        builder.Services.Configure<NewsSettings>(
+            builder.Configuration.GetSection(NewsSettings.SectionName));
 
         builder.Services.AddResponseCompression(options =>
         {

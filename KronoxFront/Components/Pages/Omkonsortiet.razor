@@ -1,4 +1,4 @@
-﻿@page "/omkonsortiet"
+@page "/omkonsortiet"
 @using KronoxFront.Components.Shared.Security
 @using KronoxFront.DTOs
 @using KronoxFront.Services
@@ -305,14 +305,14 @@ else
 
     private string GetHeroBannerUrl()
     {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
         return heroBanner?.Url ?? "";
     }
 
     private string GetHeroBannerAlt()
     {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:") == true);
-        return heroBanner?.AltText?.Substring(5) ?? "";
+        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
+        return heroBanner?.AltText ?? "";
     }
 
     private string GetEnhancedContent(FeatureSectionViewModel featureItem)
