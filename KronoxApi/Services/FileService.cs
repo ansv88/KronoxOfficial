@@ -1,5 +1,6 @@
 ﻿using KronoxApi.Utilities;
 using System.Net.Mime;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 namespace KronoxApi.Services;
@@ -135,119 +136,9 @@ public class FileService : IFileService
         };
     }
 
-    // ------------- Sida-bilder -------------
-
-    // Sparar en sidbild.
-    public async Task<string> SavePageImageAsync(IFormFile file, string pageKey, bool preserveFilename)
-    {
-        try
-        {
-            var safePageKey = SanitizeSegment(pageKey);
-            var relDir = Path.Combine("images", "pages", safePageKey);
-            var absDir = Path.Combine(_env.WebRootPath, relDir);
-            Directory.CreateDirectory(absDir);
-
-            var fn = preserveFilename
-                ? Path.GetFileName(file.FileName)
-                : $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-
-            var absPath = Path.Combine(absDir, fn);
-            await using var stream = new FileStream(absPath, FileMode.Create);
-            await file.CopyToAsync(stream);
-
-            _log.LogInformation("Sidbild sparad: {FileName}", fn);
-            return $"/{relDir.Replace("\\", "/")}/{fn}";
-        }
-        catch (Exception ex)
-        {
-            _log.LogError(ex, "Fel vid sparande av sidbild: {FileName}", file?.FileName);
-            throw;
-        }
-    }
-
-    // Raderar en sidbild.
-    public Task DeletePageImageAsync(string imageUrl)
-    {
-        try
-        {
-            var baseDir = _env.WebRootPath;
-            if (!TryResolveUnderBase(baseDir, imageUrl, out var absPath))
-            {
-                _log.LogWarning("Försök att radera sidbild utanför wwwroot: {Url}", imageUrl);
-                return Task.CompletedTask;
-            }
-
-            if (File.Exists(absPath))
-            {
-                File.Delete(absPath);
-                _log.LogInformation("Sidbild raderad: {Path}", absPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            _log.LogError(ex, "Fel vid radering av sidbild: {Path}", imageUrl);
-        }
-        return Task.CompletedTask;
-    }
-
-    // ------------- Feature-bilder -------------
-
-    // Sparar en feature-bild (startsidan).
-    public async Task<string> SaveFeatureImageAsync(IFormFile file, string indexIdentifier, bool preserveFilename)
-    {
-        try
-        {
-            var safeIndex = SanitizeSegment(indexIdentifier);
-            var relDir = Path.Combine("images", "features", safeIndex);
-            var absDir = Path.Combine(_env.WebRootPath, relDir);
-            Directory.CreateDirectory(absDir);
-
-            var fn = preserveFilename
-                ? Path.GetFileName(file.FileName)
-                : $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-
-            var absPath = Path.Combine(absDir, fn);
-            await using var stream = new FileStream(absPath, FileMode.Create);
-            await file.CopyToAsync(stream);
-
-            _log.LogInformation("Feature-bild sparad: {FileName}", fn);
-            return $"/{relDir.Replace("\\", "/")}/{fn}";
-        }
-        catch (Exception ex)
-        {
-            _log.LogError(ex, "Fel vid sparande av feature-bild: {FileName}", file?.FileName);
-            throw;
-        }
-    }
-
-    // Raderar en feature-bild.
-    public Task DeleteFeatureImageAsync(string imageUrl)
-    {
-        try
-        {
-            var baseDir = _env.WebRootPath;
-            if (!TryResolveUnderBase(baseDir, imageUrl, out var absPath))
-            {
-                _log.LogWarning("Försök att radera feature-bild utanför wwwroot: {Url}", imageUrl);
-                return Task.CompletedTask;
-            }
-
-            if (File.Exists(absPath))
-            {
-                File.Delete(absPath);
-                _log.LogInformation("Feature-bild raderad: {Path}", absPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            _log.LogError(ex, "Fel vid radering av feature-bild: {Path}", imageUrl);
-        }
-        return Task.CompletedTask;
-    }
-
     // ------------- Medlemslogotyper -------------
 
-    // Sparar en medlemslogotyp.
+    // Sparar en medlemslogotyp med innehållsbaserat (hashat) filnamn för säker cache-busting.
     public async Task<string> SaveMemberLogoAsync(IFormFile file)
     {
         try
@@ -256,17 +147,31 @@ public class FileService : IFileService
             var absDir = Path.Combine(_env.WebRootPath, relDir);
             Directory.CreateDirectory(absDir);
 
-            var fn = Path.GetFileName(file.FileName);
+            var ext = Path.GetExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(ext)) ext = ".img";
+
+            // Hasha innehållet → ändrad bild ger nytt filnamn/URL → frontend hämtar färsk kopia.
+            await using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            ms.Position = 0;
+            var hash8 = ShortHash8(ms);
+            ms.Position = 0;
+
+            var baseName = SanitizeSegment(Path.GetFileNameWithoutExtension(file.FileName));
+            baseName = StripExistingHashSuffix(baseName); // undvik dubbelhash vid återuppladdning
+
+            var fn = $"{baseName}-{hash8}{ext}".ToLowerInvariant();
             var absPath = Path.Combine(absDir, fn);
 
+            // Samma innehåll = samma filnamn → återanvänd befintlig fil.
             if (File.Exists(absPath))
             {
-                _log.LogInformation("Medlemslogotyp finns redan: {FileName}, sparar inte om.", fn);
+                _log.LogInformation("Medlemslogotyp med samma innehåll finns redan: {FileName}", fn);
             }
             else
             {
                 await using var stream = new FileStream(absPath, FileMode.Create);
-                await file.CopyToAsync(stream);
+                await ms.CopyToAsync(stream);
                 _log.LogInformation("Medlemslogotyp sparad: {FileName}", fn);
             }
 
@@ -313,6 +218,18 @@ public class FileService : IFileService
         var normalized = input.Trim().ToLowerInvariant();
         return Regex.Replace(normalized, @"[^a-z0-9_-]", "-");
     }
+
+    // SHA-256 → 8 tecken kort hash-suffix (samma princip som ContentController).
+    private static string ShortHash8(Stream s)
+    {
+        using var sha = SHA256.Create();
+        var hash = sha.ComputeHash(s);
+        return Convert.ToHexString(hash).ToLowerInvariant()[..8];
+    }
+
+    // Tar bort ett ev. tidigare hash-suffix (-[0-9a-f]{8}) i slutet av basnamnet.
+    private static string StripExistingHashSuffix(string baseName)
+        => Regex.Replace(baseName, "-[0-9a-f]{8}$", "", RegexOptions.IgnoreCase);
 
     private static bool TryResolveUnderBase(string baseDir, string relativeOrUrl, out string absPath)
     {

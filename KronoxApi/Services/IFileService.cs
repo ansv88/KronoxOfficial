@@ -14,14 +14,6 @@ public interface IFileService
     Task DeleteDocumentAsync(string relativePath);
     string GetContentType(string fileName);
 
-    // Sida-bilder
-    Task<string> SavePageImageAsync(IFormFile file, string pageKey, bool preserveFilename);
-    Task DeletePageImageAsync(string imageUrl);
-
-    // Feature-avsnitt
-    Task<string> SaveFeatureImageAsync(IFormFile file, string indexIdentifier, bool preserveFilename);
-    Task DeleteFeatureImageAsync(string imageUrl);
-
     // Medlemslogotyper
     Task<string> SaveMemberLogoAsync(IFormFile file);
     Task DeleteMemberLogoAsync(string imageUrl);

@@ -138,12 +138,66 @@ public class CmsService
         }
     }
 
-    public async Task DeletePageImageAsync(string pageKey, int imageId)
+    public async Task<(bool ok, string? error)> DeletePageImageAsync(string pageKey, int imageId, string? imageUrl = null)
     {
         _logger.LogDebug("Tar bort sidbild {ImageId} från sida {PageKey}", imageId, pageKey);
         var resp = await _http.DeleteAsync($"api/content/{pageKey}/images/{imageId}");
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            var msg = "Bilden används och kan inte tas bort.";
+            try
+            {
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                if (doc.RootElement.TryGetProperty("message", out var m)) msg = m.GetString() ?? msg;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Kunde inte tolka felmeddelande från 409-svar – använder standardtext.");
+            }
+            return (false, msg);
+        }
+
         resp.EnsureSuccessStatusCode();
         _cache.InvalidatePageCache(pageKey);
+
+        // Evicta lokal on-demand-cache så att en raderad bild inte fortsätter visas från frontendens wwwroot.
+        if (!string.IsNullOrWhiteSpace(imageUrl))
+            TryEvictLocalImage(imageUrl);
+
+        return (true, null);
+    }
+
+    // Tar bort en lokalt cachad bildfil under wwwroot, med skydd mot path traversal.
+    private void TryEvictLocalImage(string imageUrl)
+    {
+        try
+        {
+            // Endast lokala relativa URL:er hanteras (inte externa http(s)-länkar).
+            if (imageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var baseDir = Path.GetFullPath(_env.WebRootPath);
+            var relPath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var candidate = Path.GetFullPath(Path.Combine(baseDir, relPath));
+
+            // Säkerställ att den resulterande sökvägen ligger under wwwroot.
+            if (!candidate.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Hoppar över eviction utanför wwwroot: {Url}", imageUrl);
+                return;
+            }
+
+            if (File.Exists(candidate))
+            {
+                File.Delete(candidate);
+                _logger.LogDebug("Lokal bildcache evicterad: {Path}", candidate);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Kunde inte evicta lokal bildcache för {Url}", imageUrl);
+        }
     }
 
     public async Task<bool> SetImageActiveAsync(string pageKey, int imageId, bool isActive, bool deactivateOthers = true)
@@ -1671,18 +1725,8 @@ public class CmsService
         return await _http.GetFromJsonAsync<List<PageImageViewModel>>(url) ?? [];
     }
 
-    public sealed class ImageUsageItem
-    {
-        public int Id { get; set; }
-        public string PageKey { get; set; } = "";
-        public string? AltText { get; set; }
-    }
-
-    public async Task<List<ImageUsageItem>> GetImageUsageAsync(string url)
-    {
-        var encoded = Uri.EscapeDataString(url);
-        return await _http.GetFromJsonAsync<List<ImageUsageItem>>($"api/content/images/usage?url={encoded}") ?? [];
-    }
+    public async Task<List<ImageUsageDto>> GetAllImageUsagesAsync()
+        => await _http.GetFromJsonAsync<List<ImageUsageDto>>("api/content/images/usage-all") ?? [];
 
     public async Task<PageImageViewModel?> RegisterExistingImageAsync(string pageKey, string sourceUrl, string altText)
     {
@@ -1697,13 +1741,8 @@ public class CmsService
             return null;
         }
 
-        // If the source is not already under this page's folder, copy it; otherwise just register reference
-        var targetPrefix = $"images/pages/{pageKey}/";
-        var needsCopy = !sourcePath.StartsWith(targetPrefix, StringComparison.OrdinalIgnoreCase);
-
-        var endpoint = needsCopy
-            ? $"api/content/{pageKey}/images/register-copy"
-            : $"api/content/{pageKey}/images/register";
+        // Registrera alltid en metadata-referens till samma URL (ingen fysisk kopia → inga föräldralösa filer)
+        var endpoint = $"api/content/{pageKey}/images/register";
 
         var payload = new { SourcePath = sourcePath, AltText = altText };
         var res = await _http.PostAsJsonAsync(endpoint, payload);

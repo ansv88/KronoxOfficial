@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
+@using KronoxFront.DTOs
 @using KronoxFront.Components.Shared.UI
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
@@ -239,21 +240,36 @@
                                     <div class="small text-muted fst-italic text-truncate" title="@img.AltText">@img.AltText</div>
                                 }
 
-                                <div class="mt-2 d-flex gap-1 flex-wrap">
-                                    <button class="btn btn-outline-danger btn-sm px-2 py-1"
-                                            title="@(img.IsActive ? $"Används som bannerbild på '{img.PageKey}' – byt ut bilden på sidan först" : "Ta bort bilden permanent")"
-                                            disabled="@img.IsActive"
-                                            @onclick="() => DeleteEverywhere(img)">
-                                        <i class="fa-solid fa-trash me-1"></i><span class="d-none d-sm-inline">Ta bort</span>
-                                    </button>
-                                </div>
+@{
+    var usages = UsagesFor(img.Url);
+    var isUsed = usages.Count > 0;
+}
 
-                                @if (img.IsActive)
-                                {
-                                    <div class="text-muted mt-1" style="font-size: 0.7rem; line-height: 1.3;">
-                                        <i class="fa-solid fa-lock me-1"></i>Bilden används som bannerbild på <em>@img.PageKey</em>. Byt ut den på sidan för att kunna ta bort den.
-                                    </div>
-                                }
+@if (isUsed)
+{
+    <div class="mt-2">
+        <div class="small fw-semibold text-success"><i class="fa-solid fa-link me-1"></i>Används:</div>
+        <ul class="mb-0 ps-3 small">
+            @foreach (var u in usages.Select(u => u.Description).Distinct())
+            {
+                <li>@u</li>
+            }
+        </ul>
+    </div>
+}
+else
+{
+    <div class="small text-muted mt-2"><i class="fa-regular fa-circle me-1"></i>Används inte</div>
+}
+
+<div class="mt-2 d-flex gap-1 flex-wrap">
+    <button class="btn btn-outline-danger btn-sm px-2 py-1"
+            title="@(isUsed ? "Bilden används – ta bort den på respektive sida först" : "Ta bort bilden permanent")"
+            disabled="@isUsed"
+            @onclick="() => DeleteEverywhere(img)">
+        <i class="fa-solid fa-trash me-1"></i><span class="d-none d-sm-inline">Ta bort</span>
+    </button>
+</div>
                             </div>
                         </div>
                     </div>
@@ -270,6 +286,10 @@
     private string? filterPageKey;
     private List<PageImageViewModel> images = new();
     private string? previewUrl;
+
+    private Dictionary<string, List<ImageUsageDto>> usageByUrl = new(StringComparer.OrdinalIgnoreCase);
+    private List<ImageUsageDto> UsagesFor(string url)
+        => usageByUrl.TryGetValue(url, out var u) ? u : new();
 
     private List<string> pageKeys = new();
 
@@ -391,24 +411,35 @@
         }
     }
 
-    private async Task Load()
+private async Task Load()
+{
+    isLoading = true;
+    try
     {
-        isLoading = true;
-        try
-        {
-            images = await Cms.GetAllImagesAsync(filterPageKey);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Kunde inte hämta bilder");
-            await Toast.Error($"Kunde inte hämta bilder: {ex.Message}");
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
+        var all = await Cms.GetAllImagesAsync(filterPageKey);
+
+        // Slå ihop rader som delar URL (referensrader) till ett kort
+        images = all
+            .GroupBy(i => i.Url, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.OrderBy(i => i.PageKey == "bibliotek" ? 0 : 1).First())
+            .ToList();
+
+        var usages = await Cms.GetAllImageUsagesAsync();
+        usageByUrl = usages
+            .GroupBy(u => u.Url, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
     }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Kunde inte hämta bilder");
+        await Toast.Error($"Kunde inte hämta bilder: {ex.Message}");
+    }
+    finally
+    {
+        isLoading = false;
+        StateHasChanged();
+    }
+}
 
     private async Task ShowAll()
     {
@@ -419,30 +450,38 @@
     private void Preview(string url) => previewUrl = url;
     private void ClosePreview() => previewUrl = null;
 
-    private async Task DeleteEverywhere(PageImageViewModel img)
+   private async Task DeleteEverywhere(PageImageViewModel img)
+{
+    var usages = UsagesFor(img.Url);
+    if (usages.Count > 0)
     {
-        if (img.IsActive)
+        await Toast.Warning("Bilden används och kan inte tas bort: "
+            + string.Join(", ", usages.Select(u => u.Description).Distinct())
+            + ". Ta bort den på respektive sida först.");
+        return;
+    }
+
+    try
+    {
+        var ok = await JS.InvokeAsync<bool>("showConfirmDialog",
+            $"Ta bort bilden '{System.IO.Path.GetFileName(img.Url)}'? Filen raderas permanent.");
+        if (!ok) return;
+
+        var (success, error) = await Cms.DeletePageImageAsync(img.PageKey, img.Id, img.Url);
+        if (success)
         {
-            await Toast.Warning("Bilden används som bannerbild och kan inte tas bort. Byt ut den på sidan först.");
-            return;
-        }
-
-        try
-        {
-            var ok = await JS.InvokeAsync<bool>("showConfirmDialog",
-                $"Ta bort bilden '{System.IO.Path.GetFileName(img.Url)}'? Filen raderas permanent.");
-            if (!ok) return;
-
-            var usages = await Cms.GetImageUsageAsync(img.Url);
-            foreach (var u in usages)
-                await Cms.DeletePageImageAsync(u.PageKey, u.Id);
-
             await Toast.Success("Bilden har tagits bort.");
             await Load();
         }
-        catch (Exception ex)
+        else
         {
-            await Toast.Error($"Kunde inte ta bort: {ex.Message}");
+            await Toast.Warning(error ?? "Bilden kunde inte tas bort eftersom den används.");
+            await Load();
         }
     }
+    catch (Exception ex)
+    {
+        await Toast.Error($"Kunde inte ta bort: {ex.Message}");
+    }
+}
 }

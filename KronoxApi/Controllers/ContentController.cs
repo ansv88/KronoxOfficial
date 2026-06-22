@@ -13,7 +13,7 @@ namespace KronoxApi.Controllers;
 /// <summary>
 /// API‑kontroller för innehållsblock och sidbilder (CMS).
 /// Hämtar/skapar/uppdaterar ContentBlock per pageKey och hanterar PageImages:
-/// lista/användning, uppladdning med deduplicering (hash‑suffix), registrering/kopiering av befintliga filer,
+/// lista/användning, uppladdning med deduplicering (hash‑suffix), registrering av befintliga filer,
 /// uppdatering av alt‑text samt säker borttagning (endast när sista referensen försvunnit).
 /// Adminkrav för ändringar, skyddad med API‑nyckel och __EnableRateLimiting("API")__
 /// (samt "Upload" på bilduppladdning); returnerar 409 vid samtidighetskonflikt.
@@ -211,17 +211,98 @@ public class ContentController : ControllerBase
         return Ok(items);
     }
 
-    // Visa var en bild används (alla referenser till samma Url)
+    // Visa var en bild används (alla render-källor)
     [HttpGet("images/usage")]
     [RequireRole("Admin")]
     public async Task<IActionResult> GetImageUsage([FromQuery] string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return BadRequest("url saknas");
-        var usage = await _db.PageImages
-            .Where(pi => pi.Url == url)
-            .Select(pi => new { pi.Id, pi.PageKey, pi.AltText })
-            .ToListAsync();
-        return Ok(usage);
+        return Ok(await FindImageUsagesAsync(url));
+    }
+
+    // Användning för ALLA bilder i ett svep (för bildbibliotekets översikt)
+    [HttpGet("images/usage-all")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> GetAllImageUsage()
+    {
+        var result = new List<ImageUsageDto>();
+
+        foreach (var f in await _db.FeatureSections
+            .Where(f => f.ImageUrl != "")
+            .Select(f => new { f.PageKey, f.ImageUrl }).ToListAsync())
+            result.Add(new ImageUsageDto { Url = f.ImageUrl, PageKey = f.PageKey, UsageType = "Funktionssektion", Description = $"Funktionssektion på {f.PageKey}" });
+
+        foreach (var i in await _db.FaqItems.Include(i => i.FaqSection)
+            .Where(i => i.ImageUrl != "")
+            .Select(i => new { i.FaqSection.PageKey, i.ImageUrl }).ToListAsync())
+            result.Add(new ImageUsageDto { Url = i.ImageUrl, PageKey = i.PageKey, UsageType = "FAQ", Description = $"FAQ på {i.PageKey}" });
+
+        foreach (var b in await _db.ContentBlocks.Select(b => new { b.PageKey, b.Metadata }).ToListAsync())
+        {
+            if (string.IsNullOrWhiteSpace(b.Metadata)) continue;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(b.Metadata);
+                if (doc.RootElement.TryGetProperty("introSection", out var intro) &&
+                    intro.TryGetProperty("imageUrl", out var imgEl))
+                {
+                    var u = imgEl.GetString();
+                    if (!string.IsNullOrWhiteSpace(u))
+                        result.Add(new ImageUsageDto { Url = u, PageKey = b.PageKey, UsageType = "Introsektion", Description = $"Introsektion på {b.PageKey}" });
+                }
+            }
+            catch (System.Text.Json.JsonException) { /* ignorera trasig metadata */ }
+        }
+
+        // Banner = aktiv PageImage som inte redan förklarats av en direkt källa
+        var explained = new HashSet<string>(result.Select(r => $"{r.PageKey}|{r.Url}"), StringComparer.OrdinalIgnoreCase);
+        foreach (var a in await _db.PageImages.Where(pi => pi.IsActive)
+            .Select(pi => new { pi.Url, pi.PageKey }).ToListAsync())
+            if (!explained.Contains($"{a.PageKey}|{a.Url}"))
+                result.Add(new ImageUsageDto { Url = a.Url, PageKey = a.PageKey, UsageType = "Bannerbild", Description = $"Bannerbild på {a.PageKey}" });
+
+        return Ok(result);
+    }
+
+    // Full skanning för EN url (inkl. inbäddade bilder) – används av delete-guarden
+    private async Task<List<ImageUsageDto>> FindImageUsagesAsync(string url)
+    {
+        var usages = new List<ImageUsageDto>();
+        if (string.IsNullOrWhiteSpace(url)) return usages;
+
+        bool Has(string? s) => !string.IsNullOrEmpty(s) && s.Contains(url, StringComparison.OrdinalIgnoreCase);
+        bool Eq(string? s) => string.Equals(s, url, StringComparison.OrdinalIgnoreCase);
+        var explained = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(string pageKey, string type, string desc) { usages.Add(new ImageUsageDto { Url = url, PageKey = pageKey, UsageType = type, Description = desc }); explained.Add($"{pageKey}|{url}"); }
+
+        foreach (var f in await _db.FeatureSections.Select(f => new { f.PageKey, f.ImageUrl, f.Content }).ToListAsync())
+            if (Eq(f.ImageUrl)) Add(f.PageKey, "Funktionssektion", $"Funktionssektion på {f.PageKey}");
+            else if (Has(f.Content)) Add(f.PageKey, "Sidinnehåll", $"Inbäddad i funktionssektion på {f.PageKey}");
+
+        foreach (var i in await _db.FaqItems.Include(i => i.FaqSection).Select(i => new { i.FaqSection.PageKey, i.ImageUrl, i.Answer }).ToListAsync())
+            if (Eq(i.ImageUrl) || Has(i.Answer)) Add(i.PageKey, "FAQ", $"FAQ på {i.PageKey}");
+
+        foreach (var b in await _db.ContentBlocks.Select(b => new { b.PageKey, b.Metadata, b.HtmlContent }).ToListAsync())
+        {
+            if (!string.IsNullOrWhiteSpace(b.Metadata))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(b.Metadata);
+                    if (doc.RootElement.TryGetProperty("introSection", out var intro) &&
+                        intro.TryGetProperty("imageUrl", out var imgEl) && Eq(imgEl.GetString()))
+                        Add(b.PageKey, "Introsektion", $"Introsektion på {b.PageKey}");
+                }
+                catch (System.Text.Json.JsonException) { }
+            }
+            if (Has(b.HtmlContent)) Add(b.PageKey, "Sidinnehåll", $"Inbäddad i sidinnehåll på {b.PageKey}");
+        }
+
+        foreach (var pageKey in await _db.PageImages.Where(pi => pi.Url == url && pi.IsActive).Select(pi => pi.PageKey).ToListAsync())
+            if (!explained.Contains($"{pageKey}|{url}"))
+                Add(pageKey, "Bannerbild", $"Bannerbild på {pageKey}");
+
+        return usages;
     }
 
     // Sätt IsActive för en bild och inaktivera övriga bilder med samma PageKey (om activate=true)
@@ -441,94 +522,7 @@ public class ContentController : ControllerBase
         }
     }
 
-    // Kopierar en redan uppladdad bild till rätt sidmapp och registrerar den
-    [HttpPost("{pageKey}/images/register-copy")]
-    [RequireRole("Admin")]
-    public async Task<IActionResult> RegisterImageCopy(string pageKey, [FromBody] RegisterExistingImageDto dto)
-    {
-        if (dto == null || string.IsNullOrWhiteSpace(dto.SourcePath))
-            return BadRequest("Source path kan inte vara tom.");
-
-        try
-        {
-            var sourceRel = dto.SourcePath.TrimStart('/');
-            var sourceFull = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", sourceRel);
-            if (!System.IO.File.Exists(sourceFull))
-                return NotFound($"Filen hittades inte: {sourceRel}");
-
-            // Target directory for this page
-            var uploadsDir = Path.Combine("images", "pages", pageKey);
-            var targetDirFull = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", uploadsDir);
-            Directory.CreateDirectory(targetDirFull);
-
-            // Build name based on source file and content hash
-            var ext = Path.GetExtension(sourceFull);
-            if (string.IsNullOrWhiteSpace(ext))
-                ext = GuessExtension("image/jpeg"); // fallback
-
-            var baseName = SanitizeBase(Path.GetFileName(sourceFull));
-            baseName = StripExistingHashSuffix(baseName); // undvik dubbelhash
-
-            await using var ms = new MemoryStream(await System.IO.File.ReadAllBytesAsync(sourceFull));
-            ms.Position = 0;
-            var hash8 = ShortHash8(ms);
-            ms.Position = 0;
-
-            // If file with same content exists in target folder, reuse; otherwise copy
-            var existingPath = Directory.EnumerateFiles(targetDirFull, $"*-{hash8}.*").FirstOrDefault();
-            string finalName;
-            if (existingPath != null)
-            {
-                finalName = Path.GetFileName(existingPath);
-            }
-            else
-            {
-                finalName = $"{baseName}-{hash8}{ext}".ToLowerInvariant();
-                var targetFull = Path.Combine(targetDirFull, finalName);
-                await using var outStream = new FileStream(targetFull, FileMode.Create, FileAccess.Write, FileShare.None);
-                await ms.CopyToAsync(outStream);
-            }
-
-            var url = $"/{uploadsDir}/{finalName}".Replace("\\", "/");
-
-            // Säkerställ ContentBlock
-            var block = await _db.ContentBlocks.FirstOrDefaultAsync(cb => cb.PageKey == pageKey);
-            if (block == null)
-            {
-                block = new ContentBlock { PageKey = pageKey, Title = pageKey };
-                _db.ContentBlocks.Add(block);
-                await _db.SaveChangesAsync();
-            }
-
-            // Register (upsert) PageImage
-            var existing = await _db.PageImages.FirstOrDefaultAsync(pi => pi.PageKey == pageKey && pi.Url == url);
-            if (existing is null)
-            {
-                var pageImage = new PageImage { Url = url, AltText = dto.AltText, PageKey = pageKey };
-                _db.PageImages.Add(pageImage);
-                await _db.SaveChangesAsync();
-                return Ok(new PageImageDto { Id = pageImage.Id, Url = pageImage.Url, AltText = pageImage.AltText, PageKey = pageImage.PageKey, IsActive = pageImage.IsActive });
-            }
-            else
-            {
-                existing.AltText = dto.AltText;
-                await _db.SaveChangesAsync();
-                return Ok(new PageImageDto { Id = existing.Id, Url = existing.Url, AltText = existing.AltText, PageKey = existing.PageKey, IsActive = existing.IsActive });
-            }
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            _logger.LogWarning(ex, "Samtidighetskonflikt vid kopiering/registrering av bild för {PageKey}", pageKey);
-            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fel vid kopiering av bild till {PageKey}", pageKey);
-            return StatusCode(500, "Ett oväntat fel inträffade vid kopiering av bild.");
-        }
-    }
-
-    // SÄKER DELETE: ta bort fysisk fil endast när sista referensen försvunnit
+    // SÄKER DELETE: blockera om bilden används; annars ta bort alla rader med samma URL + filen
     [HttpDelete("{pageKey}/images/{id}")]
     [RequireRole("Admin")]
     public async Task<IActionResult> DeleteImage(string pageKey, int id)
@@ -538,16 +532,28 @@ public class ContentController : ControllerBase
             var image = await _db.PageImages.FirstOrDefaultAsync(pi => pi.Id == id && pi.PageKey == pageKey);
             if (image == null) return NotFound();
 
-            if (image.IsActive)
-                return Conflict(new { message = "Bilden är aktivt använd på sidan och kan inte tas bort. Byt ut bilden först." });
-            _db.PageImages.Remove(image);
+            var usages = await FindImageUsagesAsync(image.Url);
+            if (usages.Count > 0)
+            {
+                var where = string.Join(", ", usages.Select(u => u.Description).Distinct());
+                return Conflict(new { message = $"Bilden används och kan inte tas bort: {where}. Ta bort den på respektive sida först." });
+            }
+
+            // Ta bort alla metadatarader som pekar på samma URL (biblioteks- + ev. referensrader)
+            var rows = await _db.PageImages.Where(pi => pi.Url == image.Url).ToListAsync();
+            _db.PageImages.RemoveRange(rows);
             await _db.SaveChangesAsync();
 
-            var stillReferenced = await _db.PageImages.AnyAsync(pi => pi.Url == image.Url);
-            if (!stillReferenced && !image.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            if (!image.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
-                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", image.Url.TrimStart('/'));
-                if (System.IO.File.Exists(filePath))
+                var baseDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"))
+                    + Path.DirectorySeparatorChar;
+                var relPath = image.Url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+                var filePath = Path.GetFullPath(Path.Combine(baseDir, relPath));
+
+                if (!filePath.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
+                    _logger.LogWarning("Hoppar över radering utanför wwwroot: {Url}", image.Url);
+                else if (System.IO.File.Exists(filePath))
                 {
                     try { System.IO.File.Delete(filePath); }
                     catch (Exception ex) { _logger.LogError(ex, "Kunde inte ta bort filen {FilePath}", filePath); }

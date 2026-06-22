@@ -245,8 +245,7 @@
                 var uploaded = await Cms.UploadImageAsync(e.File, PageKey);
                 IntroSection.ImageUrl = uploaded?.Url ?? "";
                 IntroSection.HasImage = true;
-                if (uploaded != null)
-                    _ = await Cms.SetImageActiveAsync(PageKey, uploaded.Id, true, deactivateOthers: false);
+
                 await Toast.Success("Introbild uppladdad!");
                 await OnIntroSectionChanged.InvokeAsync();
             }
@@ -312,8 +311,6 @@
         {
             // Registrera en PageImage-referens och sätt som aktiv
             var registered = await Cms.RegisterExistingImageAsync(PageKey, img.Url, img.AltText ?? "");
-            if (registered != null)
-                _ = await Cms.SetImageActiveAsync(PageKey, registered.Id, true, deactivateOthers: false);
 
             IntroSection.ImageUrl = img.Url;
             if (string.IsNullOrWhiteSpace(IntroSection.ImageAltText))

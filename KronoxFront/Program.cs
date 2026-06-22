@@ -332,12 +332,12 @@ public class Program
         // Mappa Blazor-komponenter
         app.MapRazorComponents<App>()
            .AddInteractiveServerRenderMode();
+
         // Middleware för att automatiskt hämta saknade bilder från API
         app.Use(async (context, next) =>
         {
             var path = context.Request.Path;
 
-            // Kontrollera om det är en bildsökväg vi är intresserade av
             if (path.StartsWithSegments("/images/pages") || path.StartsWithSegments("/images/members"))
             {
                 // Skapa lokal filsökväg
@@ -346,32 +346,55 @@ public class Program
                 // Om filen inte finns lokalt, försök hämta den från API
                 if (!File.Exists(localPath))
                 {
-                    // Skapa mapp om den inte finns
-                    Directory.CreateDirectory(Path.GetDirectoryName(localPath));
-
                     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+
+                    var dir = Path.GetDirectoryName(localPath);
+                    if (string.IsNullOrEmpty(dir))
+                    {
+                        await next();
+                        return;
+                    }
+                    Directory.CreateDirectory(dir);
+
                     logger.LogInformation("Bild saknas lokalt, hämtar från API: {Path}", path);
 
                     try
                     {
-                        // Hämta HTTP-klient för API-anrop
                         var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
                         var client = httpClientFactory.CreateClient("KronoxAPI");
 
-                        // Hämta bilden från API
-                        var response = await client.GetAsync(path.Value);
+                        var response = await client.GetAsync(path.Value, HttpCompletionOption.ResponseHeadersRead);
 
                         if (response.IsSuccessStatusCode)
                         {
-                            // Spara bilden lokalt
-                            using (var fileStream = new FileStream(localPath, FileMode.Create))
+                            var tempPath = $"{localPath}.{Guid.NewGuid():N}.tmp";
+                            try
                             {
-                                await response.Content.CopyToAsync(fileStream);
+                                await using (var fileStream = new FileStream(
+                                    tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                                {
+                                    await response.Content.CopyToAsync(fileStream);
+                                }
+
+                                try
+                                {
+                                    // overwrite:false → om en annan request hann först behålls den filen
+                                    File.Move(tempPath, localPath, overwrite: false);
+                                }
+                                catch (IOException)
+                                {
+                                    // Målfilen finns redan (en parallell request vann)
+                                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                                }
+                            }
+                            catch
+                            {
+                                if (File.Exists(tempPath)) File.Delete(tempPath);
+                                throw;
                             }
 
                             logger.LogInformation("Bild kopierad från API och sparad lokalt: {Path}", localPath);
 
-                            // Returnera bilden direkt (istället för att fortsätta till StaticFiles middleware)
                             context.Response.ContentType = GetContentType(Path.GetExtension(localPath));
                             await context.Response.SendFileAsync(localPath);
                             return;
@@ -389,7 +412,6 @@ public class Program
                 }
             }
 
-            // Fortsätt med nästa middleware om vi inte har hanterat förfrågan här
             await next();
         });
 

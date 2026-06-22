@@ -587,8 +587,6 @@
             if (!string.IsNullOrWhiteSpace(PageKey))
             {
                 var registered = await Cms.RegisterExistingImageAsync(PageKey, img.Url, img.AltText ?? "");
-                if (registered != null)
-                    _ = await Cms.SetImageActiveAsync(PageKey, registered.Id, true, deactivateOthers: false);
             }
 
             var item = FaqSections[sectionIndex].FaqItems[itemIndex];

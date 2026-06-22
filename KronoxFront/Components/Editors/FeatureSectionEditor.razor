@@ -919,8 +919,6 @@
             if (!string.IsNullOrWhiteSpace(section.PageKey))
             {
                 var registered = await Cms.RegisterExistingImageAsync(section.PageKey, img.Url, img.AltText ?? "");
-                if (registered != null)
-                    _ = await Cms.SetImageActiveAsync(section.PageKey, registered.Id, true, deactivateOthers: false);
             }
 
             section.ImageUrl = img.Url;
