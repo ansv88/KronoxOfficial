@@ -8,6 +8,8 @@
 @inject AuthenticationStateProvider AuthState
 @inject IToastService Toast
 @inject ILogger<ContactFormSection> Logger
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
 
 <!-- Kontaktformulär och kontaktuppgifter -->
 <div class="wrapper-div py-5">
@@ -210,6 +212,18 @@
         await LoadContactInfo();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var siteKey = Configuration["Recaptcha:SiteKey"];
+            if (!string.IsNullOrEmpty(siteKey))
+            {
+                await JS.InvokeVoidAsync("recaptchaHelper.load", siteKey);
+            }
+        }
+    }
+
     private async Task LoadContactInfo()
     {
         isLoadingContactInfo = true;
@@ -265,6 +279,16 @@
             }
 
             // Annars använd standard HTTP-hantering
+            try
+            {
+                contactForm.RecaptchaToken = await JS.InvokeAsync<string>("recaptchaHelper.execute", "contact");
+            }
+            catch
+            {
+                await Toast.Error("Kunde inte verifiera att du inte är en robot. Ladda om sidan och försök igen.");
+                return;
+            }
+
             var http = HttpClientFactory.CreateClient("KronoxAPI");
             var response = await http.PostAsJsonAsync("api/contact/send", contactForm);
 

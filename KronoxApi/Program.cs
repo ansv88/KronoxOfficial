@@ -91,6 +91,9 @@ public class Program
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // Lägg till reCAPTCHA-verifiering (egen HttpClient mot Google)
+        builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
+
         builder.Services.AddScoped<IFileService, FileService>();
         builder.Services.AddScoped<IRoleValidationService, RoleValidationService>();
         builder.Services.AddScoped<EmailTemplateService>();

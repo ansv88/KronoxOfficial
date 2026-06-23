@@ -20,4 +20,7 @@ public class ContactFormDto
     [Required(ErrorMessage = "Meddelande är obligatoriskt")]
     [StringLength(2000, ErrorMessage = "Meddelande får vara max 2000 tecken")]
     public string Message { get; set; } = "";
+
+    // reCAPTCHA v3-token som genereras i frontend och verifieras serverside
+    public string? RecaptchaToken { get; set; }
 }

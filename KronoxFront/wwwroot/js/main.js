@@ -430,3 +430,44 @@ window.clearCurrentPageKey = function () {
     // Exponera globalt vid behov
     window.updateNavbarOffset = updateNavbarOffset;
 })();
+
+window.recaptchaHelper = {
+    siteKey: null,
+    _loading: null,
+
+    // Laddar Googles reCAPTCHA v3-skript en gång
+    load: function (siteKey) {
+        this.siteKey = siteKey;
+        if (window.grecaptcha) return Promise.resolve();
+        if (this._loading) return this._loading;
+
+        this._loading = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(siteKey);
+            script.async = true;
+            script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject('Kunde inte ladda reCAPTCHA.');
+            document.head.appendChild(script);
+        });
+        return this._loading;
+    },
+
+    // Genererar en token för en viss action (t.ex. "register" eller "contact")
+    execute: async function (action) {
+        if (this.siteKey) {
+            await this.load(this.siteKey); // säkerställ att skriptet hunnit laddas
+        }
+        return new Promise((resolve, reject) => {
+            if (!window.grecaptcha || !this.siteKey) {
+                reject('reCAPTCHA är inte initierad.');
+                return;
+            }
+            grecaptcha.ready(() => {
+                grecaptcha.execute(this.siteKey, { action: action })
+                    .then(token => resolve(token))
+                    .catch(err => reject(err));
+            });
+        });
+    }
+};

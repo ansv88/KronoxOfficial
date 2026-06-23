@@ -5,6 +5,7 @@ using KronoxApi.Models;
 using KronoxApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Sockets;
 
 namespace KronoxApi.Controllers;
 
@@ -22,17 +23,20 @@ public class ContactController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<ContactController> _logger;
     private readonly ApplicationDbContext _context;
+    private readonly IRecaptchaService _recaptcha;
 
     public ContactController(
         IEmailService emailService,
         IConfiguration configuration,
         ILogger<ContactController> logger,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IRecaptchaService recaptcha)
     {
         _emailService = emailService;
         _configuration = configuration;
         _logger = logger;
         _context = context;
+        _recaptcha = recaptcha;
     }
 
     // ================== KONTAKTFORMULÄR ==================
@@ -41,6 +45,14 @@ public class ContactController : ControllerBase
     public async Task<IActionResult> SendContactMessage([FromBody] ContactFormDto contactForm)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        // Verifiera reCAPTCHA v3 innan e-post skickas
+        var captcha = await _recaptcha.VerifyAsync(contactForm.RecaptchaToken, "contact");
+        if (!captcha.Success)
+        {
+            _logger.LogWarning("reCAPTCHA blockerade kontaktformulär från {Email}: {Error}", contactForm.Email, captcha.Error);
+            return BadRequest("Verifiering av att du inte är en robot misslyckades. Försök igen.");
+        }
 
         try
         {
@@ -71,6 +83,19 @@ public class ContactController : ControllerBase
                 contactForm.Email, contactForm.Subject);
 
             return Ok(new { message = "Ditt meddelande har skickats. Vi återkommer så snart som möjligt!" });
+        }
+        catch (SocketException ex)
+        {
+            _logger.LogError(ex,
+                "Kunde inte ansluta till e-postservern ({Server}:{Port}) vid kontaktmeddelande från {Email}",
+                _configuration["EmailSettings:SmtpServer"],
+                _configuration["EmailSettings:SmtpPort"],
+                contactForm.Email);
+
+            return StatusCode(502, new
+            {
+                message = "Meddelandet kunde tyvärr inte skickas just nu på grund av ett tillfälligt tekniskt problem. Försök igen om en stund."
+            });
         }
         catch (Exception ex)
         {

@@ -28,4 +28,7 @@ public class UserRegisterRequest
 
     [Required(ErrorMessage = "Vänligen ange ditt lärosäte.")]
     public string Academy { get; set; } = string.Empty;
+
+    // Fylls i programmatiskt före submit – ingen validering i formuläret
+    public string? RecaptchaToken { get; set; }
 }

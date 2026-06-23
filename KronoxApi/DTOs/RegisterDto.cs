@@ -36,6 +36,9 @@ public class RegisterDto
     [StringLength(200, ErrorMessage = "Lärosäte är för långt.")]
     public required string Academy { get; set; }
 
+    // reCAPTCHA v3-token som genereras i frontend och verifieras serverside
+    public string? RecaptchaToken { get; set; }
+
     // Genererar en användarvänlig beskrivning av lösenordskraven baserat på Identity-inställningarna
     public static string GetPasswordRequirements(PasswordOptions options)
     {

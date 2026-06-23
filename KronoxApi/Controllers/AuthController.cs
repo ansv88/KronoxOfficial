@@ -1,6 +1,7 @@
 ﻿using KronoxApi.Attributes;
 using KronoxApi.DTOs;
 using KronoxApi.Models;
+using KronoxApi.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,16 +19,19 @@ public class AuthController : ControllerBase
     private readonly UserManager<ApplicationUser> _users;
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly ILogger<AuthController> _logger;
+    private readonly IRecaptchaService _recaptcha;
     private const string NewUserRole = "Ny användare";
 
-    public AuthController(
+    public AuthController(  
         UserManager<ApplicationUser> users,
         SignInManager<ApplicationUser> signIn,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IRecaptchaService recaptcha)
     {
         _users = users;
         _signIn = signIn;
         _logger = logger;
+        _recaptcha = recaptcha;
     }
 
     // Loggar in en användare med användarnamn och lösenord.
@@ -61,6 +65,14 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        // Verifiera reCAPTCHA v3 innan kontot skapas
+        var captcha = await _recaptcha.VerifyAsync(dto.RecaptchaToken, "register");
+        if (!captcha.Success)
+        {
+            _logger.LogWarning("reCAPTCHA blockerade registrering för {User}: {Error}", dto.UserName, captcha.Error);
+            return BadRequest("Verifiering av att du inte är en robot misslyckades. Försök igen.");
+        }
 
         var newUser = new ApplicationUser
         {

@@ -20,4 +20,7 @@ public class ContactFormViewModel
     [Required(ErrorMessage = "Meddelande är obligatoriskt")]
     [StringLength(2000, ErrorMessage = "Meddelande får vara max 2000 tecken")]
     public string Message { get; set; } = "";
+
+    // Fylls i programmatiskt före submit – ingen validering i formuläret
+    public string? RecaptchaToken { get; set; }
 }
