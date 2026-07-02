@@ -648,17 +648,9 @@ public class CmsService
                         Id = dto?.Id ?? 0,
                         PageKey = pageKey,
                         LastModified = dto?.LastModified ?? DateTime.Now,
-                        Items = dto?.Items?.Select(i => new ActionPlanItem
-                        {
-                            Id = i.Id,
-                            Priority = i.Priority,
-                            Module = i.Module,
-                            Activity = i.Activity,
-                            DetailedDescription = i.DetailedDescription,
-                            PlannedDelivery = i.PlannedDelivery,
-                            Completed = i.Completed,
-                            SortOrder = i.SortOrder
-                        }).ToList() ?? new List<ActionPlanItem>()
+                        ShowArchivedPublicly = dto?.ShowArchivedPublicly ?? false,
+                        Items = dto?.Items?.Select(MapItem).ToList() ?? new List<ActionPlanItem>(),
+                        ArchivedItems = dto?.ArchivedItems?.Select(MapItem).ToList() ?? new List<ActionPlanItem>()
                     };
                 }
             }
@@ -671,43 +663,28 @@ public class CmsService
         }) ?? new ActionPlanTableViewModel { PageKey = pageKey, Items = new List<ActionPlanItem>() };
     }
 
-    public async Task SaveActionPlanAsync(string pageKey, ActionPlanTableViewModel actionPlan)
+    // Mappar ett API-DTO till frontendens ViewModel (återbruk för aktiva och arkiverade poster).
+    private static ActionPlanItem MapItem(ActionPlanItemDto i) => new()
     {
-        try
+        Id = i.Id,
+        Module = i.Module,
+        Activity = i.Activity,
+        DetailedDescription = i.DetailedDescription,
+        PlannedDelivery = i.PlannedDelivery,
+        Completed = i.Completed,
+        SortOrder = i.SortOrder,
+        IsArchived = i.IsArchived,
+        ArchivedAt = i.ArchivedAt,
+        Subgoals = i.Subgoals?.Select(s => new ActionPlanSubgoal
         {
-            var dto = new ActionPlanTableDto
-            {
-                Id = actionPlan.Id,
-                PageKey = pageKey,
-                LastModified = DateTime.Now,
-                Items = actionPlan.Items.Select(i => new ActionPlanItemDto
-                {
-                    Id = i.Id,
-                    Priority = i.Priority,
-                    Module = i.Module,
-                    Activity = i.Activity,
-                    PlannedDelivery = i.PlannedDelivery,
-                    Completed = i.Completed,
-                    SortOrder = i.SortOrder
-                }).ToList()
-            };
-
-            var response = await _http.PutAsJsonAsync($"api/actionplan/{pageKey}", dto);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new HttpRequestException($"Kunde inte spara handlingsplan: {response.StatusCode}");
-            }
-
-            _cache.InvalidateGroup("actionplans");
-            _logger.LogDebug("Handlingsplan sparad och cache invaliderad för {PageKey}", pageKey);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fel vid sparning av handlingsplan för {PageKey}", pageKey);
-            throw;
-        }
-    }
+            Id = s.Id,
+            Activity = s.Activity,
+            DetailedDescription = s.DetailedDescription,
+            PlannedDelivery = s.PlannedDelivery,
+            Completed = s.Completed,
+            SortOrder = s.SortOrder
+        }).ToList() ?? new List<ActionPlanSubgoal>()
+    };
 
     // FEATURE SECTION IMAGES
     public async Task<PageImageViewModel?> UploadFeatureImageAsync(

@@ -20,6 +20,7 @@
         </div>
         <div class="card-body">
             @RenderActionPlanTable()
+            @RenderArchivedTable()
 
             @{
                 var lastModified = ActionPlan?.LastModified;
@@ -45,6 +46,7 @@ else
         }
 
         @RenderActionPlanTable()
+        @RenderArchivedTable()
 
         @{
             var lastModified = ActionPlan?.LastModified;
@@ -68,22 +70,24 @@ else
     [Parameter] public string AdminButtonUrl { get; set; } = "/admin/actionplan";
     [Parameter] public bool IsAdminContext { get; set; } = false;
 
-    private HashSet<int> expandedDescriptions = new();
+    // En enda uppf√§llbar panel per modul visar b√•de detaljerad beskrivning och delm√•l.
+    private HashSet<int> expandedItems = new();
 
     protected override void OnParametersSet()
     {
-        // Trim och s‰kra standardv‰rden
+        // Trim och s√§kra standardv√§rden
         Title = string.IsNullOrWhiteSpace(Title) ? "Handlingsplan" : Title!.Trim();
         AdminButtonUrl = string.IsNullOrWhiteSpace(AdminButtonUrl) ? "/admin/actionplan" : AdminButtonUrl.Trim();
     }
 
     private RenderFragment RenderActionPlanTable() => __builder =>
     {
-        // H‰mta en lokal referens till Items sÂ kompilatorn fˆrstÂr null-kontrollen
         var items = ActionPlan?.Items;
 
         if (items is not null && items.Any())
         {
+            var sortedItems = items.OrderBy(i => i.SortOrder).ToList();
+
             <div class="table-responsive">
                 <table class="table table-striped table-hover mb-0">
                     <colgroup>
@@ -103,48 +107,44 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in items.OrderBy(i => i.SortOrder))
+                        @for (var i = 0; i < sortedItems.Count; i++)
                         {
+                            var item = sortedItems[i];
+                            var displayNumber = i + 1;
+                            var hasDetails = !string.IsNullOrWhiteSpace(item.DetailedDescription);
+                            var hasSubgoals = item.Subgoals is not null && item.Subgoals.Any();
+                            var isExpandable = hasDetails || hasSubgoals;
+
                             <tr>
-                                <td class="text-center"><span class="badge bg-secondary">@item.Priority</span></td>
+                                <td class="text-center"><span>@displayNumber</span></td>
                                 <td><strong>@item.Module</strong></td>
                                 <td>
                                     <div class="d-flex align-items-start">
                                         <div class="flex-grow-1 text-break">@item.Activity</div>
-                                        @if (!string.IsNullOrWhiteSpace(item.DetailedDescription))
+                                        @if (isExpandable)
                                         {
                                             <button type="button"
                                                     class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
-                                                    @onclick="() => ToggleDescription(item.Id)"
-                                                    title="Visa/dˆlj detaljerad beskrivning"
-                                                    aria-label="Visa eller dˆlj detaljer fˆr @item.Activity">
-                                                <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")" aria-hidden="true"></i>
+                                                    @onclick="() => ToggleItem(item.Id)"
+                                                    title="Visa/d√∂lj detaljer och delm√•l"
+                                                    aria-label="Visa eller d√∂lj detaljer och delm√•l f√∂r @item.Module">
+                                                <i class="fa-solid @(expandedItems.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")" aria-hidden="true"></i>
                                             </button>
                                         }
                                     </div>
                                 </td>
                                 <td class="text-center"><span class="text-muted">@item.PlannedDelivery</span></td>
                                 <td class="text-center">
-                                    @if (!string.IsNullOrEmpty(item.Completed))
-                                    {
-                                        <span class="badge bg-success">
-                                            <i class="fa-solid fa-check me-1" aria-hidden="true"></i>@item.Completed
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">PÂgÂende</span>
-                                    }
+                                    @RenderStatus(item.Completed)
                                 </td>
                             </tr>
 
-                            @if (expandedDescriptions.Contains(item.Id) && !string.IsNullOrWhiteSpace(item.DetailedDescription))
+                            @if (expandedItems.Contains(item.Id) && isExpandable)
                             {
                                 <tr class="table-light">
                                     <td colspan="5">
                                         <div class="p-3">
-                                            <small class="text-muted fw-bold">Detaljerad beskrivning:</small>
-                                            <div class="mt-2 detailed-html">@((MarkupString)NormalizeHtml(item.DetailedDescription))</div>
+                                            @RenderItemPanel(item, hasDetails, hasSubgoals)
                                         </div>
                                     </td>
                                 </tr>
@@ -158,27 +158,176 @@ else
         {
             <div class="text-center text-muted py-4">
                 <i class="fa-solid fa-table fa-2x mb-2" aria-hidden="true"></i>
-                <p>Ingen handlingsplan har lagts till ‰n.</p>
+                <p>Ingen handlingsplan har lagts till √§n.</p>
             </div>
         }
     };
 
-    private void ToggleDescription(int itemId)
+    private RenderFragment RenderItemPanel(ActionPlanItem item, bool hasDetails, bool hasSubgoals) => __builder =>
     {
-        if (expandedDescriptions.Contains(itemId))
-            expandedDescriptions.Remove(itemId);
+        if (hasDetails)
+        {
+            <small class="text-muted fw-bold">Detaljerad beskrivning:</small>
+            <div class="mt-2 detailed-html">@((MarkupString)NormalizeHtml(item.DetailedDescription))</div>
+        }
+
+        @if (hasSubgoals)
+        {
+            <div class="@(hasDetails ? "mt-3" : "")">
+                <small class="text-muted fw-bold">
+                    <i class="fa-solid fa-diagram-project me-1" aria-hidden="true"></i>Delm√•l:
+                </small>
+                <div class="table-responsive mt-2">
+                    <table class="table table-sm mb-0 align-middle">
+                        <colgroup>
+                            <col>
+                            <col style="width: 9rem;">
+                            <col style="width: 6rem;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th scope="col">Delm√•l</th>
+                                <th scope="col" class="text-center">Planerad leverans</th>
+                                <th scope="col" class="text-center">Avklarad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var subgoal in item.Subgoals.OrderBy(s => s.SortOrder))
+                            {
+                                var hasSubDetails = !string.IsNullOrWhiteSpace(subgoal.DetailedDescription);
+                                <tr>
+                                    <td class="text-break">
+                                        <i class="fa-solid fa-turn-up fa-rotate-90 text-muted me-1" aria-hidden="true"></i>
+                                        @subgoal.Activity
+                                    </td>
+                                    <td class="text-center"><span class="text-muted">@subgoal.PlannedDelivery</span></td>
+                                    <td class="text-center">@RenderStatus(subgoal.Completed)</td>
+                                </tr>
+                                @if (hasSubDetails)
+                                {
+                                    <tr>
+                                        <td colspan="3">
+                                            <div class="ps-4 detailed-html">@((MarkupString)NormalizeHtml(subgoal.DetailedDescription))</div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    };
+
+    private RenderFragment RenderArchivedTable() => __builder =>
+    {
+        var archived = ActionPlan?.ArchivedItems;
+
+        if (archived is not null && archived.Any())
+        {
+            var sortedArchived = archived.OrderByDescending(i => i.ArchivedAt).ToList();
+
+                <div class="action-plan-archived">
+                    <h3 class="h5 mb-3 action-plan-archived-title">
+                        <i class="fa-solid fa-box-archive me-2" aria-hidden="true"></i>Avslutat
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <colgroup>
+                                <col style="width: 10rem;">
+                                <col>
+                                <col style="width: 9rem;">
+                                <col style="width: 6rem;">
+                                <col style="width: 11rem;">
+                            </colgroup>
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th scope="col">Modul/del</th>
+                                    <th scope="col">Aktivitet</th>
+                                    <th scope="col" class="text-center">Planerad leverans</th>
+                                    <th scope="col" class="text-center">Avklarad</th>
+                                    <th scope="col" class="text-center">Arkiverad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in sortedArchived)
+                                {
+                                    var hasDetails = !string.IsNullOrWhiteSpace(item.DetailedDescription);
+                                    var hasSubgoals = item.Subgoals is not null && item.Subgoals.Any();
+                                    var isExpandable = hasDetails || hasSubgoals;
+
+                                    <tr>
+                                        <td><strong>@item.Module</strong></td>
+                                        <td>
+                                            <div class="d-flex align-items-start">
+                                                <div class="flex-grow-1 text-break">@item.Activity</div>
+                                                @if (isExpandable)
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
+                                                            @onclick="() => ToggleItem(item.Id)"
+                                                            title="Visa/d√∂lj detaljer och delm√•l"
+                                                            aria-label="Visa eller d√∂lj detaljer och delm√•l f√∂r @item.Module">
+                                                        <i class="fa-solid @(expandedItems.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")" aria-hidden="true"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td class="text-center"><span class="text-muted">@item.PlannedDelivery</span></td>
+                                        <td class="text-center">@RenderStatus(item.Completed)</td>
+                                        <td class="text-center">
+                                            <span class="text-muted">
+                                                @(item.ArchivedAt.HasValue ? item.ArchivedAt.Value.ToString("yyyy-MM-dd HH:mm") : "")
+                                            </span>
+                                        </td>
+                                    </tr>
+
+                                    @if (expandedItems.Contains(item.Id) && isExpandable)
+                                    {
+                                        <tr class="table-light">
+                                            <td colspan="5">
+                                                <div class="p-3">
+                                                    @RenderItemPanel(item, hasDetails, hasSubgoals)
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+        }
+    };
+
+    private RenderFragment RenderStatus(string? completed) => __builder =>
+    {
+        if (!string.IsNullOrEmpty(completed))
+        {
+            <span class="badge bg-success">
+                <i class="fa-solid fa-check me-1" aria-hidden="true"></i>@completed
+            </span>
+        }
         else
-            expandedDescriptions.Add(itemId);
+        {
+            <span class="text-muted">P√•g√•ende</span>
+        }
+    };
+
+    private void ToggleItem(int itemId)
+    {
+        if (!expandedItems.Remove(itemId))
+            expandedItems.Add(itemId);
     }
 
-    // Normalisera TinyMCE-HTML fˆr att s‰kra bildvisning
+    // Normalisera TinyMCE-HTML f√∂r att s√§kra bildvisning
     private static string NormalizeHtml(string? html)
     {
         if (string.IsNullOrWhiteSpace(html)) return string.Empty;
 
         var fixedHtml = html;
 
-        // data-mce-src -> src (bÂde " och ')
+        // data-mce-src -> src (b√•de " och ')
         fixedHtml = Regex.Replace(fixedHtml, @"\sdata-mce-src\s*=\s*""", " src=\"", RegexOptions.IgnoreCase);
         fixedHtml = Regex.Replace(fixedHtml, @"\sdata-mce-src\s*=\s*'", " src='", RegexOptions.IgnoreCase);
 

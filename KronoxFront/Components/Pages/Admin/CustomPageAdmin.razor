@@ -607,9 +607,6 @@ else
             if (activeSections.Any(s => s.Type == SectionType.FaqSections))
                 saveTasks.Add(Cms.SaveFaqSectionsAsync(PageKey, faqSections));
 
-            if (activeSections.Any(s => s.Type == SectionType.ActionPlanTable))
-                saveTasks.Add(Cms.SaveActionPlanAsync(PageKey, actionPlan));
-
             await Task.WhenAll(saveTasks);
 
             Cache.InvalidatePageCache(PageKey);

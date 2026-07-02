@@ -32,6 +32,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<NewsDocument> NewsDocuments { get; set; } = null!;
     public DbSet<ActionPlanTable> ActionPlanTables { get; set; }
     public DbSet<ActionPlanItem> ActionPlanItems { get; set; }
+    public DbSet<ActionPlanSubgoal> ActionPlanSubgoals { get; set; }
     public DbSet<DevelopmentSuggestion> DevelopmentSuggestions { get; set; }
     public DbSet<CustomPage> CustomPages { get; set; } = null!;
     public DbSet<NavigationConfig> NavigationConfigs { get; set; } = null!;
@@ -283,6 +284,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(t => t.Items)
                   .HasForeignKey(e => e.ActionPlanTableId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.IsArchived);
+        });
+
+        // ActionPlanSubgoal
+        builder.Entity<ActionPlanSubgoal>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Activity).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.DetailedDescription).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.PlannedDelivery).HasMaxLength(100);
+            entity.Property(e => e.Completed).HasMaxLength(100);
+
+            entity.HasOne(e => e.ActionPlanItem)
+                  .WithMany(i => i.Subgoals)
+                  .HasForeignKey(e => e.ActionPlanItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ActionPlanItemId);
         });
 
         // DevelopmentSuggestion
@@ -297,5 +317,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.AdditionalInfo).HasMaxLength(2000);
             entity.Property(e => e.ProcessedBy).HasMaxLength(100);
         });
+
     }
 }

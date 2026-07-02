@@ -1,4 +1,4 @@
-﻿@page "/admin/actionplan"
+@page "/admin/actionplan"
 @using KronoxFront.Components.Layout
 @using KronoxFront.ViewModels
 @using KronoxFront.DTOs
@@ -35,15 +35,10 @@
                     <i class="fa-solid fa-clipboard-list me-2"></i>
                     Hantera handlingsplan
                 </h1>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CleanUnusedImagesAsync" title="Rensa bilder som inte längre används">
-                        <i class="fa-solid fa-broom me-1"></i> Rensa oanvända bilder
-                    </button>
-                    <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
-                        <i class="fa-solid fa-plus me-1"></i>
-                        Lägg till åtgärd
-                    </button>
-                </div>
+                <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Lägg till åtgärd
+                </button>
             </div>
 
             @if (isLoading)
@@ -64,65 +59,71 @@
                     </button>
                 </div>
             }
-            else if (actionPlan == null || !actionPlan.Items.Any())
-            {
-                <div class="alert alert-info">
-                    <h4 class="alert-heading">Ingen handlingsplan finns</h4>
-                    <p>Det finns ingen handlingsplan att visa. Klicka på knappen ovan för att lägga till åtgärder.</p>
-                </div>
-            }
             else
             {
-                <div class="card">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">
-                            <i class="fa-solid fa-list-check me-2"></i>
-                            Handlingsplan (@actionPlan.Items.Count åtgärder)
-                        </h5>
+                @if (actionPlan == null || !actionPlan.Items.Any())
+                {
+                    <div class="alert alert-info">
+                        <h4 class="alert-heading">Ingen handlingsplan finns</h4>
+                        <p>Det finns ingen handlingsplan att visa. Klicka på knappen ovan för att lägga till åtgärder.</p>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <colgroup>
-                                    <col style="width: 6rem;">
-                                    <col style="width: 10rem;">
-                                    <col>
-                                    <col style="width: 9rem;">
-                                    <col style="width: 6rem;">
-                                    <col style="width: 12rem;">
-                                </colgroup>
+                }
+                else
+                {
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="fa-solid fa-list-check me-2"></i>
+                                Handlingsplan (@actionPlan.Items.Count åtgärder)
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <colgroup>
+                                        <col style="width: 6rem;">
+                                        <col style="width: 10rem;">
+                                        <col>
+                                        <col style="width: 9rem;">
+                                        <col style="width: 6rem;">
+                                        <col style="width: 14rem;">
+                                    </colgroup>
 
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="text-center">Prioritering</th>
-                                        <th>Modul/del</th>
-                                        <th>Aktivitet</th>
-                                        <th class="text-center">Planerad leverans</th>
-                                        <th class="text-center">Avklarad</th>
-                                        <th>Åtgärder</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @if (actionPlan?.Items != null)
-                                    {
-                                        var sortedItems = actionPlan.Items.OrderBy(i => i.SortOrder).ToList();
-                                        for (int i = 0; i < sortedItems.Count; i++)
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="text-center">Prioritering</th>
+                                            <th>Modul/del</th>
+                                            <th>Aktivitet</th>
+                                            <th class="text-center">Planerad leverans</th>
+                                            <th class="text-center">Avklarad</th>
+                                            <th>Åtgärder</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @{
+                                            var sortedItems = actionPlan.Items.OrderBy(i => i.SortOrder).ToList();
+                                        }
+                                        @for (int i = 0; i < sortedItems.Count; i++)
                                         {
                                             var item = sortedItems[i];
                                             var index = i;
+                                            var displayNumber = i + 1;
+                                            var hasDetails = !string.IsNullOrWhiteSpace(item.DetailedDescription);
+                                            var hasSubgoals = item.Subgoals.Any();
+                                            var isExpandable = hasDetails || hasSubgoals;
 
                                             <tr>
-                                                <td class="text-center">@item.Priority</td>
-                                                <td>@item.Module</td>
+                                                <td class="text-center">@displayNumber</td>
+                                                <td><strong>@item.Module</strong></td>
                                                 <td>
                                                     <div class="d-flex align-items-start">
                                                         <div class="flex-grow-1 text-break">@item.Activity</div>
-                                                        @if (!string.IsNullOrWhiteSpace(item.DetailedDescription))
+                                                        @if (isExpandable)
                                                         {
                                                             <button type="button" class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
-                                                                    @onclick="@(() => ToggleDescription(item.Id))"
-                                                                    title="Visa/dölj detaljerad beskrivning">
-                                                                <i class="fa-solid @(expandedDescriptions.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                                                    @onclick="@(() => ToggleItem(item.Id))"
+                                                                    title="Visa/dölj detaljer och delmål">
+                                                                <i class="fa-solid @(expandedItems.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
                                                             </button>
                                                         }
                                                     </div>
@@ -141,6 +142,10 @@
                                                                 title="Redigera åtgärd">
                                                             <i class="fa-solid fa-edit"></i>
                                                         </button>
+                                                        <button type="button" class="btn btn-outline-success"
+                                                                @onclick="@(() => OpenCreateSubgoalModal(item))" title="Lägg till delmål">
+                                                            <i class="fa-solid fa-diagram-project"></i>
+                                                        </button>
                                                         <button type="button" class="btn btn-outline-secondary"
                                                                 @onclick="@(() => MoveItemUp(item.Id))"
                                                                 disabled="@(index == 0)"
@@ -153,6 +158,11 @@
                                                                 title="Flytta ner">
                                                             <i class="fa-solid fa-arrow-down"></i>
                                                         </button>
+                                                        <button type="button" class="btn btn-outline-warning"
+                                                                @onclick="@(() => ArchiveItem(item))"
+                                                                title="Flytta till Avslutat">
+                                                            <i class="fa-solid fa-box-archive"></i>
+                                                        </button>
                                                         <button type="button" class="btn btn-outline-danger"
                                                                 @onclick="@(() => OpenDeleteModal(item))"
                                                                 title="Ta bort åtgärd">
@@ -162,28 +172,143 @@
                                                 </td>
                                             </tr>
 
-                                            @if (expandedDescriptions.Contains(item.Id) && !string.IsNullOrWhiteSpace(item.DetailedDescription))
+                                            @if (expandedItems.Contains(item.Id) && isExpandable)
                                             {
                                                 <tr class="table-light">
                                                     <td colspan="6">
                                                         <div class="p-3">
-                                                            <small class="text-muted fw-bold">Detaljerad beskrivning:</small>
-                                                            <div class="mt-2">@((MarkupString)item.DetailedDescription)</div>
+                                                            @RenderItemPanel(item, hasDetails, hasSubgoals, allowEdit: true)
                                                         </div>
                                                     </td>
                                                 </tr>
                                             }
                                         }
-                                    }
-                                </tbody>
-                            </table>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
+                    </div>
+                }
+
+                @* Avslutat (arkiverade) *@
+                <div class="card mt-5">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fa-solid fa-box-archive me-2"></i>
+                            Avslutat (@(actionPlan?.ArchivedItems.Count ?? 0))
+                        </h5>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="showArchivedSwitch"
+                                   checked="@(actionPlan?.ShowArchivedPublicly ?? false)"
+                                   @onchange="ToggleShowArchivedPublicly"
+                                   disabled="@isSavingShowArchived" />
+                            <label class="form-check-label" for="showArchivedSwitch">
+                                Visa Avslutat-listan för besökare
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (actionPlan == null || !actionPlan.ArchivedItems.Any())
+                        {
+                            <div class="p-3 text-muted">
+                                Inga avslutade poster. Använd arkiv-ikonen på en åtgärd för att flytta den hit.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <colgroup>
+                                        <col style="width: 10rem;">
+                                        <col>
+                                        <col style="width: 9rem;">
+                                        <col style="width: 6rem;">
+                                        <col style="width: 11rem;">
+                                        <col style="width: 10rem;">
+                                    </colgroup>
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Modul/del</th>
+                                            <th>Aktivitet</th>
+                                            <th class="text-center">Planerad leverans</th>
+                                            <th class="text-center">Avklarad</th>
+                                            <th class="text-center">Arkiverad</th>
+                                            <th>Åtgärder</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in actionPlan.ArchivedItems.OrderByDescending(a => a.ArchivedAt))
+                                        {
+                                            var hasDetails = !string.IsNullOrWhiteSpace(item.DetailedDescription);
+                                            var hasSubgoals = item.Subgoals.Any();
+                                            var isExpandable = hasDetails || hasSubgoals;
+
+                                            <tr>
+                                                <td><strong>@item.Module</strong></td>
+                                                <td>
+                                                    <div class="d-flex align-items-start">
+                                                        <div class="flex-grow-1 text-break">@item.Activity</div>
+                                                        @if (isExpandable)
+                                                        {
+                                                            <button type="button" class="btn btn-link btn-sm p-0 ms-2 flex-shrink-0 align-baseline"
+                                                                    @onclick="@(() => ToggleItem(item.Id))"
+                                                                    title="Visa/dölj detaljer och delmål">
+                                                                <i class="fa-solid @(expandedItems.Contains(item.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td class="text-center">@item.PlannedDelivery</td>
+                                                <td class="text-center">
+                                                    @if (!string.IsNullOrWhiteSpace(item.Completed))
+                                                    {
+                                                        <span class="badge bg-success">@item.Completed</span>
+                                                    }
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="text-muted">
+                                                        @(item.ArchivedAt.HasValue ? item.ArchivedAt.Value.ToString("yyyy-MM-dd HH:mm") : "")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button type="button" class="btn btn-outline-success"
+                                                                @onclick="@(() => UnarchiveItem(item))"
+                                                                title="Återställ till aktiv">
+                                                            <i class="fa-solid fa-rotate-left"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger"
+                                                                @onclick="@(() => OpenDeleteModal(item))"
+                                                                title="Ta bort åtgärd">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+
+                                            @if (expandedItems.Contains(item.Id) && isExpandable)
+                                            {
+                                                <tr class="table-light">
+                                                    <td colspan="6">
+                                                        <div class="p-3">
+                                                            @RenderItemPanel(item, hasDetails, hasSubgoals, allowEdit: false)
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
                     </div>
                 </div>
             }
         </div>
     </div>
 </div>
+
+@* Panel som visar detaljerad beskrivning och delmål under en åtgärd definieras i @code (RenderItemPanel). *@
 
 @if (showEditModal && editingItem != null)
 {
@@ -202,24 +327,25 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Prioritering</label>
-                                    <InputNumber class="form-control" @bind-Value="editModel.Priority" min="1" max="99" />
-                                    <ValidationMessage For="() => editModel.Priority" />
-                                </div>
-                                <div class="mb-3">
                                     <label class="form-label">Modul/del *</label>
                                     <InputText class="form-control" @bind-Value="editModel.Module" placeholder="Ex: Modul 1" />
                                     <ValidationMessage For="() => editModel.Module" />
                                 </div>
-                            </div>
-                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Planerad leverans</label>
                                     <InputText class="form-control" @bind-Value="editModel.PlannedDelivery" placeholder="Q2 2024" />
                                 </div>
+                            </div>
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Status när avklarad</label>
                                     <InputText class="form-control" @bind-Value="editModel.Completed" placeholder="Q1 2024 eller lämna tom" />
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-text mt-4">
+                                        <i class="fa-solid fa-circle-info me-1"></i>
+                                        Prioritering numreras automatiskt. Använd upp/ner-pilarna i listan för att ändra ordning.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -257,8 +383,8 @@
                                       placeholder="Skriv en utförlig beskrivning av åtgärden här...">
                             </textarea>
                             <div class="form-text">
-                                - “Välj bild” infogar en bild som redan finns i bildbiblioteket.<br />
-                                - För att ladda upp en ny bild från din dator, klicka på “Ladda upp bild” ovan
+                                - "Välj bild" infogar en bild som redan finns i bildbiblioteket.<br />
+                                - För att ladda upp en ny bild från din dator, klicka på "Ladda upp bild" ovan
                                   eller använd bildikonen i TinyMCE:s verktygsfält.
                                 Tips: du kan även dra-och-släppa en bild direkt i editorn.
                             </div>
@@ -362,16 +488,138 @@
     </div>
 }
 
+@if (showSubgoalModal && editingSubgoal != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(editingSubgoal.Id == 0 ? "Lägg till delmål" : "Redigera delmål")
+                        @if (subgoalParent != null)
+                        {
+                            <small class="text-muted d-block">@subgoalParent.Module</small>
+                        }
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseSubgoalModal"></button>
+                </div>
+                <EditForm Model="subgoalModel" OnValidSubmit="SaveSubgoal">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Aktivitet (delmål) *</label>
+                            <InputTextArea class="form-control" rows="3" @bind-Value="subgoalModel.Activity"
+                                           placeholder="Beskriv delmålet" />
+                            <ValidationMessage For="() => subgoalModel.Activity" />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Planerad leverans</label>
+                                <InputText class="form-control" @bind-Value="subgoalModel.PlannedDelivery" placeholder="Q2 2024" />
+                                <ValidationMessage For="() => subgoalModel.PlannedDelivery" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Status när avklarad</label>
+                                <InputText class="form-control" @bind-Value="subgoalModel.Completed" placeholder="Q1 2024 eller lämna tom" />
+                                <ValidationMessage For="() => subgoalModel.Completed" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label mb-0">Utförlig beskrivning</label>
+                                <div class="d-flex gap-2">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @onclick="OpenLibrary"
+                                            title="Välj bild från biblioteket">
+                                        <i class="fa-solid fa-images me-1"></i> Välj bild
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            @onclick="OpenEditorImageUpload"
+                                            title="Ladda upp bild från din dator via editorn">
+                                        <i class="fa-solid fa-upload me-1"></i> Ladda upp bild
+                                    </button>
+                                </div>
+                            </div>
+
+                            <textarea id="@_subgoalEditorId"
+                                      class="form-control tinymce-editor"
+                                      rows="6"
+                                      @bind="subgoalModel.DetailedDescription"
+                                      @bind:event="oninput"
+                                      placeholder="Skriv en utförlig beskrivning av delmålet här...">
+                            </textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseSubgoalModal">Avbryt</button>
+                        <button type="submit" class="btn btn-primary" disabled="@isSavingSubgoal">
+                            @if (isSavingSubgoal)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            @(editingSubgoal.Id == 0 ? "Lägg till" : "Uppdatera")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showSubgoalDeleteModal && deletingSubgoal != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Bekräfta borttagning</h5>
+                    <button type="button" class="btn-close" @onclick="CloseSubgoalDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Är du säker på att du vill ta bort delmålet "<strong>@deletingSubgoal.Activity</strong>"?</p>
+                    <p class="text-danger">
+                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                        Denna åtgärd kan inte ångras.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseSubgoalDeleteModal">Avbryt</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteSubgoal" disabled="@isDeletingSubgoal">
+                        @if (isDeletingSubgoal)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Ta bort
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private ActionPlanTableViewModel? actionPlan;
     private bool isLoading = true;
     private bool hasError = false;
     private string pageKey = "forvaltning";
-    private HashSet<int> expandedDescriptions = new();
 
-    // TinyMCE
+    // En enda uppfällbar panel per åtgärd visar både detaljerad beskrivning och delmål.
+    private HashSet<int> expandedItems = new();
+    private bool isSavingShowArchived = false;
+
+    // TinyMCE - åtgärdens beskrivning
     private string _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
     private bool _detailsEditorInitialized = false;
+
+    // TinyMCE - delmålets beskrivning
+    private string _subgoalEditorId = $"ap-subdetail-{Guid.NewGuid():N}";
+    private bool _subgoalEditorInitialized = false;
+
+    // Aktiv editor beror på vilken modal som är öppen (delmål har företräde).
+    private string CurrentEditorId => showSubgoalModal ? _subgoalEditorId : _detailsEditorId;
 
     // Edit modal
     private bool showEditModal = false;
@@ -389,6 +637,18 @@
     private bool libraryLoading = false;
     private List<PageImageViewModel> allImages = new();
 
+    // Subgoal modal (delmål)
+    private bool showSubgoalModal = false;
+    private bool isSavingSubgoal = false;
+    private ActionPlanItem? subgoalParent;
+    private ActionPlanSubgoal? editingSubgoal;
+    private CreateActionPlanSubgoalDto subgoalModel = new();
+
+    private bool showSubgoalDeleteModal = false;
+    private bool isDeletingSubgoal = false;
+    private ActionPlanSubgoal? deletingSubgoal;
+    private ActionPlanItem? deletingSubgoalParent;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadActionPlan();
@@ -398,7 +658,14 @@
     {
         if (showEditModal && editingItem != null && !_detailsEditorInitialized)
         {
-            await InitializeDetailsEditorAsync();
+            _detailsEditorInitialized = true;
+            await InitializeEditorAsync(_detailsEditorId);
+        }
+
+        if (showSubgoalModal && editingSubgoal != null && !_subgoalEditorInitialized)
+        {
+            _subgoalEditorInitialized = true;
+            await InitializeEditorAsync(_subgoalEditorId);
         }
 
         try
@@ -413,26 +680,120 @@
 
     public async ValueTask DisposeAsync()
     {
+        try { await DestroyEditorAsync(_detailsEditorId); } catch { }
+        try { await DestroyEditorAsync(_subgoalEditorId); } catch { }
         try { await JS.InvokeVoidAsync("clearCurrentPageKey"); } catch { }
     }
 
-    private static readonly Regex ImgSrcRegex = new(@"<img[^>]+src\s*=\s*[""'](?<src>[^""']+)[""'][^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static string NormalizePath(string url)
+    // Normalisera TinyMCE-HTML för att säkra bildvisning i panelen.
+    private static string NormalizeHtml(string? html)
     {
-        if (string.IsNullOrWhiteSpace(url)) return "";
-        if (Uri.TryCreate(url, UriKind.Absolute, out var abs)) return abs.AbsolutePath.Trim();
-        if (Uri.TryCreate(url, UriKind.Relative, out var rel)) return "/" + rel.OriginalString.TrimStart('/');
-        return url.Trim();
+        if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+
+        var fixedHtml = html;
+        fixedHtml = Regex.Replace(fixedHtml, @"\sdata-mce-src\s*=\s*""", " src=\"", RegexOptions.IgnoreCase);
+        fixedHtml = Regex.Replace(fixedHtml, @"\sdata-mce-src\s*=\s*'", " src='", RegexOptions.IgnoreCase);
+        fixedHtml = Regex.Replace(fixedHtml, "src=\"(images/)", "src=\"/images/", RegexOptions.IgnoreCase);
+        fixedHtml = Regex.Replace(fixedHtml, "src='(images/)", "src='/images/", RegexOptions.IgnoreCase);
+        return fixedHtml;
     }
 
-    private void ToggleDescription(int itemId)
+    private void ToggleItem(int itemId)
     {
-        if (expandedDescriptions.Contains(itemId))
-            expandedDescriptions.Remove(itemId);
-        else
-            expandedDescriptions.Add(itemId);
+        if (!expandedItems.Remove(itemId))
+            expandedItems.Add(itemId);
     }
+
+    // Panel som visar detaljerad beskrivning och delmål under en åtgärd.
+    private RenderFragment RenderItemPanel(ActionPlanItem item, bool hasDetails, bool hasSubgoals, bool allowEdit) => __builder =>
+    {
+        if (hasDetails)
+        {
+            <small class="text-muted fw-bold">Detaljerad beskrivning:</small>
+            <div class="mt-2 detailed-html">@((MarkupString)NormalizeHtml(item.DetailedDescription))</div>
+        }
+
+        @if (hasSubgoals)
+        {
+            <div class="@(hasDetails ? "mt-3" : "")">
+                <small class="text-muted fw-bold">
+                    <i class="fa-solid fa-diagram-project me-1"></i>Delmål:
+                </small>
+                <div class="table-responsive mt-2">
+                    <table class="table table-sm mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Delmål</th>
+                                <th class="text-center" style="width: 9rem;">Planerad leverans</th>
+                                <th class="text-center" style="width: 6rem;">Avklarad</th>
+                                @if (allowEdit)
+                                {
+                                    <th style="width: 10rem;">Åtgärder</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var sortedSubgoals = item.Subgoals.OrderBy(s => s.SortOrder).ToList();
+                            }
+                            @for (int sgi = 0; sgi < sortedSubgoals.Count; sgi++)
+                            {
+                                var subgoal = sortedSubgoals[sgi];
+                                var sgIndex = sgi;
+                                var hasSubDetails = !string.IsNullOrWhiteSpace(subgoal.DetailedDescription);
+                                <tr>
+                                    <td class="text-break">
+                                        <i class="fa-solid fa-turn-up fa-rotate-90 text-muted me-1"></i>
+                                        @subgoal.Activity
+                                    </td>
+                                    <td class="text-center">@subgoal.PlannedDelivery</td>
+                                    <td class="text-center">
+                                        @if (!string.IsNullOrWhiteSpace(subgoal.Completed))
+                                        {
+                                            <span class="badge bg-success">@subgoal.Completed</span>
+                                        }
+                                    </td>
+                                    @if (allowEdit)
+                                    {
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button type="button" class="btn btn-outline-primary"
+                                                        @onclick="@(() => OpenEditSubgoalModal(item, subgoal))" title="Redigera delmål">
+                                                    <i class="fa-solid fa-edit"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                        @onclick="@(() => MoveSubgoal(item, subgoal.Id, -1))"
+                                                        disabled="@(sgIndex == 0)" title="Flytta upp">
+                                                    <i class="fa-solid fa-arrow-up"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                        @onclick="@(() => MoveSubgoal(item, subgoal.Id, 1))"
+                                                        disabled="@(sgIndex == sortedSubgoals.Count - 1)" title="Flytta ner">
+                                                    <i class="fa-solid fa-arrow-down"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger"
+                                                        @onclick="@(() => OpenSubgoalDeleteModal(item, subgoal))" title="Ta bort delmål">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    }
+                                </tr>
+                                @if (hasSubDetails)
+                                {
+                                    <tr>
+                                        <td colspan="@(allowEdit ? 4 : 3)">
+                                            <div class="ps-4 detailed-html">@((MarkupString)NormalizeHtml(subgoal.DetailedDescription))</div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    };
 
     // Dataladdning
     private async Task LoadActionPlan()
@@ -443,7 +804,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
-            var response = await http.GetFromJsonAsync<ActionPlanTableDto>($"api/ActionPlan/{pageKey}");
+            var response = await http.GetFromJsonAsync<ActionPlanTableDto>($"api/ActionPlan/{pageKey}?includeArchived=true");
 
             if (response != null)
             {
@@ -452,17 +813,9 @@
                     Id = response.Id,
                     PageKey = response.PageKey,
                     LastModified = response.LastModified,
-                    Items = response.Items.Select(i => new ActionPlanItem
-                    {
-                        Id = i.Id,
-                        Priority = i.Priority,
-                        Module = i.Module,
-                        Activity = i.Activity,
-                        DetailedDescription = i.DetailedDescription,
-                        PlannedDelivery = i.PlannedDelivery,
-                        Completed = i.Completed,
-                        SortOrder = i.SortOrder
-                    }).ToList()
+                    ShowArchivedPublicly = response.ShowArchivedPublicly,
+                    Items = response.Items.Select(MapItem).ToList(),
+                    ArchivedItems = response.ArchivedItems.Select(MapItem).ToList()
                 };
             }
             else
@@ -486,78 +839,92 @@
         }
     }
 
-    // Modalhanterare
-    private async Task InitializeDetailsEditorAsync()
+    private static ActionPlanItem MapItem(ActionPlanItemDto i) => new()
+    {
+        Id = i.Id,
+        Module = i.Module,
+        Activity = i.Activity,
+        DetailedDescription = i.DetailedDescription,
+        PlannedDelivery = i.PlannedDelivery,
+        Completed = i.Completed,
+        SortOrder = i.SortOrder,
+        IsArchived = i.IsArchived,
+        ArchivedAt = i.ArchivedAt,
+        Subgoals = i.Subgoals?.Select(s => new ActionPlanSubgoal
+        {
+            Id = s.Id,
+            Activity = s.Activity,
+            DetailedDescription = s.DetailedDescription,
+            PlannedDelivery = s.PlannedDelivery,
+            Completed = s.Completed,
+            SortOrder = s.SortOrder
+        }).ToList() ?? new List<ActionPlanSubgoal>()
+    };
+
+    // TinyMCE-hjälpmetoder (delas mellan åtgärds- och delmålseditorn)
+    private async Task InitializeEditorAsync(string editorId)
     {
         try
         {
             await Task.Delay(150);
 
-            var exists = await JS.InvokeAsync<bool>("elementExists", _detailsEditorId);
+            var exists = await JS.InvokeAsync<bool>("elementExists", editorId);
             if (exists)
             {
-                await JS.InvokeVoidAsync("initTinyMCE", _detailsEditorId);
+                await JS.InvokeVoidAsync("initTinyMCE", editorId);
 
-                var ready = await JS.InvokeAsync<bool>("tinymceExists", _detailsEditorId);
+                var ready = await JS.InvokeAsync<bool>("tinymceExists", editorId);
                 if (!ready)
                 {
                     await Task.Delay(100);
-                    await JS.InvokeVoidAsync("initTinyMCE", _detailsEditorId);
+                    await JS.InvokeVoidAsync("initTinyMCE", editorId);
                 }
 
-                _detailsEditorInitialized = true;
-                Logger.LogInformation("TinyMCE initialiserad för {EditorId}", _detailsEditorId);
+                Logger.LogInformation("TinyMCE initialiserad för {EditorId}", editorId);
             }
             else
             {
-                Logger.LogWarning("Element {EditorId} hittades inte i DOM", _detailsEditorId);
+                Logger.LogWarning("Element {EditorId} hittades inte i DOM", editorId);
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid init av TinyMCE {EditorId}", _detailsEditorId);
+            Logger.LogError(ex, "Fel vid init av TinyMCE {EditorId}", editorId);
         }
     }
 
-    private async Task SyncDetailsEditorAsync()
+    private async Task<string?> ReadEditorAsync(string editorId)
     {
         try
         {
-            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", _detailsEditorId);
+            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
             if (editorExists)
             {
-                var content = await JS.InvokeAsync<string>("eval",
-                    $"tinymce.get('{_detailsEditorId}') ? tinymce.get('{_detailsEditorId}').getContent() : ''");
-                if (content is not null)
-                {
-                    editModel.DetailedDescription = content;
-                }
+                return await JS.InvokeAsync<string>("eval",
+                    $"tinymce.get('{editorId}') ? tinymce.get('{editorId}').getContent() : ''");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Kunde inte synka TinyMCE {EditorId}", _detailsEditorId);
+            Logger.LogWarning(ex, "Kunde inte synka TinyMCE {EditorId}", editorId);
         }
+        return null;
     }
 
-    private async Task DestroyDetailsEditorAsync()
+    private async Task DestroyEditorAsync(string editorId)
     {
         try
         {
-            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", _detailsEditorId);
+            var editorExists = await JS.InvokeAsync<bool>("tinymceExists", editorId);
             if (editorExists)
             {
-                await JS.InvokeVoidAsync("eval", $"tinymce.get('{_detailsEditorId}')?.destroy()");
-                Logger.LogInformation("TinyMCE förstörd för {EditorId}", _detailsEditorId);
+                await JS.InvokeVoidAsync("eval", $"tinymce.get('{editorId}')?.destroy()");
+                Logger.LogInformation("TinyMCE förstörd för {EditorId}", editorId);
             }
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Fel vid destroy av TinyMCE {EditorId}", _detailsEditorId);
-        }
-        finally
-        {
-            _detailsEditorInitialized = false;
+            Logger.LogWarning(ex, "Fel vid destroy av TinyMCE {EditorId}", editorId);
         }
     }
 
@@ -565,38 +932,16 @@
     {
         try
         {
-            if (actionPlan == null)
+            actionPlan ??= new ActionPlanTableViewModel
             {
-                actionPlan = new ActionPlanTableViewModel
-                {
-                    PageKey = pageKey,
-                    Items = new List<ActionPlanItem>()
-                };
-            }
-
-            editingItem = new ActionPlanItem
-            {
-                Id = 0,
-                Priority = actionPlan.Items.Count + 1,
-                SortOrder = actionPlan.Items.Count,
-                Module = "",
-                Activity = "",
-                DetailedDescription = "",
-                PlannedDelivery = "",
-                Completed = ""
+                PageKey = pageKey,
+                Items = new List<ActionPlanItem>()
             };
 
-            editModel = new CreateActionPlanItemDto
-            {
-                Priority = editingItem.Priority,
-                Module = editingItem.Module ?? "",
-                Activity = editingItem.Activity ?? "",
-                DetailedDescription = editingItem.DetailedDescription ?? "",
-                PlannedDelivery = editingItem.PlannedDelivery ?? "",
-                Completed = editingItem.Completed ?? ""
-            };
+            editingItem = new ActionPlanItem { Id = 0 };
+            editModel = new CreateActionPlanItemDto();
 
-            await DestroyDetailsEditorAsync();
+            await DestroyEditorAsync(_detailsEditorId);
             _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
             _detailsEditorInitialized = false;
 
@@ -617,7 +962,6 @@
             editingItem = item;
             editModel = new CreateActionPlanItemDto
             {
-                Priority = item.Priority,
                 Module = item.Module ?? "",
                 Activity = item.Activity ?? "",
                 DetailedDescription = item.DetailedDescription ?? "",
@@ -625,7 +969,7 @@
                 Completed = item.Completed ?? ""
             };
 
-            await DestroyDetailsEditorAsync();
+            await DestroyEditorAsync(_detailsEditorId);
             _detailsEditorId = $"ap-detail-{Guid.NewGuid():N}";
             _detailsEditorInitialized = false;
 
@@ -642,7 +986,8 @@
     private async Task CloseEditModal()
     {
         showEditModal = false;
-        await DestroyDetailsEditorAsync();
+        await DestroyEditorAsync(_detailsEditorId);
+        _detailsEditorInitialized = false;
         editingItem = null;
         editModel = new CreateActionPlanItemDto();
         StateHasChanged();
@@ -655,18 +1000,14 @@
         isSavingItem = true;
         try
         {
-            await SyncDetailsEditorAsync();
+            var content = await ReadEditorAsync(_detailsEditorId);
+            if (content is not null) editModel.DetailedDescription = content;
+
             var http = HttpClientFactory.CreateClient("KronoxAPI");
 
-            HttpResponseMessage response;
-            if (editingItem.Id == 0)
-            {
-                response = await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items", editModel);
-            }
-            else
-            {
-                response = await http.PutAsJsonAsync($"api/ActionPlan/{pageKey}/items/{editingItem.Id}", editModel);
-            }
+            HttpResponseMessage response = editingItem.Id == 0
+                ? await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items", editModel)
+                : await http.PutAsJsonAsync($"api/ActionPlan/{pageKey}/items/{editingItem.Id}", editModel);
 
             if (response.IsSuccessStatusCode)
             {
@@ -709,7 +1050,6 @@
             if (response.IsSuccessStatusCode)
             {
                 Cms.InvalidateActionPlanCache(pageKey);
-
                 await LoadActionPlan();
             }
             else
@@ -721,6 +1061,99 @@
         {
             Logger.LogError(ex, "Fel vid flyttning av åtgärd");
             await Toast.Error("Ett fel inträffade vid flyttning.");
+        }
+    }
+
+    private async Task ArchiveItem(ActionPlanItem item)
+    {
+        try
+        {
+            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", $"Flytta \"{item.Module}\" till Avslutat?");
+            if (!ok) return;
+
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.PostAsync($"api/ActionPlan/{pageKey}/items/{item.Id}/archive", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Cms.InvalidateActionPlanCache(pageKey);
+                await Toast.Success("Åtgärden har flyttats till Avslutat.");
+                await LoadActionPlan();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte arkivera åtgärden.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid arkivering av åtgärd");
+            await Toast.Error("Ett fel inträffade vid arkivering.");
+        }
+    }
+
+    private async Task UnarchiveItem(ActionPlanItem item)
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.PostAsync($"api/ActionPlan/{pageKey}/items/{item.Id}/unarchive", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Cms.InvalidateActionPlanCache(pageKey);
+                await Toast.Success("Åtgärden har återställts.");
+                await LoadActionPlan();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte återställa åtgärden.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid återställning av åtgärd");
+            await Toast.Error("Ett fel inträffade vid återställning.");
+        }
+    }
+
+    private async Task ToggleShowArchivedPublicly(ChangeEventArgs e)
+    {
+        if (actionPlan == null) return;
+
+        var value = e.Value is bool b
+            ? b
+            : bool.TryParse(e.Value?.ToString(), out var parsed) && parsed;
+
+        isSavingShowArchived = true;
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.PutAsJsonAsync(
+                $"api/ActionPlan/{pageKey}/show-archived",
+                new SetShowArchivedDto { ShowArchivedPublicly = value });
+
+            if (response.IsSuccessStatusCode)
+            {
+                actionPlan.ShowArchivedPublicly = value;
+                Cms.InvalidateActionPlanCache(pageKey);
+                await Toast.Success(value
+                    ? "Avslutat-listan visas nu för besökare."
+                    : "Avslutat-listan döljs för besökare.");
+            }
+            else
+            {
+                await Toast.Error("Kunde inte uppdatera synligheten.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid uppdatering av arkivsynlighet");
+            await Toast.Error("Ett fel inträffade vid uppdatering av synligheten.");
+        }
+        finally
+        {
+            isSavingShowArchived = false;
         }
     }
 
@@ -738,7 +1171,7 @@
 
     private async Task ConfirmDelete()
     {
-        if (deletingItem == null || actionPlan?.Items == null) return;
+        if (deletingItem == null || actionPlan == null) return;
 
         isDeleting = true;
         try
@@ -767,50 +1200,6 @@
         finally
         {
             isDeleting = false;
-        }
-    }
-
-    private async Task CleanUnusedImagesAsync()
-    {
-        try
-        {
-            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", "Rensa alla oanvända bilder för denna sida?");
-            if (!ok) return;
-
-            var images = await Cms.GetPageImagesAsync(pageKey);
-            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            if (actionPlan?.Items != null)
-            {
-                foreach (var it in actionPlan.Items)
-                {
-                    var html = it.DetailedDescription ?? "";
-                    foreach (Match m in ImgSrcRegex.Matches(html))
-                    {
-                        var src = m.Groups["src"].Value;
-                        if (!string.IsNullOrWhiteSpace(src))
-                            used.Add(NormalizePath(src));
-                    }
-                }
-            }
-
-            int deleted = 0;
-            foreach (var img in images)
-            {
-                var path = NormalizePath(img.Url ?? "");
-                if (!used.Contains(path) && img.Id > 0)
-                {
-                    await Cms.DeletePageImageAsync(pageKey, img.Id);
-                    deleted++;
-                }
-            }
-
-            await Toast.Success(deleted == 0 ? "Inga oanvända bilder hittades." : $"Rensade {deleted} bild(er).");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Fel vid rensning av oanvända bilder");
-            await Toast.Error("Kunde inte rensa oanvända bilder.");
         }
     }
 
@@ -844,10 +1233,10 @@
             // Registrera referens på sidan (hindrar att filen raderas om den återanvänds)
             _ = await Cms.RegisterExistingImageAsync(pageKey, img.Url, img.AltText ?? "");
 
-            // Infoga i TinyMCE
+            // Infoga i den aktiva TinyMCE-editorn (åtgärd eller delmål)
             var safeUrl = (img.Url ?? string.Empty).Replace("'", "\\'");
             await JS.InvokeVoidAsync("eval",
-                $"tinymce.get('{_detailsEditorId}')?.insertContent('<img src=\\'{safeUrl}\\' />')");
+                $"tinymce.get('{CurrentEditorId}')?.insertContent('<img src=\\'{safeUrl}\\' />')");
 
             await Toast.Success("Bild infogad i beskrivningen.");
             CloseLibrary();
@@ -864,7 +1253,7 @@
         try
         {
             var script =
-                $"var ed=tinymce.get('{_detailsEditorId}');" +
+                $"var ed=tinymce.get('{CurrentEditorId}');" +
                 "if(ed && ed.execCommand){ ed.execCommand('mceImage'); }" +
                 "if(ed){ ed.focus(); }";
 
@@ -874,6 +1263,164 @@
         {
             Logger.LogWarning(ex, "Kunde inte öppna TinyMCE-bilddialogen");
             await Toast.Info("Klicka på bildikonen i editorns verktygsfält för att ladda upp från datorn.");
+        }
+    }
+
+    // Delmål (subgoals)
+    private async Task OpenCreateSubgoalModal(ActionPlanItem parent)
+    {
+        subgoalParent = parent;
+        editingSubgoal = new ActionPlanSubgoal { Id = 0 };
+        subgoalModel = new CreateActionPlanSubgoalDto();
+
+        await DestroyEditorAsync(_subgoalEditorId);
+        _subgoalEditorId = $"ap-subdetail-{Guid.NewGuid():N}";
+        _subgoalEditorInitialized = false;
+
+        showSubgoalModal = true;
+        StateHasChanged();
+    }
+
+    private async Task OpenEditSubgoalModal(ActionPlanItem parent, ActionPlanSubgoal subgoal)
+    {
+        subgoalParent = parent;
+        editingSubgoal = subgoal;
+        subgoalModel = new CreateActionPlanSubgoalDto
+        {
+            Activity = subgoal.Activity,
+            DetailedDescription = subgoal.DetailedDescription,
+            PlannedDelivery = subgoal.PlannedDelivery,
+            Completed = subgoal.Completed
+        };
+
+        await DestroyEditorAsync(_subgoalEditorId);
+        _subgoalEditorId = $"ap-subdetail-{Guid.NewGuid():N}";
+        _subgoalEditorInitialized = false;
+
+        showSubgoalModal = true;
+        StateHasChanged();
+    }
+
+    private async Task CloseSubgoalModal()
+    {
+        showSubgoalModal = false;
+        await DestroyEditorAsync(_subgoalEditorId);
+        _subgoalEditorInitialized = false;
+        subgoalParent = null;
+        editingSubgoal = null;
+        subgoalModel = new CreateActionPlanSubgoalDto();
+        StateHasChanged();
+    }
+
+    private async Task SaveSubgoal()
+    {
+        if (subgoalParent == null || editingSubgoal == null) return;
+
+        isSavingSubgoal = true;
+        try
+        {
+            var content = await ReadEditorAsync(_subgoalEditorId);
+            if (content is not null) subgoalModel.DetailedDescription = content;
+
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            HttpResponseMessage response = editingSubgoal.Id == 0
+                ? await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items/{subgoalParent.Id}/subgoals", subgoalModel)
+                : await http.PutAsJsonAsync($"api/ActionPlan/{pageKey}/items/{subgoalParent.Id}/subgoals/{editingSubgoal.Id}", subgoalModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Cms.InvalidateActionPlanCache(pageKey);
+                expandedItems.Add(subgoalParent.Id);
+                await Toast.Success(editingSubgoal.Id == 0 ? "Delmål har lagts till!" : "Delmål har uppdaterats!");
+                await LoadActionPlan();
+                await CloseSubgoalModal();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte spara delmålet. Försök igen.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid sparning av delmål");
+            await Toast.Error("Ett fel inträffade vid sparning. Försök igen.");
+        }
+        finally
+        {
+            isSavingSubgoal = false;
+        }
+    }
+
+    private async Task MoveSubgoal(ActionPlanItem parent, int subgoalId, int direction)
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.PostAsJsonAsync(
+                $"api/ActionPlan/{pageKey}/items/{parent.Id}/subgoals/{subgoalId}/move", new { Direction = direction });
+
+            if (response.IsSuccessStatusCode)
+            {
+                Cms.InvalidateActionPlanCache(pageKey);
+                await LoadActionPlan();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte flytta delmålet.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid flyttning av delmål");
+            await Toast.Error("Ett fel inträffade vid flyttning.");
+        }
+    }
+
+    private void OpenSubgoalDeleteModal(ActionPlanItem parent, ActionPlanSubgoal subgoal)
+    {
+        deletingSubgoalParent = parent;
+        deletingSubgoal = subgoal;
+        showSubgoalDeleteModal = true;
+    }
+
+    private void CloseSubgoalDeleteModal()
+    {
+        showSubgoalDeleteModal = false;
+        deletingSubgoal = null;
+        deletingSubgoalParent = null;
+    }
+
+    private async Task ConfirmDeleteSubgoal()
+    {
+        if (deletingSubgoal == null || deletingSubgoalParent == null) return;
+
+        isDeletingSubgoal = true;
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await http.DeleteAsync(
+                $"api/ActionPlan/{pageKey}/items/{deletingSubgoalParent.Id}/subgoals/{deletingSubgoal.Id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Cms.InvalidateActionPlanCache(pageKey);
+                await Toast.Success("Delmålet har tagits bort.");
+                await LoadActionPlan();
+                CloseSubgoalDeleteModal();
+            }
+            else
+            {
+                await Toast.Error("Kunde inte ta bort delmålet. Försök igen.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av delmål");
+            await Toast.Error("Ett fel inträffade vid borttagning. Försök igen.");
+        }
+        finally
+        {
+            isDeletingSubgoal = false;
         }
     }
 }

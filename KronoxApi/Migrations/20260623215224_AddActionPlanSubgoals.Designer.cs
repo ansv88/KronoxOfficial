@@ -4,6 +4,7 @@ using KronoxApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KronoxApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260623215224_AddActionPlanSubgoals")]
+    partial class AddActionPlanSubgoals
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,9 +41,6 @@ namespace KronoxApi.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<DateTime?>("ArchivedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Completed")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -49,9 +49,6 @@ namespace KronoxApi.Migrations
                     b.Property<string>("DetailedDescription")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsArchived")
-                        .HasColumnType("bit");
 
                     b.Property<string>("Module")
                         .IsRequired()
@@ -63,14 +60,15 @@ namespace KronoxApi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ActionPlanTableId");
-
-                    b.HasIndex("IsArchived");
 
                     b.ToTable("ActionPlanItems");
                 });
@@ -95,10 +93,6 @@ namespace KronoxApi.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("DetailedDescription")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PlannedDelivery")
                         .IsRequired()
@@ -130,9 +124,6 @@ namespace KronoxApi.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<bool>("ShowArchivedPublicly")
-                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 
