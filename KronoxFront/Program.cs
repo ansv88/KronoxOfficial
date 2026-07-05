@@ -77,7 +77,7 @@ public class Program
             options.DefaultPolicy = new AuthorizationPolicyBuilder()
                 .RequireAssertion(context =>
                     !context.User.IsInRole("Ny användare") &&
-                    context.User.Identity.IsAuthenticated)
+                    context.User.Identity?.IsAuthenticated == true)
                 .Build();
 
             options.AddPolicy("RequireAdmin", policy =>
@@ -341,7 +341,7 @@ public class Program
             if (path.StartsWithSegments("/images/pages") || path.StartsWithSegments("/images/members"))
             {
                 // Skapa lokal filsökväg
-                var localPath = Path.Combine(app.Environment.WebRootPath, path.Value.TrimStart('/'));
+                var localPath = Path.Combine(app.Environment.WebRootPath, path.Value?.TrimStart('/') ?? string.Empty);
 
                 // Om filen inte finns lokalt, försök hämta den från API
                 if (!File.Exists(localPath))

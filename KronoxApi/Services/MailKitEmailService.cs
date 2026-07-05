@@ -26,11 +26,19 @@ public class MailKitEmailService : IEmailService
             // Skapa ett MimeMessage-objekt
             var message = new MimeMessage();
 
+            // Läs och validera e‑postinställningar från konfigurationen
+            var fromName = _configuration["EmailSettings:FromName"];
+            var fromEmail = _configuration["EmailSettings:FromEmail"]
+                ?? throw new InvalidOperationException("EmailSettings:FromEmail saknas i konfigurationen.");
+            var smtpServer = _configuration["EmailSettings:SmtpServer"]
+                ?? throw new InvalidOperationException("EmailSettings:SmtpServer saknas i konfigurationen.");
+            var smtpPort = int.Parse(_configuration["EmailSettings:SmtpPort"]
+                ?? throw new InvalidOperationException("EmailSettings:SmtpPort saknas i konfigurationen."));
+            var useSsl = bool.Parse(_configuration["EmailSettings:UseSsl"]
+                ?? throw new InvalidOperationException("EmailSettings:UseSsl saknas i konfigurationen."));
+
             // "From": läses från appsettings.json
-            message.From.Add(new MailboxAddress(
-                _configuration["EmailSettings:FromName"],
-                _configuration["EmailSettings:FromEmail"]
-            ));
+            message.From.Add(new MailboxAddress(fromName, fromEmail));
 
             // "To": den adress vi skickar till
             message.To.Add(MailboxAddress.Parse(to));
@@ -44,11 +52,7 @@ public class MailKitEmailService : IEmailService
 
             // Anslut till SMTP-server med info från konfiguration
             using var smtpClient = new SmtpClient();
-            await smtpClient.ConnectAsync(
-                _configuration["EmailSettings:SmtpServer"],
-                int.Parse(_configuration["EmailSettings:SmtpPort"]),
-                bool.Parse(_configuration["EmailSettings:UseSsl"])   // true/false, hittas i appsettings
-            );
+            await smtpClient.ConnectAsync(smtpServer, smtpPort, useSsl);   // true/false, hittas i appsettings
 
             smtpClient.AuthenticationMechanisms.Clear(); // För test med smtp4dev, ta bort i produktion
 

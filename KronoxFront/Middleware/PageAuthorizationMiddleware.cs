@@ -87,7 +87,7 @@ public class PageAuthorizationMiddleware
                         var user = context.User;
                         var isAuthenticated = user?.Identity?.IsAuthenticated == true;
 
-                        if (!isAuthenticated || !customPage.RequiredRoles.Any(role => user.IsInRole(role)))
+                        if (!isAuthenticated || !customPage.RequiredRoles.Any(role => context.User.IsInRole(role)))
                         {
                             _logger.LogInformation("User {User} lacks access to restricted custom page {Path}",
                                 user?.Identity?.Name ?? "Anonymous", path);

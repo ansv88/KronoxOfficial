@@ -1036,7 +1036,7 @@
             else
             {
                 // För befintliga nyheter, använd befintlig logik
-                var success = await NewsService.AttachDocumentToNewsAsync(editingNews.Id, documentId, displayName);
+                var success = await NewsService.AttachDocumentToNewsAsync(editingNews!.Id, documentId, displayName);
                 if (success)
                 {
                     await LoadNewsDocuments(editingNews.Id);
@@ -1071,7 +1071,7 @@
             else
             {
                 // För befintliga nyheter, använd befintlig logik
-                var success = await NewsService.DetachDocumentFromNewsAsync(editingNews.Id, documentId);
+                var success = await NewsService.DetachDocumentFromNewsAsync(editingNews!.Id, documentId);
                 if (success)
                 {
                     await LoadNewsDocuments(editingNews.Id);
