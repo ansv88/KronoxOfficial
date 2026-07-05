@@ -94,7 +94,7 @@ public class CategoryController : ControllerBase
 
     // Hämtar alla underkategorier.
     [HttpGet("sub")]
-    [RequireRole("Admin")]
+    [RequireRole("Admin", "Styrelse", "Medlem")]
     public async Task<IActionResult> ListAllSubCategories()
     {
         try

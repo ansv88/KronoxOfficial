@@ -1,5 +1,4 @@
-﻿
-a, .btn-link {
+﻿a, .btn-link {
     color: #006bb7;
 }
 
@@ -414,10 +413,13 @@ html {
 /* Bootstrap-förbättringar för DocumentSection */
 
 /* Förbättra Bootstrap card hover-effekter */
+.document-item-compact.card {
+    transition: box-shadow 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+
 .document-item-compact.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    transition: all 0.15s ease-in-out;
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Säkerställ att dokumentikoner har rätt storlek */

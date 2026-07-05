@@ -54,7 +54,7 @@ else
         </div>
     }
 
-    @* Bootstrap-baserad filtrering *@
+    @* Toppfilter – gäller huvudkategori, sök och global dokumentsortering *@
     @if (ShowFilters && (AccessibleCategories.Count > 1 || AllowSearch))
     {
         <div class="card border-0 bg-light mb-4">
@@ -66,26 +66,26 @@ else
                             <label class="form-label fw-semibold small">
                                 <i class="fas fa-search me-1"></i>Sök dokument
                             </label>
-                            <input type="text" 
-                                   class="form-control form-control-sm" 
-                                   placeholder="Sök filnamn..." 
-                                   @bind="searchQuery" 
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   placeholder="Sök filnamn..."
+                                   @bind="searchQuery"
                                    @bind:after="ApplyFilters" />
                         </div>
                     }
-                    
+
                     @if (ShowCategoryFilter && AccessibleCategories.Count > 1)
                     {
                         <div class="col-md-4">
                             <label class="form-label fw-semibold small">
-                                <i class="fas fa-filter me-1"></i>Kategori
+                                <i class="fas fa-filter me-1"></i>Huvudkategori
                                 @if (initialCategoryId > 0 && !string.IsNullOrEmpty(PresetCategoryName))
                                 {
                                     <span class="badge bg-primary ms-1">Förfiltrerad</span>
                                 }
                             </label>
-                            <select class="form-select form-select-sm" 
-                                    @bind="selectedCategoryId" 
+                            <select class="form-select form-select-sm"
+                                    @bind="selectedCategoryId"
                                     @bind:after="ApplyFilters">
                                 <option value="0">Alla dokument (@AllDocuments.Count)</option>
                                 @foreach (var category in AccessibleCategories.Where(c => AllDocuments.Any(d => d.MainCategoryId == c.Id)))
@@ -101,8 +101,8 @@ else
                         <label class="form-label fw-semibold small">
                             <i class="fas fa-sort me-1"></i>Sortera
                         </label>
-                        <select class="form-select form-select-sm" 
-                                @bind="sortOption" 
+                        <select class="form-select form-select-sm"
+                                @bind="sortOption"
                                 @bind:after="ApplyFilters">
                             <option value="newest">Nyast</option>
                             <option value="oldest">Äldst</option>
@@ -110,6 +110,21 @@ else
                         </select>
                     </div>
                 </div>
+
+                @if (ShowArchiveToggle && IsAdmin)
+                {
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" id="docSectionShowArchived"
+                                       @bind="showArchived" @bind:after="ApplyFilters" />
+                                <label class="form-check-label small" for="docSectionShowArchived">
+                                    Visa arkiverade dokument
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                }
 
                 @if (!string.IsNullOrEmpty(searchQuery) || (selectedCategoryId != initialCategoryId))
                 {
@@ -123,25 +138,71 @@ else
         </div>
     }
 
-    @* Bootstrap dokumentlista *@
+    @* Dokumentlista grupperad per huvudkategori *@
     <div class="row g-3">
         @foreach (var category in AccessibleCategories.Where(c => FilteredDocuments.Any(d => d.MainCategoryId == c.Id)))
         {
-            var categoryDocs = FilteredDocuments
-                .Where(d => d.MainCategoryId == category.Id)
-                .Take(MaxDocumentsPerCategory)
-                .ToList();
-                
-            @if (ShowCategoryHeaders && (selectedCategoryId == 0 || AccessibleCategories.Count > 1))
+            var groupDocs = GetCategoryDocuments(category.Id);
+            var categoryDocs = groupDocs.Take(MaxDocumentsPerCategory).ToList();
+
+            @if (ShowCategoryHeaders && (selectedCategoryId == 0 || AccessibleCategories.Count > 1 || ShowSubcategories))
             {
                 <div class="col-12">
-                    <h5 class="text-muted border-bottom pb-2 mb-3 mt-3">
-                        <i class="fas fa-folder me-2" aria-hidden="true"></i>@category.Name
-                        @if (FilteredDocuments.Count(d => d.MainCategoryId == category.Id) > MaxDocumentsPerCategory)
+                    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 border-bottom pb-2 mb-3 mt-3">
+                        <h5 class="text-muted mb-0">
+                            <i class="fas fa-folder me-2" aria-hidden="true"></i>@category.Name
+                            @if (groupDocs.Count > MaxDocumentsPerCategory)
+                            {
+                                <small class="text-muted ms-2">(visar @MaxDocumentsPerCategory av @groupDocs.Count)</small>
+                            }
+                        </h5>
+
+                        @if (ShowSubcategories)
                         {
-                            <small class="text-muted ms-2">(visar @MaxDocumentsPerCategory av @FilteredDocuments.Count(d => d.MainCategoryId == category.Id))</small>
+                            var groupSubs = GetSubCategoriesForGroup(category.Id);
+                            var hasWithoutSub = GroupHasDocumentsWithoutSub(category.Id);
+
+                            @if (groupSubs.Any() || hasWithoutSub)
+                            {
+                                <div class="d-flex flex-wrap gap-3 align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label class="form-label fw-semibold small mb-0 text-nowrap">
+                                        </label>
+                                        <select class="form-select form-select-sm w-auto"
+                                                value="@GetGroupSubFilter(category.Id)"
+                                                @onchange="e => SetGroupSubFilter(category.Id, e.Value?.ToString())">
+                                            <option value="0">Alla underkategorier</option>
+                                            @foreach (var sub in groupSubs)
+                                            {
+                                                <option value="@sub.Id">@sub.Name</option>
+                                            }
+                                            @if (hasWithoutSub)
+                                            {
+                                                <option value="-1">Utan underkategori</option>
+                                            }
+                                        </select>
+                                    </div>
+
+                                    @* Progressiv sortering: visas först när ett underkategori-filter valts *@
+                                    @if (GetGroupSubFilter(category.Id) != 0)
+                                    {
+                                        <div class="d-flex align-items-center gap-2">
+                                            <label class="form-label fw-semibold small mb-0 text-nowrap">
+                                                <i class="fas fa-sort me-1"></i>Sortera
+                                            </label>
+                                            <select class="form-select form-select-sm w-auto"
+                                                    value="@GetGroupSort(category.Id)"
+                                                    @onchange="e => SetGroupSort(category.Id, e.Value?.ToString())">
+                                                <option value="newest">Nyast</option>
+                                                <option value="oldest">Äldst</option>
+                                                <option value="name">A-Ö</option>
+                                            </select>
+                                        </div>
+                                    }
+                                </div>
+                            }
                         }
-                    </h5>
+                    </div>
                 </div>
             }
 
@@ -154,7 +215,7 @@ else
                                 <div class="me-3 text-center flex-shrink-0 document-icon">
                                     <i class="@GetFileIcon(doc.FileName) fa-lg" aria-hidden="true"></i>
                                 </div>
-                                
+
                                 <div class="flex-grow-1">
                                     <h6 class="card-title mb-1 fw-semibold">
                                         @HighlightSearchText(doc.FileName)
@@ -165,20 +226,26 @@ else
                                     </h6>
                                     <div class="card-text">
                                         <small class="text-muted">
-                                            <i class="fas fa-calendar me-1" aria-hidden="true"></i>@doc.UploadedAt.ToString("yyyy-MM-dd")
-                                            <i class="fas fa-hdd ms-3 me-1" aria-hidden="true"></i>@FormatFileSize(doc.FileSize)
+                                            Publicerad: @doc.UploadedAt.ToString("yyyy-MM-dd")
+                                            <span class="mx-2">|</span>
+                                            Filstorlek: @FormatFileSize(doc.FileSize)
+                                            @if (doc.IsArchived && doc.ArchivedAt.HasValue)
+                                            {
+                                                <span class="mx-2">|</span>
+                                                @:Arkiverad: @doc.ArchivedAt.Value.ToString("yyyy-MM-dd HH:mm")
+                                            }
                                         </small>
                                     </div>
                                 </div>
 
                                 <div class="ms-auto">
                                     <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-info" 
+                                        <button class="btn btn-outline-info"
                                                 title="Visa dokument"
                                                 @onclick="() => ViewDocument(doc.Id, doc.FileName)">
                                             <i class="fas fa-eye" aria-hidden="true"></i>
                                         </button>
-                                        <button class="btn btn-outline-primary" 
+                                        <button class="btn btn-outline-primary"
                                                 title="Ladda ner"
                                                 @onclick="() => DownloadDocument(doc.Id)">
                                             <i class="fas fa-download" aria-hidden="true"></i>
@@ -224,6 +291,9 @@ else
     [Parameter] public bool AllowSearch { get; set; } = true;
     [Parameter] public int MaxDocumentsPerCategory { get; set; } = 5;
     [Parameter] public List<int> CategoryFilter { get; set; } = new();
+    [Parameter] public bool ShowSubcategories { get; set; } = false;
+    [Parameter] public bool ShowArchiveToggle { get; set; } = false;
+    [Parameter] public bool AutoDetectCategoryFromUrl { get; set; } = true;
 
     // Data
     private List<DocumentViewModel> AllDocuments = new();
@@ -237,10 +307,18 @@ else
     private string selectedDocumentName = "";
     private int initialCategoryId = 0;
 
-    // Filter variabler
+    // Filter variabler (huvudkategori-nivå)
     private string searchQuery = "";
     private int selectedCategoryId = 0;
     private string sortOption = "newest";
+
+    // Arkivvisning (endast admin, via ShowArchiveToggle)
+    private bool showArchived = false;
+
+    // Underkategorier (globala) + per-grupp-tillstånd (huvudkategori-Id -> val)
+    private List<SubCategoryDto> allSubCategories = new();
+    private readonly Dictionary<int, int> groupSubFilter = new();   // 0 = alla, -1 = utan underkategori, >0 = specifik
+    private readonly Dictionary<int, string> groupSort = new();     // "newest" | "oldest" | "name"
 
     protected override async Task OnInitializedAsync()
     {
@@ -271,9 +349,9 @@ else
         // Om PresetCategoryName är satt, använd den
         if (!string.IsNullOrEmpty(PresetCategoryName))
         {
-            var category = AccessibleCategories.FirstOrDefault(c => 
+            var category = AccessibleCategories.FirstOrDefault(c =>
                 c.Name.Equals(PresetCategoryName, StringComparison.OrdinalIgnoreCase));
-            
+
             if (category != null)
             {
                 selectedCategoryId = category.Id;
@@ -281,6 +359,15 @@ else
                 ApplyFilters();
                 return;
             }
+        }
+
+        // "Visa alla"-sidor (t.ex. Dokumentsidan) ska inte gissa kategori från URL:en
+        if (!AutoDetectCategoryFromUrl)
+        {
+            selectedCategoryId = 0;
+            initialCategoryId = 0;
+            ApplyFilters();
+            return;
         }
         
         // Hämta sidnamn från URL
@@ -366,10 +453,24 @@ else
             // Hämta dokument baserat på användarens roller
             AllDocuments = await DocumentService.GetAccessibleDocumentsAsync();
 
+            // Hämta underkategorinamn (endast när funktionen är aktiverad)
+            if (ShowSubcategories)
+            {
+                try
+                {
+                    allSubCategories = await CategoryService.GetSubCategoriesAsync();
+                }
+                catch (Exception exSub)
+                {
+                    Logger.LogWarning(exSub, "Kunde inte ladda underkategorier för DocumentSection");
+                    allSubCategories = new();
+                }
+            }
+
             // Tillämpa filter
             ApplyFilters();
 
-            Logger.LogInformation("DocumentSection: Laddat {DocumentCount} dokument för sida {PageKey}", 
+            Logger.LogInformation("DocumentSection: Laddat {DocumentCount} dokument för sida {PageKey}",
                 AllDocuments.Count, PageKey);
         }
         catch (Exception ex)
@@ -383,8 +484,11 @@ else
     {
         var documents = AllDocuments.AsEnumerable();
 
-        // Arkivfilter (visa inte arkiverade för vanliga användare)
-        if (!IsAdmin)
+        // Arkivfilter:
+        // - Moduler utan arkivtoggle: oförändrat (admin ser arkiverade, övriga inte).
+        // - Med arkivtoggle (Dokument-sidan): admin styr via "Visa arkiverade".
+        bool hideArchived = ShowArchiveToggle ? (!IsAdmin || !showArchived) : !IsAdmin;
+        if (hideArchived)
         {
             documents = documents.Where(d => !d.IsArchived);
         }
@@ -431,6 +535,8 @@ else
         searchQuery = "";
         selectedCategoryId = initialCategoryId;
         sortOption = "newest";
+        groupSubFilter.Clear();
+        groupSort.Clear();
         ApplyFilters();
     }
 
@@ -510,5 +616,82 @@ else
         );
 
         return new MarkupString(highlighted);
+    }
+
+    // Per-grupp (huvudkategori): underkategori-filter och lokal sortering
+
+    private int GetGroupSubFilter(int categoryId)
+        => groupSubFilter.TryGetValue(categoryId, out var v) ? v : 0;
+
+    private void SetGroupSubFilter(int categoryId, string? raw)
+    {
+        var value = int.TryParse(raw, out var parsed) ? parsed : 0;
+        groupSubFilter[categoryId] = value;
+
+        // Progressiv sortering: när ett filter valts (inkl. "Utan underkategori")
+        // finns en lokal sortering – sätt standardvärde om det saknas.
+        if (value != 0 && !groupSort.ContainsKey(categoryId))
+            groupSort[categoryId] = "newest";
+
+        StateHasChanged();
+    }
+
+    private string GetGroupSort(int categoryId)
+        => groupSort.TryGetValue(categoryId, out var v) ? v : "newest";
+
+    private void SetGroupSort(int categoryId, string? raw)
+    {
+        groupSort[categoryId] = string.IsNullOrEmpty(raw) ? "newest" : raw;
+        StateHasChanged();
+    }
+
+    // Underkategorier som faktiskt förekommer bland gruppens (filtrerade) dokument
+    private List<SubCategoryDto> GetSubCategoriesForGroup(int categoryId)
+    {
+        var ids = FilteredDocuments
+            .Where(d => d.MainCategoryId == categoryId && d.SubCategories != null)
+            .SelectMany(d => d.SubCategories!)
+            .ToHashSet();
+
+        return allSubCategories
+            .Where(s => ids.Contains(s.Id))
+            .OrderBy(s => s.Name)
+            .ToList();
+    }
+
+    private bool GroupHasDocumentsWithoutSub(int categoryId)
+        => FilteredDocuments.Any(d => d.MainCategoryId == categoryId
+            && (d.SubCategories == null || d.SubCategories.Count == 0));
+
+    // Slutlig dokumentlista för en huvudkategori: global filtrering + ev. per-grupp
+    // underkategori-filter och lokal sortering (endast när ett underkategori-val gjorts).
+    private List<DocumentViewModel> GetCategoryDocuments(int categoryId)
+    {
+        IEnumerable<DocumentViewModel> docs =
+            FilteredDocuments.Where(d => d.MainCategoryId == categoryId);
+
+        var subFilter = GetGroupSubFilter(categoryId);
+
+        if (subFilter == -1)
+        {
+            docs = docs.Where(d => d.SubCategories == null || d.SubCategories.Count == 0);
+        }
+        else if (subFilter > 0)
+        {
+            docs = docs.Where(d => d.SubCategories != null && d.SubCategories.Contains(subFilter));
+        }
+
+        // Lokal sortering gäller bara när ett underkategori-filter är aktivt
+        if (subFilter != 0)
+        {
+            docs = GetGroupSort(categoryId) switch
+            {
+                "oldest" => docs.OrderBy(d => d.UploadedAt),
+                "name" => docs.OrderBy(d => d.FileName),
+                _ => docs.OrderByDescending(d => d.UploadedAt)
+            };
+        }
+
+        return docs.ToList();
     }
 }
