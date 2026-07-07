@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Copilot modernization/upgrade agent artifacts (plans, tasks, assessments)
+.github/upgrades/

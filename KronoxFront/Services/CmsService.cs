@@ -990,7 +990,7 @@ public class CmsService
                     var existing = JsonDocument.Parse(pageContent.Metadata);
                     foreach (var prop in existing.RootElement.EnumerateObject())
                     {
-                        existingMetadata[prop.Name] = JsonSerializer.Deserialize<object>(prop.Value.GetRawText());
+                        existingMetadata[prop.Name] = JsonSerializer.Deserialize<object>(prop.Value.GetRawText())!;
                     }
                 }
                 catch (JsonException ex)

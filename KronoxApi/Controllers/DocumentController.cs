@@ -117,7 +117,7 @@ public class DocumentController : ControllerBase
                     ArchivedBy = d.ArchivedBy,
                     MainCategory = new MainCategoryDto
                     {
-                        Id = d.MainCategory.Id,
+                        Id = d.MainCategory!.Id,
                         Name = d.MainCategory.Name,
                         AllowedRoles = d.MainCategory.AllowedRoles,
                         IsActive = d.MainCategory.IsActive
@@ -163,7 +163,7 @@ public class DocumentController : ControllerBase
                         ArchivedBy = d.ArchivedBy,
                         MainCategory = new MainCategoryDto
                         {
-                            Id = d.MainCategory.Id,
+                            Id = d.MainCategory!.Id,
                             Name = d.MainCategory.Name,
                             AllowedRoles = d.MainCategory.AllowedRoles,
                             IsActive = d.MainCategory.IsActive
@@ -195,7 +195,7 @@ public class DocumentController : ControllerBase
                     ArchivedBy = d.ArchivedBy,
                     MainCategory = new MainCategoryDto
                     {
-                        Id = d.MainCategory.Id,
+                        Id = d.MainCategory!.Id,
                         Name = d.MainCategory.Name,
                         AllowedRoles = d.MainCategory.AllowedRoles,
                         IsActive = d.MainCategory.IsActive
