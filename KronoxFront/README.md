@@ -1,10 +1,10 @@
 ﻿# KronoxFront – Blazor Server frontend
 
-Blazor Server (.NET 8) som konsumerar KronoxApi. Innehåll renderas dynamiskt via sidors sektionskonfiguration (banner, intro, feature, FAQ, dokument, nyheter, handlingsplan m.m.).
+Blazor Server (.NET 10) som konsumerar KronoxApi. Innehåll renderas dynamiskt via sidors sektionskonfiguration (banner, intro, feature, FAQ, dokument, nyheter, handlingsplan m.m.).
 Admin‑gränssnittet hanterar sidor, navigation, sektioner, nyheter, dokument, logotyper, användare.
 
 ## Krav
-- .NET 8 SDK
+- .NET 10 SDK
 - Tillgängligt API (KronoxApi) med giltig API‑nyckel
 
 ## API‑anslutning
@@ -70,9 +70,17 @@ Offline/fallback: Vill du köra helt utan internet, lägg in Bootstrap/Font Awes
 Editorerna (TinyMCE) initialiseras via wwwroot/js/tinymce-config.js.
 
 ## Bilder
-- Bilduppladdning via `api/content/{pageKey}/images`.
-- Hero-bild identifieras via alt‑text som börjar med `hero:`; sidorna hämtar den via helper‑metoder.
-- `SyncImagesFromApiAsync()` kan hämta ner bilder/loggor till wwwroot för snabbare visning.
+- Bilduppladdning via `api/content/{pageKey}/images`. Bildbiblioteket hanteras i admin under `/admin/images`.
+- Bannerbild: sanningskälla är `PageImage.IsActive` – exakt en aktiv bild per sida. När en ny banner sätts som aktiv inaktiveras övriga automatiskt via API:t (`SetImageActive`). Sidorna hämtar den via extension-metoderna `PageContentViewModel.GetBannerUrl()` / `GetBannerAlt()` (se `Extensions/PageImageExtensions.cs`).
+- Bilder som används på en sida kan inte raderas förrän de tagits bort/bytts ut där (referenskontroll server-side).
+- `SyncImagesFromApiAsync()` kan hämta ner bilder/logotyper till wwwroot för snabbare visning.
+
+## Dokument
+- Delad modul `Components/Shared/Content/DocumentSection.razor` visar dokument som kort och återanvänds på flera sidor (t.ex. `/dokument`, `/forstyrelsen`, `/forvnsg`).
+- Varje dokument har en huvudkategori (`MainCategoryId`) och kan ha flera underkategorier (`SubCategories` som ID-lista). Behörighet styrs server-side via huvudkategorins `AllowedRoles`.
+- Parametrar (urval): `ShowSubcategories` (filter/sortering per underkategori), `ShowArchiveToggle` (admin kan visa/dölja arkiverade), `MaxDocumentsPerCategory`, `AutoDetectCategoryFromUrl` (av på "visa allt"-sidor som `/dokument`).
+- Arkivering: dokument kan arkiveras (`IsArchived`, `ArchivedAt`, `ArchivedBy`). Arkiverade visas endast för admin och bara när "Visa arkiverade" är ibockad.
+- Kategorier hanteras i admin under `/admin/documents/manage`; underkategorinamn hämtas via `CategoryService`.
 
 ## Feature‑sektioner och privat innehåll
 - Inloggade användare ser privat innehåll (HasPrivateContent/PrivateContent) samt kontaktpersoner.
@@ -86,3 +94,10 @@ Editorerna (TinyMCE) initialiseras via wwwroot/js/tinymce-config.js.
 - Ser du gammalt innehåll? Rensa cache: spara igen via admin eller starta om appen.
 - Feature‑sektioner saknar privata fält? Kontrollera att `CmsService.SavePageContentAsync` och `SaveFeatureSectionsAsync` körts och att API PUT lyckats.
 - 404 vid direktbesök: sidan kan vara inaktiverad i navigationsinställningar. Komponent `RequirePageEnabled` blockerar.
+
+### reCAPTCHA v3 (registrering och kontakt)
+- Frontend läser publik nyckel från `Recaptcha:SiteKey` (t.ex. via user-secrets eller `appsettings.json`): "Recaptcha": { "SiteKey": "din-site-key" }
+- Sidorna `Registrera.razor` och kontaktformuläret laddar Googles v3-skript via JS-hjälparen `window.recaptchaHelper` i `wwwroot/js/main.js` (`recaptchaHelper.load(siteKey)`) och genererar en token per formulär med `recaptchaHelper.execute("register" | "contact")`.
+- Token skickas med i request till API:t, som verifierar den server-side (se KronoxApi-README).
+- Site key är publik och exponeras avsiktligt i klienten; håll endast secret key hemlig (den ligger i API:t).
+- Obs: `ContactFormSection` genererar reCAPTCHA-token endast i sin inbyggda submit-väg (POST till `api/contact/send`). Om en förälder tar över via `OnFormSubmitted` måste den själv hämta och skicka en token (`recaptchaHelper.execute("contact")`).

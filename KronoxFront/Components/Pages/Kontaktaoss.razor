@@ -44,7 +44,7 @@ else
             @switch (section.Type)
             {
                 case SectionType.Banner:
-                    <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                    <PageHeroBanner ImageUrl="@pageContent.GetBannerUrl()" AltText="@pageContent.GetBannerAlt()"
                                     IsAdmin="@isAdmin" PageKey="kontaktaoss" />
                     break;
 
@@ -146,7 +146,7 @@ else
         @* Fallback: Visa alltid grundläggande innehåll om inga sektioner är konfigurerade *@
         <div class="wrapper-div">
             @* Banner *@
-            <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+            <PageHeroBanner ImageUrl="@pageContent.GetBannerUrl()" AltText="@pageContent.GetBannerAlt()"
                             IsAdmin="@isAdmin" PageKey="kontaktaoss" />
             
             @* Intro *@
@@ -299,18 +299,6 @@ else
         {
             loading = false;
         }
-    }
-
-    private string GetHeroBannerUrl()
-    {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
-        return heroBanner?.Url ?? "";
-    }
-
-    private string GetHeroBannerAlt()
-    {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
-        return heroBanner?.AltText ?? "";
     }
 
     private void ShowImage(string imageUrl)

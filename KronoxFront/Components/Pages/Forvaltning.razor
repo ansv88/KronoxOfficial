@@ -42,7 +42,7 @@ else
         @switch (section.Type)
         {
             case SectionType.Banner:
-                <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                <PageHeroBanner ImageUrl="@pageContent.GetBannerUrl()" AltText="@pageContent.GetBannerAlt()"
                                 IsAdmin="@isAdmin" PageKey="forvaltning" />
                 break;
 
@@ -258,18 +258,6 @@ else
                 new() { Type = SectionType.DevelopmentSuggestionForm, SortOrder = 3, IsEnabled = true }
             };
         }
-    }
-
-    private string GetHeroBannerUrl()
-    {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
-        return heroBanner?.Url ?? "";
-    }
-
-    private string GetHeroBannerAlt()
-    {
-        var heroBanner = pageContent.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
-        return heroBanner?.AltText ?? "";
     }
 
     private void ShowImage(string imageUrl)

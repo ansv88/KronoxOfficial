@@ -24,7 +24,7 @@ public class CmsService
         _cache = cache;
     }
 
-    // HERO/BANNERBILD
+    // BANNERBILD
     public class UpdateAltTextDto
     {
         public string AltText { get; set; } = string.Empty;

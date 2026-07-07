@@ -115,9 +115,7 @@
     private async Task LoadCurrentBanner()
     {
         var page = await Cms.GetPageContentAsync(PageKey);
-        // Föredra IsActive-flaggan, med fallback på hero:-prefix för befintliga bilder
-        CurrentBanner = page?.Images?.FirstOrDefault(i => i.IsActive)
-            ?? page?.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
+        CurrentBanner = page.GetActiveBanner();
     }
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)

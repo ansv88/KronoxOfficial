@@ -4,7 +4,7 @@ API:t exponerar endpoints för sidinnehåll, sektioner (intro, features, FAQ), d
 Säkerhet hanteras med API‑nyckel och rollbaserad auktorisering.
 
 ## Krav
-- .NET 8 SDK
+- .NET 10 SDK
 - SQL Server (lokal eller extern)
 - Konfigurerad API‑nyckel (RequireApiKey)
 
@@ -17,7 +17,7 @@ Säkerhet hanteras med API‑nyckel och rollbaserad auktorisering.
 - Skapa/uppgradera DB:
   - Package Manager Console: `Update-Database`
   - CLI: `dotnet ef database update`
-- Migrationer inkluderar bl.a. `AddActionPlanAndDevelopmentSuggestion` (ActionPlan och DevelopmentSuggestion-tabeller).
+- Migrationer inkluderar bl.a. `AddActionPlanAndDevelopmentSuggestion`, `AddIsActiveToPageImage` (aktiv bannerbild per sida) och `ActionPlanArchivingAndSubgoalDetails` (arkivering + delmål i handlingsplanen).
 
 ## Seeding
 Seeding körs automatiskt vid uppstart (se `Program.cs` → `SeedAllAsync`). Det finns tre seedfiler med följande ansvar:
@@ -49,6 +49,12 @@ Tips
 - API‑nyckel krävs globalt för kontroller märkta `[RequireApiKey]`.
 - Rollen styrs med `[RequireRole(...)]` på skyddade endpoints (t.ex. PUT/GET authenticerat innehåll).
 - Rate limiting via `[EnableRateLimiting("API")]`.
+- reCAPTCHA v3-verifiering: Verifiering sker server-side i `Services/RecaptchaService.cs` (`IRecaptchaService`) mot Googles `siteverify`-API. Anropas från `AuthController` (registrering) och `ContactController` (kontaktformulär).
+- Konfiguration (använd user-secrets i utveckling, miljövariabler/hemlighetslager i produktion):
+    - `Recaptcha:SecretKey` – hemlig nyckel (krävs; utan den nekas verifiering).
+    - `Recaptcha:MinimumScore` – lägsta godkända score (valfritt, standard `0.5`). Score nära 1.0 = trolig människa, nära 0.0 = trolig bot.
+- Servern kontrollerar även att `action` matchar det förväntade formuläret (t.ex. `register`/`contact`) innan begäran släpps igenom.
+- Sätt secret key t.ex. så här: `dotnet user-secrets set "Recaptcha:SecretKey" "din-secret-key"` (kört i `KronoxApi`-projektmappen).
 
 ## API‑dokumentation (Swagger / OpenAPI)
 - När API:t körs: öppna Swagger UI på `/swagger` (t.ex. https://localhost:5001/swagger).

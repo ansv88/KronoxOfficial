@@ -28,9 +28,10 @@ API‑del (oförändrat):
 - Vad: `institutionUrls` (Dictionary) mappar lärosätesnamn till URL.
 - Ändra: Lägg till/uppdatera här för att påverka länkningen i sidan.
 
-## 4) Hero‑bild per sida
-- Var: Respektive sida (t.ex. `Home.razor`, `Omkonsortiet.razor`, …) metoder `GetHeroBannerUrl()`/`GetHeroBannerAlt()`.
-- Mekanik: Hero identifieras av bilder vars alt‑text börjar med `hero:`. Ladda upp bild via admin (Banner‑sektionen) och sätt alt‑text.
+## 4) Hero-/bannerbild per sida
+- Var: Bannerbilden hämtas via extension-metoderna `PageContentViewModel.GetBannerUrl()` / `GetBannerAlt()` (se `KronoxFront/Extensions/PageImageExtensions.cs`).
+- Mekanik: Sanningskälla är `PageImage.IsActive` – exakt en aktiv bild per sida. När en ny banner sätts som aktiv inaktiveras övriga automatiskt via API:t (`SetImageActive`).
+- Ändra: Ladda upp/välj bild via admin (Banner-sektionen i "Redigera sida"); den markeras då som aktiv. Bildbiblioteket (`/admin/images`) visar vilken bild som är aktiv med en "Bannerbild"-badge.
 
 ## 5) Fasta sidor i adminvyer
 - Fil: `KronoxFront/Components/Pages/Admin/MainPageAdmin.razor`

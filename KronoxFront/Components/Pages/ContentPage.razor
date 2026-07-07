@@ -3,10 +3,8 @@
 @using KronoxFront.Components.Shared.Layout
 @using KronoxFront.Components.Shared.Security
 @using KronoxFront.Components.Shared.UI
-@using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
-@using KronoxFront.Components.Shared
 @using Microsoft.AspNetCore.Components.Authorization
 @inject CmsService Cms
 @inject ILogger<ContentPage> Logger
@@ -58,7 +56,7 @@
                 @switch (section.Type)
                 {
                     case SectionType.Banner:
-                        <PageHeroBanner ImageUrl="@GetHeroBannerUrl()" AltText="@GetHeroBannerAlt()"
+                        <PageHeroBanner ImageUrl="@pageContent.GetBannerUrl()" AltText="@pageContent.GetBannerAlt()"
                                         IsAdmin="@isAdmin" PageKey="@PageKey" />
                         break;
 
@@ -309,18 +307,6 @@
         {
             Logger.LogError(ex, "Fel vid laddning av sektionsdata för {PageKey}", PageKey);
         }
-    }
-
-    private string GetHeroBannerUrl()
-    {
-        var heroBanner = pageContent?.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent?.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
-        return heroBanner?.Url ?? "";
-    }
-
-    private string GetHeroBannerAlt()
-    {
-        var heroBanner = pageContent?.Images?.FirstOrDefault(i => i.IsActive) ?? pageContent?.Images?.FirstOrDefault(i => i.AltText?.StartsWith("hero:", StringComparison.OrdinalIgnoreCase) == true);
-        return heroBanner?.AltText ?? "";
     }
 
     private void ShowImage(string imageUrl) => activeImage = imageUrl;
