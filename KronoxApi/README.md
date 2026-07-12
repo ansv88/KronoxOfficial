@@ -63,7 +63,7 @@ Tips
 ## Omfattning (områden)
 README listar inte enskilda endpoints (för att undvika att de blir inaktuella). Använd Swagger för fullständig lista. Huvudområden i API:t:
 - Sidinnehåll och metadata (Content)
-- Intro‑ och feature‑sektioner (inkl. privat innehåll och kontaktpersoner)
+- Intro‑ och feature‑sektioner (inkl. privat innehåll, kontaktpersoner, `HidePublicForMembers` – döljer publik text för inloggade, och `HideEntireSectionForMembers` – döljer hela sektionen för inloggade; oinloggade ser den fortfarande)
 - FAQ (sektioner + frågor/svar)
 - Navigation och sidstatus
 - Dokument och kategorier

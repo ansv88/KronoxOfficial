@@ -13,6 +13,8 @@ public class FeatureSectionViewModel
     public string PageKey { get; set; } = "";
     public bool HasPrivateContent { get; set; } = false;
     public string PrivateContent { get; set; } = "";
+    public bool HidePublicForMembers { get; set; } = false;
+    public bool HideEntireSectionForMembers { get; set; } = false;
     public string ContactHeading { get; set; } = "";
     public List<ContactPersonViewModel> ContactPersons { get; set; } = new();
 }

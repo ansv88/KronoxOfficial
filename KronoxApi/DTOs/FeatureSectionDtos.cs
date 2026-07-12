@@ -22,6 +22,8 @@ public class FeatureSectionDto
     public bool HasImage { get; set; }
     public int SortOrder { get; set; }
     public bool HasPrivateContent { get; set; }
+    public bool HidePublicForMembers { get; set; }
+    public bool HideEntireSectionForMembers { get; set; }
 
     // Hjälpkonstruktor för enkel mappning från Entity
     public FeatureSectionDto() { }
@@ -37,6 +39,8 @@ public class FeatureSectionDto
         HasImage = f.HasImage;
         SortOrder = f.SortOrder;
         HasPrivateContent = f.HasPrivateContent;
+        HidePublicForMembers = f.HidePublicForMembers;
+        HideEntireSectionForMembers = f.HideEntireSectionForMembers;
     }
 }
 

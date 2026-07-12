@@ -83,8 +83,11 @@ Editorerna (TinyMCE) initialiseras via wwwroot/js/tinymce-config.js.
 - Kategorier hanteras i admin under `/admin/documents/manage`; underkategorinamn hämtas via `CategoryService`.
 
 ## Feature‑sektioner och privat innehåll
-- Inloggade användare ser privat innehåll (HasPrivateContent/PrivateContent) samt kontaktpersoner.
-- `CmsService` synkar feature‑sektioner: läser/skriv­er alla fält (privat innehåll, contactHeading, contactPersons) till API och metadata.
+- Inloggade användare ser privat innehåll (`HasPrivateContent`/`PrivateContent`) samt kontaktpersoner.
+- Admin kan per sektion kryssa i **"Dölj den allmänna texten för inloggade"** (`HidePublicForMembers`). Då döljs den publika texten (`Content`) för inloggade, som istället bara ser medlemsinformationen. Oinloggade ser alltid den publika texten.
+- Admin kan även kryssa i **"Dölj hela sektionen för inloggade"** (`HideEntireSectionForMembers`). Då renderas hela sektionen (rubrik, bild, text och avdelare) enbart för oinloggade besökare. Väljs detta döljs övriga medlemsinställningar i editorn för att undvika motstridiga val.
+- Renderingslogiken finns i `Components/Shared/Content/FeatureSections.razor`: hela sektioner filtreras bort för inloggade via `VisibleSections` (`HideEntireSectionForMembers`), och `GetEnhancedContent` tar bort den publika texten när `isLoggedIn && HidePublicForMembers`.
+- `CmsService` synkar feature‑sektioner: läser/skriv­er alla fält (privat innehåll, `HidePublicForMembers`, `HideEntireSectionForMembers`, contactHeading, contactPersons) till API och metadata.
 
 ## Vanliga flöden
 - Redigera sida: gå till `/admin/{PageKey}` eller `/admin/page/{PageKey}`, aktivera sektioner, redigera och spara. Cacher invalideras automatiskt.

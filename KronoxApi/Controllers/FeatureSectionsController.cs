@@ -54,6 +54,8 @@ public class FeatureSectionsController : ControllerBase
                 HasImage = s.HasImage,
                 SortOrder = s.SortOrder,
                 HasPrivateContent = s.HasPrivateContent,
+                HidePublicForMembers = s.HidePublicForMembers,
+                HideEntireSectionForMembers = s.HideEntireSectionForMembers,
                 PrivateContent = "", // Skicka inte privat innehåll för publika anrop
                 ContactPersonsJson = s.ContactPersonsJson, // Men skicka kontaktpersoner
                 ContactHeading = s.ContactHeading,
@@ -94,6 +96,8 @@ public class FeatureSectionsController : ControllerBase
                 HasImage = s.HasImage,
                 SortOrder = s.SortOrder,
                 HasPrivateContent = s.HasPrivateContent,
+                HidePublicForMembers = s.HidePublicForMembers,
+                HideEntireSectionForMembers = s.HideEntireSectionForMembers,
                 PrivateContent = s.PrivateContent,
                 ContactPersonsJson = s.ContactPersonsJson,
                 ContactHeading = s.ContactHeading,
@@ -154,6 +158,8 @@ public class FeatureSectionsController : ControllerBase
                     HasImage = dto.HasImage,
                     SortOrder = i,
                     HasPrivateContent = dto.HasPrivateContent,
+                    HidePublicForMembers = dto.HidePublicForMembers,
+                    HideEntireSectionForMembers = dto.HideEntireSectionForMembers,
                     PrivateContent = dto.PrivateContent ?? "",
                     ContactPersonsJson = contactPersonsJson ?? "",
                     ContactHeading = dto.ContactHeading ?? ""

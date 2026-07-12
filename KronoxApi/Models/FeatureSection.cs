@@ -21,6 +21,8 @@ public class FeatureSection
 
     public string PrivateContent { get; set; } = string.Empty;
     public string ContactPersonsJson { get; set; } = string.Empty;
-    public bool HasPrivateContent { get; set; } = false; // Flagga för om sektionen har privat innehåll
+    public bool HasPrivateContent { get; set; } = false;
     public string ContactHeading { get; set; } = string.Empty;
+    public bool HidePublicForMembers { get; set; } = false;
+    public bool HideEntireSectionForMembers { get; set; } = false;
 }

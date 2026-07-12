@@ -6,9 +6,9 @@
 @inject ILogger<FeatureSections> Logger
 @implements IDisposable
 
-@if (Sections.Count > 0)
+@if (VisibleSections.Count > 0)
 {
-    @foreach (var (featureItem, index) in Sections.Select((s, i) => (s, i)))
+    @foreach (var (featureItem, index) in VisibleSections.Select((s, i) => (s, i)))
     {
         <div class="feature-section row align-items-center mb-5">
             @if (featureItem.HasImage)
@@ -49,7 +49,7 @@
             }
         </div>
 
-        @if (index < Sections.Count - 1)
+        @if (index < VisibleSections.Count - 1)
         {
             <div class="divider"></div>
         }
@@ -73,6 +73,10 @@ else
     [Parameter] public bool IsCustomPage { get; set; } = false;
 
     private List<FeatureSectionViewModel> Sections { get; set; } = new();
+
+    private List<FeatureSectionViewModel> VisibleSections =>
+        Sections.Where(s => !(isLoggedIn && s.HideEntireSectionForMembers)).ToList();
+
     private bool isLoggedIn = false;
 
     private string AdminEditUrl => IsCustomPage ? $"/admin/page/{PageKey}" : $"/admin/{PageKey}";
@@ -134,7 +138,10 @@ else
 
     private string GetEnhancedContent(FeatureSectionViewModel featureItem)
     {
-        var content = featureItem.Content;
+        // Dölj den publika texten för inloggade om admin valt det.
+        // Oinloggade ser alltid den publika texten.
+        var hidePublic = isLoggedIn && featureItem.HidePublicForMembers;
+        var content = hidePublic ? "" : featureItem.Content;
 
         if (isLoggedIn && featureItem.HasPrivateContent)
         {

@@ -498,6 +498,8 @@ public class CmsService
                 HasImage = s.HasImage,
                 SortOrder = s.SortOrder,
                 HasPrivateContent = s.HasPrivateContent,
+                HidePublicForMembers = s.HidePublicForMembers,
+                HideEntireSectionForMembers = s.HideEntireSectionForMembers,
                 PrivateContent = s.PrivateContent,
                 ContactHeading = s.ContactHeading,
                 ContactPersons = s.ContactPersons.Select(c => new ContactPersonDto
@@ -1526,6 +1528,8 @@ public class CmsService
             HasImage = dto.HasImage,
             SortOrder = dto.SortOrder,
             HasPrivateContent = dto.HasPrivateContent,
+            HidePublicForMembers = dto.HidePublicForMembers,
+            HideEntireSectionForMembers = dto.HideEntireSectionForMembers,
             PrivateContent = includePrivate ? dto.PrivateContent : "",
             ContactHeading = dto.ContactHeading,
             ContactPersons = dto.ContactPersons.Select(c => new ContactPersonViewModel
