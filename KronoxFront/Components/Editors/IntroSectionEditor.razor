@@ -9,7 +9,7 @@
 
 <EditForm Model="IntroSection" OnValidSubmit="SaveIntroSection">
     <DataAnnotationsValidator />
-    <AdminSectionFrame Title="Intro-sektion" IconClass="fa-solid fa-align-left">
+    <AdminSectionFrame Title="Introsektion" IconClass="fa-solid fa-align-left">
         <ChildContent>
             <div class="mb-3">
                 <label class="form-label">Breadcrumb-titel (visas ovanför introt)</label>
@@ -85,13 +85,13 @@
         </ChildContent>
 
         <FooterContent>
-            <button type="submit" class="btn btn-primary" disabled="@IsSaving">
+            <button type="submit" class="btn btn-success" disabled="@IsSaving">
                 @if (IsSaving)
                 {
                     <span class="spinner-border spinner-border-sm me-1"></span>
                 }
                 <i class="fa-solid fa-save me-1"></i>
-                Spara intro-sektion
+                Spara introsektion
             </button>
         </FooterContent>
     </AdminSectionFrame>

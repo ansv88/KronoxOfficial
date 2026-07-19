@@ -6,7 +6,11 @@ public class NavigationConfigDto
 {
     public int Id { get; set; }
     public string PageKey { get; set; } = "";
+
+    [Required(ErrorMessage = "Länktext krävs.")]
+    [StringLength(40, ErrorMessage = "Länktexten får vara max 40 tecken.")]
     public string DisplayName { get; set; } = "";
+
     public string ItemType { get; set; } = "";
     public int SortOrder { get; set; }
     public int? GuestSortOrder { get; set; }
@@ -22,8 +26,8 @@ public class NavigationConfigDto
 
 public class NavigationUpdateDto
 {
-    [Required(ErrorMessage = "DisplayName krävs.")]
-    [StringLength(200, ErrorMessage = "DisplayName får vara max 200 tecken.")]
+    [Required(ErrorMessage = "Länktext krävs.")]
+    [StringLength(40, ErrorMessage = "Länktexten får vara max 40 tecken.")]
     public string DisplayName { get; set; } = "";
 
     public int SortOrder { get; set; }

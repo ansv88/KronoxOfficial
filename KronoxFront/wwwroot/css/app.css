@@ -65,7 +65,8 @@ body {
 
 /* Styling för aktiv länk i navigationsmeny */
 .nav-link.active-link {
-    font-weight: 600 !important;
+    text-shadow: 0.3px 0 0 currentColor, -0.3px 0 0 currentColor;
+    font-weight: normal !important;
     position: relative !important;
     color: white !important;
 }

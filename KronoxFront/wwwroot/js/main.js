@@ -32,8 +32,6 @@ window.initPreviewCarousel = function () {
         var carousel = new bootstrap.Carousel(myCarousel, {
             interval: 5000
         });
-        console.log("Karusell initierad");
-    } else {
         console.warn("Karusellelement hittades inte");
     }
 };
@@ -100,7 +98,6 @@ window.initCarousel = function () {
                 wrap: true,
                 pause: 'hover'
             });
-            console.log('Karusell initierad:', carouselElement.id);
         } catch (error) {
             console.error('Fel vid initiering av karusell:', carouselElement.id, error);
         }
@@ -175,31 +172,24 @@ function showToast(message, type, title) {
 
 // Lyssna på DOMContentLoaded för att initialisera UI-komponenter
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('DOM helt laddat, initierar UI-komponenter');
 
     // Initialisera tillbaka-till-toppen knapp om den finns
     window.initScrollTopButton();
 
     // Initialisera eventuell medlemskarusell på startsidan
     window.initCarousel();
-
-    console.log('Main.js initiering klar, alla JavaScript-metoder är registrerade');
 });
 
 
 window.initPreviewForHomeAdmin = function () {
-    console.log("Initierar HomeAdmin-förhandsgranskning");
-
     // Ge lite tid för DOM att uppdateras
     setTimeout(function () {
         const previewCarousel = document.getElementById('previewCarousel');
         if (previewCarousel) {
-            console.log("Hittade previewCarousel, initierar Bootstrap-karusell");
             try {
                 const carousel = new bootstrap.Carousel(previewCarousel, {
                     interval: 5000
                 });
-                console.log("Karusell initierad");
             } catch (e) {
                 console.error("Fel vid initiering av karusell:", e);
             }

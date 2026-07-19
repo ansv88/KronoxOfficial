@@ -2,6 +2,7 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.Components.Shared.Admin
+@using KronoxFront.Components.Shared
 @using KronoxFront.ViewModels.Faq
 @inject IJSRuntime JS
 @inject ILogger<FaqEditor> Logger
@@ -38,6 +39,7 @@
                     <div class="mb-3">
                         <label class="form-label">Rubrik</label>
                         <input type="text" class="form-control" @bind="section.Title" @bind:after="OnFaqChanged" />
+                        <CharCountHint Value="@section.Title" Max="MaxFaqTitleLength" Label="Rubriken" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Beskrivning</label>
@@ -117,6 +119,7 @@
                                                 <div class="mb-3">
                                                     <label class="form-label">Fråga</label>
                                                     <input type="text" class="form-control" @bind="item.Question" @bind:after="OnFaqChanged" />
+                                                    <CharCountHint Value="@item.Question" Max="MaxFaqQuestionLength" Label="Frågan" />
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label">Svar</label>
@@ -138,6 +141,7 @@
                                                 <div class="mb-3">
                                                     <label class="form-label">Fråga</label>
                                                     <input type="text" class="form-control" @bind="item.Question" @bind:after="OnFaqChanged" />
+                                                    <CharCountHint Value="@item.Question" Max="MaxFaqQuestionLength" Label="Frågan" />
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label">Svar</label>
@@ -168,18 +172,28 @@
     </ChildContent>
 
     <FooterContent>
-        <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary" @onclick="SaveFaqSections" disabled="@isSaving" aria-label="Spara FAQ-sektioner">
-                @if (isSaving)
-                {
-                    <span class="spinner-border spinner-border-sm me-1"></span>
-                }
-                else
-                {
-                    <i class="fa-solid fa-save me-1"></i>
-                }
-                Spara FAQ-sektioner
-            </button>
+        <div class="w-100">
+            @if (HasInvalidFaqFields)
+            {
+                <div class="alert alert-danger py-2" role="alert">
+                    <i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>
+                    En eller flera rubriker eller frågor överskrider tillåten längd. Åtgärda dessa innan du sparar.
+                </div>
+            }
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary" @onclick="SaveFaqSections"
+                        disabled="@(isSaving || HasInvalidFaqFields)" aria-label="Spara FAQ-sektioner">
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-save me-1"></i>
+                    }
+                    Spara FAQ-sektioner
+                </button>
+            </div>
         </div>
     </FooterContent>
 </AdminSectionFrame>
@@ -241,6 +255,12 @@
 
     private async Task SaveFaqSections()
     {
+        if (HasInvalidFaqFields)
+        {
+            await Toast.Error("En eller flera rubriker eller frågor är för långa. Åtgärda dessa innan du sparar.");
+            return;
+        }
+
         isSaving = true;
         try
         {
@@ -621,4 +641,12 @@
         
         _cancellationTokenSource.Dispose();
     }
+
+    private const int MaxFaqTitleLength = 80;
+    private const int MaxFaqQuestionLength = 150;
+
+    private bool HasInvalidFaqFields =>
+        FaqSections.Any(s =>
+            (!string.IsNullOrEmpty(s.Title) && s.Title.Length > MaxFaqTitleLength) ||
+            s.FaqItems.Any(i => !string.IsNullOrEmpty(i.Question) && i.Question.Length > MaxFaqQuestionLength));
 }

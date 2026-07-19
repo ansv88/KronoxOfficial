@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace KronoxFront.ViewModels;
 
 public class NavigationPageViewModel
@@ -24,7 +26,11 @@ public class NavigationConfigViewModel
 {
     public int Id { get; set; }
     public string PageKey { get; set; } = "";
+
+    [Required(ErrorMessage = "Länktext krävs.")]
+    [StringLength(40, ErrorMessage = "Länktexten får vara max 40 tecken.")]
     public string DisplayName { get; set; } = "";
+
     public string ItemType { get; set; } = "";
     public int SortOrder { get; set; }
     public int? GuestSortOrder { get; set; }

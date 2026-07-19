@@ -866,7 +866,16 @@
             {
                 var error = await response.Content.ReadAsStringAsync();
                 Logger.LogError("Fel vid skapande av sida: {Error}", error);
-                await Toast.Error($"Fel vid skapande: {error}");
+
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    // Vanligast: URL:en (PageKey) är redan upptagen
+                    await Toast.Error("Det finns redan en sida med samma URL. Ändra URL:en och försök igen.");
+                }
+                else
+                {
+                    await Toast.Error("Ett fel uppstod när sidan skulle skapas. Försök igen.");
+                }
             }
         }
         catch (Exception ex)

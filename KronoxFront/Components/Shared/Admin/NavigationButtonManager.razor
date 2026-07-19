@@ -1,4 +1,5 @@
 ﻿@using KronoxFront.ViewModels
+@using KronoxFront.Components.Shared
 @inject IConfiguration Configuration
 
 <div class="card mb-4">
@@ -36,6 +37,7 @@
                                 <input id="btn-text-@index" type="text" class="form-control form-control-sm"
                                        placeholder="T.ex. Manualen"
                                        @bind="button.Text" @bind:after="OnButtonFieldChanged" />
+                                <CharCountHint Value="@button.Text" Max="MaxButtonTextLength" Label="Knapptexten" />
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label small fw-medium" for="btn-url-@index">Länk</label>
@@ -66,9 +68,7 @@
                                 <input id="btn-icon-@index" type="text" class="form-control form-control-sm"
                                        placeholder="T.ex. fa-solid fa-arrow-right"
                                        @bind="button.IconClass" @bind:after="OnButtonFieldChanged" />
-                                <div class="form-text small">
-                                    <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small" rel="noopener">fontawesome.com/icons</a>
-                                </div>
+                                <CharCountHint Value="@button.IconClass" Max="MaxIconClassLength" Label="Ikonklassen" />
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label small fw-medium">Åtgärder</label>
@@ -103,16 +103,30 @@
                 <div class="row">
                     <div class="col-md-4">
                         <label class="form-label fw-medium" for="new-btn-text">Knapptext</label>
-                        <input id="new-btn-text" type="text" class="form-control"
+                        <input id="new-btn-text" type="text"
+                               class="form-control @(ShowError(NewButtonTextError) ? "is-invalid" : "")"
                                placeholder="T.ex. Manualen"
-                               @bind="newButtonText" />
+                               @bind="newButtonText" @bind:after="OnNewButtonFieldChanged" />
+                        @if (ShowError(NewButtonTextError))
+                        {
+                            <div class="invalid-feedback d-block">@NewButtonTextError</div>
+                        }
+                        else
+                        {
+                            <CharCountHint Value="@newButtonText" Max="MaxButtonTextLength" Label="Knapptexten" />
+                        }
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-medium" for="new-btn-url">Länk</label>
-                        <input id="new-btn-url" type="text" class="form-control"
+                        <input id="new-btn-url" type="text"
+                               class="form-control @(ShowError(NewButtonUrlError) ? "is-invalid" : "")"
                                placeholder="T.ex. /go/manualen, /anvandartraff eller https://exempel.se"
-                               @bind="newButtonUrl" />
-                        @if (!string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl)))
+                               @bind="newButtonUrl" @bind:after="OnNewButtonFieldChanged" />
+                        @if (ShowError(NewButtonUrlError))
+                        {
+                            <div class="invalid-feedback d-block">@NewButtonUrlError</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl)))
                         {
                             <div class="form-text text-danger">
                                 Slug <strong>@GetMissingRedirectSlug(newButtonUrl)</strong> saknas i Redirects. Lägg till i appsettings eller ändra URL.
@@ -133,9 +147,18 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-medium" for="new-btn-icon">Font Awesome ikon</label>
-                        <input id="new-btn-icon" type="text" class="form-control"
+                        <input id="new-btn-icon" type="text"
+                               class="form-control @(ShowError(NewButtonIconError) ? "is-invalid" : "")"
                                placeholder="T.ex. fa-solid fa-arrow-right"
-                               @bind="newButtonIcon" />
+                               @bind="newButtonIcon" @bind:after="OnNewButtonFieldChanged" />
+                        @if (ShowError(NewButtonIconError))
+                        {
+                            <div class="invalid-feedback d-block">@NewButtonIconError</div>
+                        }
+                        else
+                        {
+                            <CharCountHint Value="@newButtonIcon" Max="MaxIconClassLength" Label="Ikonklassen" />
+                        }
                         <div class="form-text small">
                             <a href="https://fontawesome.com/icons" target="_blank" class="text-decoration-none small" rel="noopener">
                                 fontawesome.com/icons
@@ -145,8 +168,7 @@
                     <div class="col-md-2">
                         <label class="form-label fw-medium" aria-hidden="true">&nbsp;</label>
                         <button type="button" class="btn btn-primary d-block"
-                                @onclick="AddButton"
-                                disabled="@IsNewButtonInvalid">
+                                @onclick="AddButton">
                             <i class="fa-solid fa-plus" aria-hidden="true"></i> Lägg till
                         </button>
                     </div>
@@ -167,6 +189,27 @@
                     </div>
                 </div>
             }
+
+            @if (HasInvalidExistingButtons)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>
+                    En eller flera knappar har ogiltiga värden (för lång text/ikon, saknad text/länk eller ogiltig URL). Åtgärda dessa innan du sparar.
+                </div>
+            }
+
+            <div class="d-flex justify-content-end mt-3 pt-3 border-top">
+                <button type="button" class="btn btn-success"
+                        @onclick="SaveSection"
+                        disabled="@(IsSaving || HasInvalidExistingButtons)">
+                    @if (IsSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    }
+                    <i class="fa-solid fa-save me-1" aria-hidden="true"></i>
+                    Spara navigeringsknappar
+                </button>
+            </div>
         }
     </div>
 </div>
@@ -176,10 +219,15 @@
     [Parameter] public List<NavigationButtonViewModel> NavigationButtons { get; set; } = new();
     [Parameter] public EventCallback<bool> ShowNavigationButtonsChanged { get; set; }
     [Parameter] public EventCallback NavigationButtonsChanged { get; set; }
+    [Parameter] public bool IsSaving { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
 
     private string newButtonText = "";
     private string newButtonUrl = "";
     private string newButtonIcon = "fa-solid fa-arrow-right";
+
+    private const int MaxButtonTextLength = 30;
+    private const int MaxIconClassLength = 60;
 
     // Redirect-slugs hämtade från appsettings: "Redirects": { "<slug>": "target" }
     private HashSet<string> redirectSlugs = new(StringComparer.OrdinalIgnoreCase);
@@ -226,11 +274,11 @@
         return Uri.TryCreate(url, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps);
     }
 
-    private bool IsNewButtonInvalid =>
-        string.IsNullOrWhiteSpace(newButtonText) ||
-        string.IsNullOrWhiteSpace(newButtonUrl) ||
-        !string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl)) ||
-        !IsValidUrlOrPath(newButtonUrl);
+    private bool IsButtonTextTooLong(string? text) =>
+        !string.IsNullOrEmpty(text) && text.Length > MaxButtonTextLength;
+
+    private bool IsIconClassTooLong(string? icon) =>
+        !string.IsNullOrEmpty(icon) && icon.Length > MaxIconClassLength;
 
     private async Task OnShowNavigationButtonsChanged()
     {
@@ -242,7 +290,6 @@
 
     private async Task OnButtonFieldChanged()
     {
-        // Trimmar fält och notifierar förälder
         foreach (var b in NavigationButtons)
         {
             b.Text = b.Text?.Trim() ?? "";
@@ -252,9 +299,79 @@
         await NotifyChange();
     }
 
+    private bool showNewButtonErrors = false;
+
+    private string? NewButtonTextError =>
+        string.IsNullOrWhiteSpace(newButtonText)
+            ? "Ange en knapptext."
+            : IsButtonTextTooLong(newButtonText)
+                ? $"Knapptexten får vara max {MaxButtonTextLength} tecken (nu {newButtonText.Length})."
+                : null;
+
+    private string? NewButtonUrlError
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(newButtonUrl))
+                return "Ange en länk (URL).";
+            if (!IsValidUrlOrPath(newButtonUrl))
+                return "Ogiltig URL. Ange en absolut URL (https://...) eller en relativ sökväg som börjar med \"/\".";
+            var missingSlug = GetMissingRedirectSlug(newButtonUrl);
+            if (!string.IsNullOrWhiteSpace(missingSlug))
+                return $"Slug \"{missingSlug}\" saknas i Redirects. Lägg till den i appsettings eller ändra URL.";
+            return null;
+        }
+    }
+
+    private string? NewButtonIconError =>
+        IsIconClassTooLong(newButtonIcon)
+            ? $"Ikonklassen får vara max {MaxIconClassLength} tecken (nu {newButtonIcon.Length})."
+            : null;
+
+    private bool HasNewButtonErrors =>
+        NewButtonTextError != null || NewButtonUrlError != null || NewButtonIconError != null;
+
+    private bool ShowError(string? error) => showNewButtonErrors && error != null;
+
+    private void OnNewButtonFieldChanged()
+    {
+        if (!showNewButtonErrors) return;
+
+        if (!HasNewButtonErrors)
+            showNewButtonErrors = false;
+    }
+
+    private List<string> GetNewButtonValidationErrors()
+    {
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(newButtonText))
+            errors.Add("Ange en knapptext.");
+        else if (IsButtonTextTooLong(newButtonText))
+            errors.Add($"Knapptexten får vara max {MaxButtonTextLength} tecken (nu {newButtonText.Length}).");
+
+        if (string.IsNullOrWhiteSpace(newButtonUrl))
+            errors.Add("Ange en länk (URL).");
+        else if (!IsValidUrlOrPath(newButtonUrl))
+            errors.Add("Ogiltig URL. Ange en absolut URL (https://...) eller en relativ sökväg som börjar med \"/\".");
+        else if (!string.IsNullOrWhiteSpace(GetMissingRedirectSlug(newButtonUrl)))
+            errors.Add($"Slug \"{GetMissingRedirectSlug(newButtonUrl)}\" saknas i Redirects. Lägg till den i appsettings eller ändra URL.");
+
+        if (IsIconClassTooLong(newButtonIcon))
+            errors.Add($"Ikonklassen får vara max {MaxIconClassLength} tecken (nu {newButtonIcon.Length}).");
+
+        return errors;
+    }
+
     private async Task AddButton()
     {
-        if (IsNewButtonInvalid) return;
+        if (HasNewButtonErrors)
+        {
+            showNewButtonErrors = true;
+            return;
+        }
+
+        showNewButtonErrors = false;
 
         NavigationButtons.Add(new NavigationButtonViewModel
         {
@@ -317,6 +434,27 @@
         if (NavigationButtonsChanged.HasDelegate)
         {
             await NavigationButtonsChanged.InvokeAsync();
+        }
+    }
+
+    private bool HasInvalidExistingButtons =>
+        NavigationButtons.Any(b =>
+            string.IsNullOrWhiteSpace(b.Text) ||
+            string.IsNullOrWhiteSpace(b.Url) ||
+            IsButtonTextTooLong(b.Text) ||
+            IsIconClassTooLong(b.IconClass) ||
+            !IsValidUrlOrPath(b.Url) ||
+            !string.IsNullOrWhiteSpace(GetMissingRedirectSlug(b.Url)));
+
+    private async Task SaveSection()
+    {
+        if (HasInvalidExistingButtons) return;
+
+        await OnButtonFieldChanged();
+
+        if (OnSave.HasDelegate)
+        {
+            await OnSave.InvokeAsync();
         }
     }
 }

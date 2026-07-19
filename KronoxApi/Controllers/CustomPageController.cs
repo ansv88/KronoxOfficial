@@ -212,7 +212,7 @@ public class CustomPageController : ControllerBase
 
             if (existingPage != null)
             {
-                return BadRequest("En sida med denna PageKey finns redan");
+                return BadRequest("Det finns redan en sida med samma URL. Välj en annan URL.");
             }
 
             var customPage = new CustomPage

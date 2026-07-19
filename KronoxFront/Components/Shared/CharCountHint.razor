@@ -1,0 +1,23 @@
+@* Visar en diskret teckenräknare som blir röd när max överskrids.
+   Återanvänds i admin-fält som saknar EditForm/DataAnnotations. *@
+
+@if (!string.IsNullOrEmpty(Value) && Value.Length > Max)
+{
+    <div class="form-text text-danger">
+        @(Label ?? "Fältet") får vara max @Max tecken (nu @Value.Length).
+    </div>
+}
+else if (ShowCounter && !string.IsNullOrEmpty(Value))
+{
+    <div class="form-text text-muted">
+        @Value.Length / @Max tecken
+    </div>
+}
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public int Max { get; set; } = 100;
+    [Parameter] public string? Label { get; set; }
+
+    [Parameter] public bool ShowCounter { get; set; } = false;
+}

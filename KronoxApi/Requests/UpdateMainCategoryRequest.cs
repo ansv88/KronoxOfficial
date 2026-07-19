@@ -6,7 +6,7 @@ namespace KronoxApi.Requests;
 public class UpdateMainCategoryRequest
 {
     [Required(ErrorMessage = "Kategorinamn krävs")]
-    [MaxLength(255, ErrorMessage = "Kategorinamnet får inte överstiga 255 tecken")]
+    [MaxLength(50, ErrorMessage = "Kategorinamnet får inte överstiga 50 tecken")]
     public string Name { get; set; } = string.Empty;
 
     public List<string> AllowedRoles { get; set; } = new();
