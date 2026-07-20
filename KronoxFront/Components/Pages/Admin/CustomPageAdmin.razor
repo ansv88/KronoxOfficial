@@ -2,15 +2,13 @@
 @using KronoxFront.Components.Editors
 @using KronoxFront.Components.Shared.Admin
 @using KronoxFront.Components.Shared.Content
-@using KronoxFront.Components.Shared.Layout
 @using KronoxFront.Components.Shared.UI
-@using KronoxFront.ViewModels
 @using KronoxFront.Extensions
 @using KronoxFront.Services
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Forms
-@using KronoxFront.ViewModels.Features
+@using KronoxFront.ViewModels
 @using KronoxFront.ViewModels.Faq
+@using KronoxFront.ViewModels.Features
+@using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
@@ -223,7 +221,6 @@ else
                     </div>
                 }
 
-                @* Spara allt innehåll – längst ned efter alla sektioner *@
                 @if (sectionConfigItems.Any(s => s.IsEnabled))
                 {
                     <div class="d-flex flex-column align-items-end mt-4 pt-3 border-top">

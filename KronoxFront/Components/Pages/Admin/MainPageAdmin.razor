@@ -4,15 +4,12 @@
 @using KronoxFront.Components.Editors
 @using KronoxFront.Components.Shared.Admin
 @using KronoxFront.Components.Shared.Content
-@using KronoxFront.Components.Shared.Layout
 @using KronoxFront.Components.Shared.UI
-@using KronoxFront.DTOs
 @using KronoxFront.Services
 @using KronoxFront.ViewModels
-@using KronoxFront.ViewModels.Features
 @using KronoxFront.ViewModels.Faq
+@using KronoxFront.ViewModels.Features
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
@@ -88,7 +85,8 @@ else
             else
             {
                 @* Navigeringsinställningar *@
-                <NavigationSettings PageKey="@PageKey"
+                <NavigationSettings @ref="navigationSettingsRef"
+                                    PageKey="@PageKey"
                                     InitialDisplayName="@pageContent.Title"
                                     OnDisplayNameChanged="@(EventCallback.Factory.Create<string>(this, OnNavigationNameChanged))" />
 
@@ -101,6 +99,7 @@ else
                 @* Dynamiska sektioner baserat på konfiguration *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
                 {
+                    <div id="section-@sectionConfig.Type">
                     @switch (sectionConfig.Type)
                     {
                         case SectionType.Banner:
@@ -191,6 +190,7 @@ else
                             </AdminSectionFrame>
                             break;
                     }
+                    </div>
                 }
 
                 @* Visar meddelande om inga sektioner är aktiverade *@
@@ -249,6 +249,7 @@ else
     private bool isSaving = false;
     private FeatureSectionEditor? featureSectionEditorRef;
     private FaqEditor? faqEditorRef;
+    private NavigationSettings? navigationSettingsRef;
     private bool needsEditorInitialization = false;
 
     // Dynamiska giltiga fasta sidor (endast sidor med .razor-filer)
@@ -833,6 +834,12 @@ else
                 Logger.LogWarning("Kunde inte synkronisera TinyMCE-editorer för {PageKey}: {Message}", PageKey, ex.Message);
             }
 
+            // Spara även navigations-/tillgänglighetsinställningarna.
+            if (navigationSettingsRef != null)
+            {
+                await navigationSettingsRef.SaveFromParentAsync();
+            }
+
             var activeSections = sectionConfigItems.Where(s => s.IsEnabled).ToList();
             var saveTasks = new List<Task>
             {
@@ -995,10 +1002,12 @@ else
         if (string.IsNullOrWhiteSpace(newDisplayName))
             return;
 
+        if (string.Equals(newDisplayName, CurrentDisplayName(), StringComparison.Ordinal))
+            return;
+
         try
         {
             _navDisplayName = newDisplayName;
-
             pageContent.Title = newDisplayName;
 
             if (sectionConfigItems.Any(s => s.Type == SectionType.Intro))
@@ -1013,10 +1022,9 @@ else
             }
 
             await Task.WhenAll(tasks);
-
             Cache.InvalidatePageCache(PageKey);
 
-            await Toast.Success("Navigationsnamn uppdaterade sidtitel och breadcrumb.");
+            await Toast.Success("Navigationsnamn uppdaterade sidtitel.");
             StateHasChanged();
         }
         catch (Exception ex)

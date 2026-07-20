@@ -308,6 +308,10 @@ html {
     scroll-behavior: smooth;
 }
 
+[id^="section-"] {
+    scroll-margin-top: 80px;
+}
+
 /* Highlight-animering för navigationsinställningar */
 .highlight-animation {
     animation: highlight-pulse 2s ease-in-out;
@@ -526,4 +530,18 @@ body {
 
 .action-plan-archived .badge.bg-success {
     background-color: #6c757d !important;
+}
+
+/* Diskret markering av aktiv sida i admin-sidomenyn */
+.sidebar .nav-link {
+    /* Reservera plats för indentering + markör så inget hoppar vid aktivering */
+    padding-left: 1.25rem;
+    border-left: 3px solid transparent;
+    transition: padding-left 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar .nav-link.active {
+    font-weight: 700;
+    padding-left: 1.75rem;
+    border-left-color: #b32121;
 }

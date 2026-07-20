@@ -395,6 +395,29 @@ window.scrollToNavigationSettings = function () {
     return false;
 };
 
+// Smooth scroll till en sektion via id
+window.scrollToElementById = function (id) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+        return true;
+    }
+    console.warn('Element not found for scroll:', id);
+    return false;
+};
+
+window.scrollActiveSidebarLinkIntoView = function () {
+    const active = document.querySelector('.sidebar .nav-link.active');
+    if (active) {
+        active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return true;
+    }
+    return false;
+};
+
 window.setCurrentPageKey = function (key) {
     window.currentPageKey = key || 'home';
 };

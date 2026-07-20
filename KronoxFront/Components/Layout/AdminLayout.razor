@@ -1,7 +1,9 @@
 ﻿@using KronoxFront.Components.Shared.UI
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
 @layout MainLayout
+@implements IDisposable
 @inherits LayoutComponentBase
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
@@ -234,6 +236,9 @@
     // Vid initiering, hämta statistik för sidomenyn
     protected override async Task OnInitializedAsync()
     {
+        SetActiveSectionFromUrl();
+        Nav.LocationChanged += OnLocationChanged;
+
         await LoadNewUserCount();
         await LoadNewSuggestionsCount();
         await LoadCategoryCount();
@@ -252,6 +257,22 @@
                     });
                 }
             ");
+
+            // Vänta in att rätt sektion hunnit expandera, scrolla sedan aktiv post i sikte
+            await Task.Delay(350);
+            await ScrollActiveLinkIntoView();
+        }
+    }
+
+    private async Task ScrollActiveLinkIntoView()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("scrollActiveSidebarLinkIntoView");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunde inte scrolla aktiv sidomenypost i sikte");
         }
     }
 
@@ -259,6 +280,29 @@
     {
         sectionExpanded = !sectionExpanded;
         StateHasChanged();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        SetActiveSectionFromUrl();
+        StateHasChanged();
+
+        // Låt DOM/collapse uppdateras innan scroll
+        await Task.Delay(350);
+        await ScrollActiveLinkIntoView();
+    }
+
+    private void SetActiveSectionFromUrl()
+    {
+        // Relativ sökväg i gemener, t.ex. "admin/medlemsnytt"
+        var path = Nav.ToBaseRelativePath(Nav.Uri).ToLowerInvariant();
+
+        if (PublicPages.Any(p => path.StartsWith($"admin/{p}")))
+            publicPagesExpanded = true;
+        else if (InternalPages.Any(p => path.StartsWith($"admin/{p}")))
+            internalPagesExpanded = true;
+        else if (path.StartsWith("admin/") && path != "admin" && path != "admin/dashboard")
+            functionsExpanded = true;
     }
 
     // Hämtar antal nya utvecklingsförslag från API.
@@ -346,6 +390,17 @@
     {
         Nav.NavigateTo("/");
     }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+
+    private static readonly string[] PublicPages =
+        { "home", "omkonsortiet", "omsystemet", "visioner", "kontaktaoss" };
+
+    private static readonly string[] InternalPages =
+        { "medlemsnytt", "forstyrelsen", "forvnsg", "forvaltning", "dokument" };
 }
 
 <ScrollTopButton IsDarkMode="true" />
