@@ -85,7 +85,8 @@ else
             else
             {
                 @* Navigeringsinställningar *@
-                <NavigationSettings @ref="navigationSettingsRef"
+                <NavigationSettings @key="PageKey"
+                                    @ref="navigationSettingsRef"
                                     PageKey="@PageKey"
                                     InitialDisplayName="@pageContent.Title"
                                     OnDisplayNameChanged="@(EventCallback.Factory.Create<string>(this, OnNavigationNameChanged))" />
@@ -1062,7 +1063,7 @@ else
             }
             catch (Exception ex)
             {
-                Logger.LogWarning(ex, "Kunde inte synka editorer innan sparning av featuresektioner för {PageKey}", PageKey);
+                Logger.LogWarning(ex, "Kunde inte синка editorer innan sparning av featuresektioner för {PageKey}", PageKey);
             }
 
             await Cms.SaveFeatureSectionsAsync(PageKey, featureSections);

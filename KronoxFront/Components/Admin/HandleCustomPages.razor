@@ -308,22 +308,9 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label fw-medium">Sorteringsordning</label>
-                                    <InputNumber class="form-control" @bind-Value="newPage.SortOrder" 
-                                                 min="0" max="99" 
-                                                 disabled="@(newPage.NavigationType == "hidden")" />
-                                    <div class="form-text">
-                                        @if (newPage.NavigationType == "hidden")
-                                        {
-                                            <text>Dolda sidor behöver ingen sorteringsordning.</text>
-                                        }
-                                        else
-                                        {
-                                            <text>Lägre nummer visas först i navigation.</text>
-                                        }
-                                    </div>
-                                    <ValidationMessage For="() => newPage.SortOrder" class="text-danger small" />
+                                <div class="form-text mt-4 pt-2">
+                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                    Ordningen i menyn ställs in under <strong>Hantera navigation</strong>.
                                 </div>
                             </div>
                         </div>
@@ -367,24 +354,6 @@
                                     <InputCheckbox class="form-check-input" @bind-Value="newPage.IsActive" />
                                     <label class="form-check-label fw-medium">Aktiv sida</label>
                                     <div class="form-text">Om sidan är aktiv eller inte. Inaktiva sidor kan inte besökas av användare.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check mb-3">
-                                    <InputCheckbox class="form-check-input" 
-                                                   @bind-Value="newPage.ShowInNavigation" 
-                                                   disabled="@(newPage.NavigationType == "hidden")" />
-                                    <label class="form-check-label fw-medium">Visa i navigation</label>
-                                    <div class="form-text">
-                                        @if (newPage.NavigationType == "hidden")
-                                        {
-                                            <text>Dolda sidor visas aldrig i navigation.</text>
-                                        }
-                                        else
-                                        {
-                                            <text>Avgör om sidan ska synas i navigationsmenyn eller bara vara tillgänglig via direktlänk.</text>
-                                        }
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -531,22 +500,9 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label fw-medium">Sorteringsordning</label>
-                                    <InputNumber class="form-control" 
-                                                 @bind-Value="editingPage.SortOrder" 
-                                                 disabled="@(editingPage.NavigationType == "hidden")" />
-                                    <div class="form-text">
-                                        @if (editingPage.NavigationType == "hidden")
-                                        {
-                                            <text>Dolda sidor behöver ingen sorteringsordning.</text>
-                                        }
-                                        else
-                                        {
-                                            <text>Lägre nummer visas först i navigation.</text>
-                                        }
-                                    </div>
-                                    <ValidationMessage For="() => editingPage.SortOrder" class="text-danger small" />
+                                <div class="form-text mt-4 pt-2">
+                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                    Ordningen i menyn ställs in under <strong>Hantera navigation</strong>.
                                 </div>
                             </div>
                         </div>
@@ -589,24 +545,6 @@
                                     <InputCheckbox class="form-check-input" @bind-Value="editingPage.IsActive" />
                                     <label class="form-check-label fw-medium">Aktiv sida</label>
                                     <div class="form-text">Om sidan är aktiv eller inte. Inaktiva sidor kan inte besökas av användare.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check mb-3">
-                                    <InputCheckbox class="form-check-input" 
-                                                   @bind-Value="editingPage.ShowInNavigation" 
-                                                   disabled="@(editingPage.NavigationType == "hidden")" />
-                                    <label class="form-check-label fw-medium">Visa i navigation</label>
-                                    <div class="form-text">
-                                        @if (editingPage.NavigationType == "hidden")
-                                        {
-                                            <text>Dolda sidor visas aldrig i navigation.</text>
-                                        }
-                                        else
-                                        {
-                                            <text>Avgör om sidan ska synas i navigationsmenyn eller bara vara tillgänglig via direktlänk.</text>
-                                        }
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -838,6 +776,8 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+
+            newPage.ShowInNavigation = newPage.NavigationType != "hidden";
             
             var response = await httpClient.PostAsJsonAsync("api/custompage", newPage.ToCreateRequest());
             
@@ -897,7 +837,9 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-           
+            
+            editingPage.ShowInNavigation = editingPage.NavigationType != "hidden";
+
             var response = await httpClient.PutAsJsonAsync($"api/custompage/{editingPage.PageKey}", editingPage.ToUpdateRequest());
             
             if (response.IsSuccessStatusCode)

@@ -87,7 +87,8 @@ else
                 </div>
 
                 @* Navigeringsinställningar *@
-                <NavigationSettings PageKey="@PageKey"
+                <NavigationSettings @key="PageKey"
+                                    PageKey="@PageKey"
                                     InitialDisplayName="@customPage.DisplayName"
                                     OnDisplayNameChanged="@(EventCallback.Factory.Create<string>(this, OnNavigationNameChanged))" />
 
@@ -786,6 +787,9 @@ else
     private async Task OnNavigationNameChanged(string newDisplayName)
     {
         if (string.IsNullOrWhiteSpace(newDisplayName) || customPage == null)
+            return;
+
+        if (string.Equals(newDisplayName, customPage.DisplayName, StringComparison.Ordinal))
             return;
 
         try

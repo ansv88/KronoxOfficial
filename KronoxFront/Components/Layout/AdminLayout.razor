@@ -1,7 +1,10 @@
 ﻿@using KronoxFront.Components.Shared.UI
+@using KronoxFront.DTOs
+@using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
+@using System.Net.Http.Json
 @layout MainLayout
 @implements IDisposable
 @inherits LayoutComponentBase
@@ -11,6 +14,7 @@
 @inject IHttpClientFactory HttpClientFactory
 @inject ILogger<AdminLayout> Logger
 @inject IJSRuntime JS
+@inject NavigationEvents NavEvents
 
 @namespace KronoxFront.Components.Layout
 
@@ -25,7 +29,7 @@
                         <div>
                             <!-- Administration - alltid synlig -->
                             <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-                                <span class ="fs-5">Administration</span>
+                                <span class="fs-5">Administration</span>
                             </h4>
                             <ul class="nav flex-column">
                                 <li class="nav-item">
@@ -38,10 +42,10 @@
                             <!-- Redigera publika sidor - kollapsbar -->
                             <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-dark">
                                 <button class="btn btn-link p-0 text-decoration-none text-dark border-0 w-100 text-start d-flex justify-content-between align-items-center"
-                                        type="button" 
-                                        data-bs-toggle="collapse" 
-                                        data-bs-target="#publicPagesCollapse" 
-                                        aria-expanded="@publicPagesExpanded.ToString().ToLower()" 
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#publicPagesCollapse"
+                                        aria-expanded="@publicPagesExpanded.ToString().ToLower()"
                                         aria-controls="publicPagesCollapse"
                                         @onclick="() => ToggleSection(ref publicPagesExpanded)">
                                     <span class="fs-5">Publika sidor</span>
@@ -51,28 +55,43 @@
                             <div class="collapse @(publicPagesExpanded ? "show" : "")" id="publicPagesCollapse">
                                 <ul class="nav flex-column">
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/home">
-                                            <i class="fa-solid fa-house me-2"></i> Startsida
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/home">
+                                            <span class="@(IsFixedPageActive("home") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-house me-2"></i> Startsida
+                                            </span>
+                                            @FixedPageStatusBadge("home")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/omkonsortiet">
-                                            <i class="fa-solid fa-info-circle me-2"></i> Om konsortiet
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/omkonsortiet">
+                                            <span class="@(IsFixedPageActive("omkonsortiet") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-info-circle me-2"></i> Om konsortiet
+                                            </span>
+                                            @FixedPageStatusBadge("omkonsortiet")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/omsystemet">
-                                            <i class="fa-solid fa-cogs me-2"></i> Om systemet
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/omsystemet">
+                                            <span class="@(IsFixedPageActive("omsystemet") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-cogs me-2"></i> Om systemet
+                                            </span>
+                                            @FixedPageStatusBadge("omsystemet")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/visioner">
-                                            <i class="fa-solid fa-bullseye me-2"></i> Visioner & Verksamhetsidé
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/visioner">
+                                            <span class="@(IsFixedPageActive("visioner") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-bullseye me-2"></i> Visioner & Verksamhetsidé
+                                            </span>
+                                            @FixedPageStatusBadge("visioner")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/kontaktaoss">
-                                            <i class="fa-solid fa-address-book me-2"></i> Kontakta oss
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/kontaktaoss">
+                                            <span class="@(IsFixedPageActive("kontaktaoss") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-address-book me-2"></i> Kontakta oss
+                                            </span>
+                                            @FixedPageStatusBadge("kontaktaoss")
                                         </NavLink>
                                     </li>
                                 </ul>
@@ -81,10 +100,10 @@
                             <!-- Redigera interna sidor - kollapsbar -->
                             <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-dark">
                                 <button class="btn btn-link p-0 text-decoration-none text-dark border-0 w-100 text-start d-flex justify-content-between align-items-center"
-                                        type="button" 
-                                        data-bs-toggle="collapse" 
-                                        data-bs-target="#internalPagesCollapse" 
-                                        aria-expanded="@internalPagesExpanded.ToString().ToLower()" 
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#internalPagesCollapse"
+                                        aria-expanded="@internalPagesExpanded.ToString().ToLower()"
                                         aria-controls="internalPagesCollapse"
                                         @onclick="() => ToggleSection(ref internalPagesExpanded)">
                                     <span class="fs-5">Interna sidor</span>
@@ -94,40 +113,101 @@
                             <div class="collapse @(internalPagesExpanded ? "show" : "")" id="internalPagesCollapse">
                                 <ul class="nav flex-column">
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/medlemsnytt">
-                                            <i class="fa-solid fa-newspaper me-2"></i> Medlemsnytt
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/medlemsnytt">
+                                            <span class="@(IsFixedPageActive("medlemsnytt") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-newspaper me-2"></i> Medlemsnytt
+                                            </span>
+                                            @FixedPageStatusBadge("medlemsnytt")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/forstyrelsen">
-                                            <i class="fa-solid fa-users-cog me-2"></i> För styrelsen
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/forstyrelsen">
+                                            <span class="@(IsFixedPageActive("forstyrelsen") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-users-cog me-2"></i> För styrelsen
+                                            </span>
+                                            @FixedPageStatusBadge("forstyrelsen")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/forvnsg">
-                                            <i class="fa-solid fa-user-tie me-2"></i> För VNSG
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/forvnsg">
+                                            <span class="@(IsFixedPageActive("forvnsg") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-user-tie me-2"></i> För VNSG
+                                            </span>
+                                            @FixedPageStatusBadge("forvnsg")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/forvaltning">
-                                            <i class="fa-solid fa-tasks me-2"></i> Förvaltning
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/forvaltning">
+                                            <span class="@(IsFixedPageActive("forvaltning") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-tasks me-2"></i> Förvaltning
+                                            </span>
+                                            @FixedPageStatusBadge("forvaltning")
                                         </NavLink>
                                     </li>
                                     <li class="nav-item">
-                                        <NavLink class="nav-link" href="/admin/dokument">
-                                            <i class="fa-solid fa-file-contract me-2"></i> Dokument
+                                        <NavLink class="nav-link d-flex align-items-center justify-content-between" href="/admin/dokument">
+                                            <span class="@(IsFixedPageActive("dokument") ? "" : "text-muted")">
+                                                <i class="fa-solid fa-file-contract me-2"></i> Dokument
+                                            </span>
+                                            @FixedPageStatusBadge("dokument")
                                         </NavLink>
                                     </li>
+                                </ul>
+                            </div>
+
+                            <!-- Specialsidor - kollapsbar (dynamisk) -->
+                            <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-dark">
+                                <button class="btn btn-link p-0 text-decoration-none text-dark border-0 w-100 text-start d-flex justify-content-between align-items-center"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#customPagesCollapse"
+                                        aria-expanded="@customPagesExpanded.ToString().ToLower()"
+                                        aria-controls="customPagesCollapse"
+                                        @onclick="() => ToggleSection(ref customPagesExpanded)">
+                                    <span class="fs-5">Specialsidor</span>
+                                    <i class="fa-solid @(customPagesExpanded ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                </button>
+                            </h4>
+                            <div class="collapse @(customPagesExpanded ? "show" : "")" id="customPagesCollapse">
+                                <ul class="nav flex-column">
+                                    @if (customPages.Count == 0)
+                                    {
+                                        <li class="nav-item">
+                                            <span class="nav-link text-muted small fst-italic">
+                                                Inga specialsidor än – skapa under
+                                                <a href="/admin/pages">Skapa specialsidor</a>.
+                                            </span>
+                                        </li>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var customPage in customPages)
+                                        {
+                                            <li class="nav-item">
+                                                <NavLink class="nav-link d-flex align-items-center justify-content-between"
+                                                         href="@($"/admin/page/{customPage.PageKey}")">
+                                                    <span class="@(customPage.IsActive ? "" : "text-muted")">
+                                                        <i class="fa-solid fa-file-lines me-2"></i>
+                                                        @customPage.DisplayName
+                                                    </span>
+                                                    @if (!customPage.IsActive)
+                                                    {
+                                                        <span class="badge bg-secondary ms-2" title="Sidan är inaktiverad">Inaktiv</span>
+                                                    }
+                                                </NavLink>
+                                            </li>
+                                        }
+                                    }
                                 </ul>
                             </div>
 
                             <!-- Funktioner - kollapsbar -->
                             <h4 class="sidebar-heading admin-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-dark">
                                 <button class="btn btn-link p-0 text-decoration-none text-dark border-0 w-100 text-start d-flex justify-content-between align-items-center"
-                                        type="button" 
-                                        data-bs-toggle="collapse" 
-                                        data-bs-target="#functionsCollapse" 
-                                        aria-expanded="@functionsExpanded.ToString().ToLower()" 
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#functionsCollapse"
+                                        aria-expanded="@functionsExpanded.ToString().ToLower()"
                                         aria-controls="functionsCollapse"
                                         @onclick="() => ToggleSection(ref functionsExpanded)">
                                     <span class="fs-5">Funktioner</span>
@@ -222,15 +302,24 @@
     </NotAuthorized>
 </AuthorizeView>
 
+<ScrollTopButton IsDarkMode="true" />
+
 @code {
     private int newUserCount = 0;
     private int newSuggestionsCount = 0;
     private int mainCategoryCount = 0;
     private int subCategoryCount = 0;
-    
+
+    // Specialsidor för sidomenyn (laddas dynamiskt)
+    private List<CustomPageDto> customPages = new();
+
+    // Aktiv-status för fasta sidor (PageKey -> IsActive), för att gråmarkera inaktiverade sidor i menyn
+    private Dictionary<string, bool> fixedPageStatus = new(StringComparer.OrdinalIgnoreCase);
+
     // Kollaps-tillstånd för sektionerna
     private bool publicPagesExpanded = false;
     private bool internalPagesExpanded = false;
+    private bool customPagesExpanded = false;
     private bool functionsExpanded = false;
 
     // Vid initiering, hämta statistik för sidomenyn
@@ -238,10 +327,13 @@
     {
         SetActiveSectionFromUrl();
         Nav.LocationChanged += OnLocationChanged;
+        NavEvents.NavigationUpdated += OnNavigationUpdated;
 
         await LoadNewUserCount();
         await LoadNewSuggestionsCount();
         await LoadCategoryCount();
+        await LoadCustomPages();
+        await LoadFixedPageStatus();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -292,6 +384,14 @@
         await ScrollActiveLinkIntoView();
     }
 
+    // Ladda om specialsidor och fast-sido-status när navigationen ändras (skapa/uppdatera/radera)
+    private async void OnNavigationUpdated()
+    {
+        await LoadCustomPages();
+        await LoadFixedPageStatus();
+        await InvokeAsync(StateHasChanged);
+    }
+
     private void SetActiveSectionFromUrl()
     {
         // Relativ sökväg i gemener, t.ex. "admin/medlemsnytt"
@@ -301,9 +401,66 @@
             publicPagesExpanded = true;
         else if (InternalPages.Any(p => path.StartsWith($"admin/{p}")))
             internalPagesExpanded = true;
+        else if (path.StartsWith("admin/page/"))
+            customPagesExpanded = true;
         else if (path.StartsWith("admin/") && path != "admin" && path != "admin/dashboard")
             functionsExpanded = true;
     }
+
+    // Hämtar specialsidor för sidomenyn.
+    private async Task LoadCustomPages()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var pages = await http.GetFromJsonAsync<List<CustomPageDto>>("api/custompage");
+            customPages = pages?
+                .OrderBy(p => p.SortOrder)
+                .ThenBy(p => p.DisplayName)
+                .ToList() ?? new List<CustomPageDto>();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte hämta specialsidor till sidomenyn.");
+            customPages = new List<CustomPageDto>();
+        }
+    }
+
+    // Hämtar aktiv-status för navigationsposter (fasta sidor) till sidomenyn.
+    private async Task LoadFixedPageStatus()
+    {
+        try
+        {
+            var http = HttpClientFactory.CreateClient("KronoxAPI");
+            var items = await http.GetFromJsonAsync<List<NavigationConfigDto>>("api/navigation");
+            fixedPageStatus = items?
+                .GroupBy(i => i.PageKey, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().IsActive, StringComparer.OrdinalIgnoreCase)
+                ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Kunde inte hämta navigationsstatus till sidomenyn.");
+            fixedPageStatus = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    // Hjälpmetod: är en fast sida aktiv? (default true om okänd, så inget gråas felaktigt)
+    private bool IsFixedPageActive(string pageKey)
+        => !fixedPageStatus.TryGetValue(pageKey, out var active) || active;
+
+    // Renderar en "Inaktiv"-badge för en fast sida om den är inaktiverad
+    private RenderFragment FixedPageStatusBadge(string pageKey) => builder =>
+    {
+        if (!IsFixedPageActive(pageKey))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "badge bg-secondary ms-2");
+            builder.AddAttribute(2, "title", "Sidan är inaktiverad");
+            builder.AddContent(3, "Inaktiv");
+            builder.CloseElement();
+        }
+    };
 
     // Hämtar antal nya utvecklingsförslag från API.
     private async Task LoadNewSuggestionsCount()
@@ -394,6 +551,7 @@
     public void Dispose()
     {
         Nav.LocationChanged -= OnLocationChanged;
+        NavEvents.NavigationUpdated -= OnNavigationUpdated;
     }
 
     private static readonly string[] PublicPages =
@@ -402,5 +560,3 @@
     private static readonly string[] InternalPages =
         { "medlemsnytt", "forstyrelsen", "forvnsg", "forvaltning", "dokument" };
 }
-
-<ScrollTopButton IsDarkMode="true" />

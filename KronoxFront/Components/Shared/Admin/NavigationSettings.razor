@@ -110,7 +110,7 @@
                                     <div class="form-check form-switch">
                                         <InputCheckbox class="form-check-input" role="switch"
                                                        @bind-Value="navigationConfig.IsActive"
-                                                       @onchange="OnFixedIsActiveChanged" />
+                                                       @bind-Value:after="OnFixedIsActiveChanged" />
                                         <label class="form-check-label">Sidan är aktiv</label>
                                     </div>
                                     <div class="form-text">
@@ -126,27 +126,20 @@
                                 }
                                 else
                                 {
-                                    @* SPECIALSIDA: aktiv, visa i navigation, publik synlighet *@
+                                    @* SPECIALSIDA: aktiv och publik synlighet *@
                                     <label class="form-label fw-medium d-block">Sidans status</label>
 
                                     <div class="form-check form-switch">
                                         <InputCheckbox class="form-check-input" role="switch"
                                                        @bind-Value="navigationConfig.IsActive"
-                                                       @onchange="OnIsActiveChanged" />
+                                                       @bind-Value:after="OnIsActiveChanged" />
                                         <label class="form-check-label">Sidan är aktiv</label>
                                     </div>
-
-@*                                     <div class="form-check form-switch">
-                                        <InputCheckbox class="form-check-input" role="switch"
-                                                       @bind-Value="showInNavigation"
-                                                       @onchange="OnShowInNavigationChanged" />
-                                        <label class="form-check-label">Visa i navigationsmenyn</label>
-                                    </div> *@
 
                                     <div class="form-check form-switch">
                                         <InputCheckbox class="form-check-input" role="switch"
                                                        @bind-Value="navigationConfig.IsVisibleToGuests"
-                                                       @onchange="OnPublicVisibilityChanged" />
+                                                       @bind-Value:after="OnPublicVisibilityChanged" />
                                         <label class="form-check-label">Publik (synlig för oinloggade)</label>
                                     </div>
 
@@ -438,16 +431,16 @@
 
     private void ToggleSettings() => showSettings = !showSettings;
 
-    private async Task OnFixedIsActiveChanged(ChangeEventArgs _)
+    private async Task OnFixedIsActiveChanged()
     {
         if (navigationConfig == null) return;
         SyncVisibilityWithRoleRestrictions();
         await SaveNavigationConfigOnly();
     }
 
-    // private Task OnShowInNavigationChanged(ChangeEventArgs _) => SaveNavigationSettings();
-    private Task OnIsActiveChanged(ChangeEventArgs _) => SaveNavigationSettings();
-    private Task OnPublicVisibilityChanged(ChangeEventArgs _) => SaveNavigationSettings();
+    private Task OnShowInNavigationChanged() => SaveNavigationSettings();
+    private Task OnIsActiveChanged() => SaveNavigationSettings();
+    private Task OnPublicVisibilityChanged() => SaveNavigationSettings();
 
     private async Task SaveNavigationSettings()
     {
