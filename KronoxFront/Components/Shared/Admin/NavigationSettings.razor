@@ -54,7 +54,7 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-medium" for="displayNameHome">Länktext i navigation</label>
                                 <input id="displayNameHome" class="form-control" type="text"
-                                       value="@(InitialDisplayName ?? "Startsida")" disabled />
+                                value="@(InitialDisplayName ?? "Startsida")" disabled />
                                 <div class="form-text">Startsidan visas inte som en egen länk i menyn.</div>
                             </div>
 
@@ -109,8 +109,7 @@
                                     <label class="form-label fw-medium d-block">Sidans status</label>
                                     <div class="form-check form-switch">
                                         <InputCheckbox class="form-check-input" role="switch"
-                                                       @bind-Value="navigationConfig.IsActive"
-                                                       @bind-Value:after="OnFixedIsActiveChanged" />
+                                        @bind-Value="navigationConfig.IsActive" />
                                         <label class="form-check-label">Sidan är aktiv</label>
                                     </div>
                                     <div class="form-text">
@@ -126,48 +125,119 @@
                                 }
                                 else
                                 {
-                                    @* SPECIALSIDA: aktiv och publik synlighet *@
+                                    @* SPECIALSIDA: endast aktiv/inaktiv här – behörighet hanteras nedan *@
                                     <label class="form-label fw-medium d-block">Sidans status</label>
 
                                     <div class="form-check form-switch">
                                         <InputCheckbox class="form-check-input" role="switch"
-                                                       @bind-Value="navigationConfig.IsActive"
-                                                       @bind-Value:after="OnIsActiveChanged" />
+                                        @bind-Value="navigationConfig.IsActive"/>
                                         <label class="form-check-label">Sidan är aktiv</label>
                                     </div>
 
-                                    <div class="form-check form-switch">
-                                        <InputCheckbox class="form-check-input" role="switch"
-                                                       @bind-Value="navigationConfig.IsVisibleToGuests"
-                                                       @bind-Value:after="OnPublicVisibilityChanged" />
-                                        <label class="form-check-label">Publik (synlig för oinloggade)</label>
-                                    </div>
-
                                     <div class="form-text">
-                                        @if (!navigationConfig.IsActive)
+                                        @if (navigationConfig.IsActive)
                                         {
-                                            <span>Avpublicerad – ger 404 vid direktbesök och döljs i menyn.</span>
-                                        }
-                                        else if (!navigationConfig.IsVisibleToGuests)
-                                        {
-                                            <span>Kräver inloggning. Rollbehörigheter ändras under
-                                                <a href="/admin/pages" class="text-decoration-none">Hantera specialsidor</a>.
-                                            </span>
+                                            <span>Sidan går att besöka. Synlighet styrs av behörigheterna nedan.</span>
                                         }
                                         else
                                         {
-                                            <span>Öppen för alla besökare.</span>
+                                            <span>Avpublicerad – ger 404 vid direktbesök och döljs i menyn.</span>
                                         }
                                     </div>
                                 }
                             </div>
                         </div>
 
-                        <details class="small text-muted mb-3">
-                            <summary style="cursor:pointer;">Om behörighet och synlighet</summary>
-                            <div class="mt-2">
-                                @if (IsFixedPage())
+                        @if (!IsFixedPage())
+                        {
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-medium" for="pageTitle">Sidtitel</label>
+                                    <InputText id="pageTitle" class="form-control" @bind-Value="editTitle" />
+                                    <div class="form-text">Sidans titel i webbläsarfliken.</div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-medium" for="pageDescription">Beskrivning</label>
+                                <InputTextArea id="pageDescription" class="form-control" rows="2"
+                                @bind-Value="editDescription" />
+                                <div class="form-text">Beskrivning för sökmotorer (visas inte på sidan).</div>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-medium" for="navType">Navigationstyp</label>
+                                    <InputSelect id="navType" class="form-select"
+                                    @bind-Value="editNavigationType">
+                                        <option value="main">Huvudnavigation</option>
+                                        <option value="dropdown">Dropdown-meny</option>
+                                        <option value="hidden">Dold (endast direktlänk)</option>
+                                    </InputSelect>
+                                    <div class="form-text">
+                                        @if (editNavigationType == "hidden")
+                                        {
+                                            <text>Tillgänglig via direktlänk men visas inte i navigationen.</text>
+                                        }
+                                        else
+                                        {
+                                            <text>
+                                                Bestämmer var länken visas. Ordningen ändras under
+                                                <a href="/admin/navigation" class="text-decoration-none">Hantera navigation</a>.
+                                            </text>
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (editNavigationType == "dropdown")
                                 {
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-medium" for="parentPage">Överordnad sida</label>
+                                        <InputSelect id="parentPage" class="form-select"
+                                        @bind-Value="editParentPageKey">
+                                            <option value="">Välj överordnad sida...</option>
+                                            @foreach (var option in GetParentPageOptions())
+                                            {
+                                                <option value="@option.Key">@option.Value</option>
+                                            }
+                                        </InputSelect>
+                                        <div class="form-text">Sidan visas som undermeny till den valda sidan.</div>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-medium d-block">Behörighet</label>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" role="switch"
+                                    checked="@(editRequiredRoles.Count == 0)"
+                                    @onchange="@(e => TogglePublicAccess((bool)e.Value!))" />
+                                    <label class="form-check-label">Publik (synlig för alla, även oinloggade)</label>
+                                </div>
+                                <div class="row mt-2">
+                                    @foreach (var role in availableRoles)
+                                    {
+                                        <div class="col-auto">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input"
+                                                checked="@editRequiredRoles.Contains(role)"
+                                                @onchange="@(e => ToggleRole(role, (bool)e.Value!))" />
+                                                <label class="form-check-label">@GetRoleDisplayName(role)</label>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="form-text">
+                                    Publik = ingen inloggning krävs. Annars ser endast valda roller sidan.
+                                </div>
+                            </div>
+                        }
+
+                        @if (IsFixedPage())
+                        {
+                            <details class="small text-muted mb-3">
+                                <summary style="cursor:pointer;">Om behörighet och synlighet</summary>
+                                <div class="mt-2">
                                     <div class="alert alert-light border mb-3">
                                         <div class="mb-2">
                                             <span class="fw-medium">Behörighet:</span>
@@ -179,20 +249,9 @@
                                             behörighet i koden och kan inte ändras här.
                                         </div>
                                     </div>
-                                }
-                                else
-                                {
-                                    <div class="alert alert-light border mb-3">
-                                        <div class="small text-muted mb-0">
-                                            Detta är en egenskapad specialsida. "Aktiv" styr om sidan går att besöka,
-                                            och "Publik" avgör om oinloggade
-                                            kan se sidan. Specifika rollbehörigheter för inloggade ändras under
-                                            <a href="/admin/pages" class="text-decoration-none">Hantera specialsidor</a>.
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </details>
+                                </div>
+                            </details>
+                        }
                     }
 
                     <div class="d-flex justify-content-end">
@@ -232,8 +291,16 @@
     private bool isSaving = false;
 
     private CustomPageDto? customPage;
-    private bool showInNavigation = true;
     private bool _suppressToast = false;
+
+    // Redigerbara fält för specialsidor (motsvarar tidigare edit-modalen)
+    private string editTitle = "";
+    private string editDescription = "";
+    private string editNavigationType = "main";
+    private string? editParentPageKey;
+    private readonly List<string> editRequiredRoles = new();
+    private readonly List<string> availableRoles = new() { "Admin", "Styrelse", "Medlem" };
+    private List<CustomPageDto> allCustomPages = new();
 
     private readonly List<string> pageAuthorizeRoles = new();
 
@@ -309,13 +376,28 @@
                     navigationConfig.PageKey = customPage.PageKey;
                     navigationConfig.DisplayName = customPage.DisplayName ?? navigationConfig.DisplayName ?? customPage.PageKey;
                     navigationConfig.SortOrder = customPage.SortOrder;
-
                     navigationConfig.IsActive = customPage.IsActive;
-                    showInNavigation = customPage.ShowInNavigation;
+
+                    editTitle = customPage.Title ?? string.Empty;
+                    editDescription = customPage.Description ?? string.Empty;
+                    editNavigationType = string.IsNullOrWhiteSpace(customPage.NavigationType) ? "main" : customPage.NavigationType;
+                    editParentPageKey = customPage.ParentPageKey;
+                    editRequiredRoles.Clear();
+                    editRequiredRoles.AddRange(customPage.RequiredRoles ?? new List<string>());
 
                     var roles = customPage.RequiredRoles ?? new List<string>();
                     navigationConfig.IsVisibleToGuests = roles.Count == 0;
                     navigationConfig.RequiredRoles = roles.Count > 0 ? string.Join(",", roles) : string.Empty;
+                }
+            }
+
+            // Ladda övriga specialsidor för "Överordnad sida"-alternativen
+            if (!IsFixedPage())
+            {
+                var listResp = await httpClient.GetAsync("api/custompage");
+                if (listResp.IsSuccessStatusCode)
+                {
+                    allCustomPages = await listResp.Content.ReadFromJsonAsync<List<CustomPageDto>>() ?? new();
                 }
             }
         }
@@ -393,6 +475,10 @@
     private List<string> GetEffectiveRoles()
     {
         if (pageAuthorizeRoles.Any()) return pageAuthorizeRoles;
+
+        // Specialsidor: använd de redigerbara rollerna (uppdateras live i UI)
+        if (!IsFixedPage() && customPage != null) return editRequiredRoles;
+
         if (customPage?.RequiredRoles is { } cpRoles && cpRoles.Any()) return cpRoles;
 
         if (!string.IsNullOrEmpty(navigationConfig?.RequiredRoles))
@@ -431,16 +517,47 @@
 
     private void ToggleSettings() => showSettings = !showSettings;
 
-    private async Task OnFixedIsActiveChanged()
+    private void TogglePublicAccess(bool isPublic)
     {
-        if (navigationConfig == null) return;
-        SyncVisibilityWithRoleRestrictions();
-        await SaveNavigationConfigOnly();
+        if (isPublic)
+        {
+            editRequiredRoles.Clear();
+        }
     }
 
-    private Task OnShowInNavigationChanged() => SaveNavigationSettings();
-    private Task OnIsActiveChanged() => SaveNavigationSettings();
-    private Task OnPublicVisibilityChanged() => SaveNavigationSettings();
+    private void ToggleRole(string role, bool isChecked)
+    {
+        if (isChecked)
+        {
+            if (!editRequiredRoles.Contains(role))
+                editRequiredRoles.Add(role);
+        }
+        else
+        {
+            editRequiredRoles.Remove(role);
+        }
+    }
+
+    private Dictionary<string, string> GetParentPageOptions()
+    {
+        var options = new Dictionary<string, string>
+        {
+            { "omkonsortiet", "Om konsortiet" },
+            { "omsystemet", "Om systemet" },
+            { "visioner", "Visioner & verksamhetsidé" },
+            { "dokument", "Dokument" },
+            { "kontaktaoss", "Kontakta oss" },
+            { "forvaltning", "Förvaltning" },
+            { "medlemsnytt", "Medlemsnytt" }
+        };
+
+        foreach (var page in allCustomPages.Where(p => p.NavigationType == "main" && p.IsActive && p.PageKey != PageKey))
+        {
+            options.TryAdd(page.PageKey, page.DisplayName);
+        }
+
+        return options;
+    }
 
     private async Task SaveNavigationSettings()
     {
@@ -470,9 +587,26 @@
 
         if (customPage is null)
         {
-            if (!_suppressToast)
-                await Toast.Error("Kunde inte hitta sidans grunddata (CustomPage).");
-            return;
+            try
+            {
+                var reloadClient = HttpClientFactory.CreateClient("KronoxAPI");
+                var reload = await reloadClient.GetAsync($"api/custompage/{PageKey}");
+                if (reload.IsSuccessStatusCode)
+                {
+                    customPage = await reload.Content.ReadFromJsonAsync<CustomPageDto>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Kunde inte återhämta CustomPage för {PageKey}", PageKey);
+            }
+
+            if (customPage is null)
+            {
+                if (!_suppressToast)
+                    await Toast.Error("Kunde inte hitta sidans grunddata (CustomPage).");
+                return;
+            }
         }
 
         if (isSaving) return;
@@ -481,20 +615,22 @@
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
 
-            var currentRoles = customPage.RequiredRoles ?? new List<string>();
-            var updatedRoles = navigationConfig.IsVisibleToGuests
-                ? new List<string>()
-                : (currentRoles.Any() ? new List<string>(currentRoles) : new List<string> { "Medlem" });
+            var updatedRoles = new List<string>(editRequiredRoles);
+            var navType = string.IsNullOrWhiteSpace(editNavigationType) ? "main" : editNavigationType;
+            var parentKey = navType == "dropdown"
+                ? (string.IsNullOrWhiteSpace(editParentPageKey) ? null : editParentPageKey)
+                : null;
+            var showInNav = navType != "hidden";
 
             var updateRequest = new
             {
-                Title = customPage.Title,
+                Title = string.IsNullOrWhiteSpace(editTitle) ? customPage.Title : editTitle.Trim(),
                 DisplayName = navigationConfig.DisplayName,
-                Description = customPage.Description,
+                Description = editDescription?.Trim() ?? string.Empty,
                 IsActive = navigationConfig.IsActive,
-                ShowInNavigation = showInNavigation,
-                NavigationType = customPage.NavigationType,
-                ParentPageKey = customPage.ParentPageKey,
+                ShowInNavigation = showInNav,
+                NavigationType = navType,
+                ParentPageKey = parentKey,
                 SortOrder = navigationConfig.SortOrder,
                 RequiredRoles = updatedRoles
             };
@@ -509,9 +645,13 @@
             }
 
             customPage.DisplayName = navigationConfig.DisplayName;
+            customPage.Title = updateRequest.Title;
+            customPage.Description = updateRequest.Description;
+            customPage.NavigationType = navType;
+            customPage.ParentPageKey = parentKey;
+            customPage.ShowInNavigation = showInNav;
             customPage.SortOrder = navigationConfig.SortOrder;
             customPage.IsActive = navigationConfig.IsActive;
-            customPage.ShowInNavigation = showInNavigation;
             customPage.RequiredRoles = updatedRoles;
 
             navigationConfig.IsVisibleToGuests = updatedRoles.Count == 0;
@@ -681,4 +821,4 @@
 
         return fallback;
     }
-    }
+}

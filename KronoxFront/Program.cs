@@ -240,7 +240,9 @@ public class Program
                     new(ClaimTypes.NameIdentifier, user!.UserId),
                     new(ClaimTypes.Name,           user.UserName)
                 };
-                claims.AddRange(user.Roles.Select(r => new Claim(ClaimTypes.Role, r)));
+                // Expandera roller enligt hierarki: Admin ⊃ Styrelse ⊃ Medlem
+                var effectiveRoles = ExpandRoles(user.Roles);
+                claims.AddRange(effectiveRoles.Select(r => new Claim(ClaimTypes.Role, r)));
 
                 await ctx.SignInAsync("KronoxAuth",
                     new ClaimsPrincipal(new ClaimsIdentity(claims, "KronoxAuth")));
@@ -460,6 +462,25 @@ public class Program
             }
 
             return true;
+        }
+
+        // Bygger ut användarens roller enligt hierarki så att högre roller automatiskt inkluderar lägre. En enda källa för behörighetsregeln.
+        // Expansionen sker endast i sessionens claims – databasens roller påverkas inte.
+        static HashSet<string> ExpandRoles(IEnumerable<string> roles)
+        {
+            var result = new HashSet<string>(roles, StringComparer.OrdinalIgnoreCase);
+
+            if (result.Contains("Admin"))
+            {
+                result.Add("Styrelse");
+                result.Add("Medlem");
+            }
+            else if (result.Contains("Styrelse"))
+            {
+                result.Add("Medlem");
+            }
+
+            return result;
         }
 
         app.Run();
