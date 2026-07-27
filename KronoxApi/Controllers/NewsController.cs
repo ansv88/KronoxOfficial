@@ -84,11 +84,34 @@ public class NewsController : ControllerBase
 
         try
         {
-            var post = await _dbContext.NewsModel.FindAsync(id);
+            var post = await _dbContext.NewsModel
+                .Include(n => n.NewsDocuments)
+                .ThenInclude(nd => nd.Document)
+                .FirstOrDefaultAsync(n => n.Id == id);
+
             if (post == null)
             {
                 _logger.LogWarning("Försök att uppdatera nyhetsinlägg som inte finns, ID: {Id}", id);
                 return NotFound("Nyhetsinlägget hittades inte");
+            }
+
+            // Validera att de nya rollerna inte hamnar utanför något bifogat dokuments kategoriåtkomst
+            foreach (var newsDoc in post.NewsDocuments)
+            {
+                var conflictingRoles = await GetRolesWithoutDocumentAccessAsync(
+                    request.VisibleToRoles, newsDoc.Document.MainCategoryId);
+
+                if (conflictingRoles.Any())
+                {
+                    var docName = newsDoc.DisplayName ?? newsDoc.Document.FileName;
+                    _logger.LogWarning(
+                        "Blockerade uppdatering av nyhet {Id}: rollerna {Roles} saknar åtkomst till dokumentet {Doc}.",
+                        id, string.Join(", ", conflictingRoles), docName);
+
+                    return BadRequest(
+                        $"Nyheten kan inte sparas med dessa roller. Dokumentet \"{docName}\" är inte tillgängligt för " +
+                        $"{string.Join(", ", conflictingRoles)}. Ändra nyhetens roller eller dokumentets kategori, eller ta bort dokumentet.");
+                }
             }
 
             post.Title = request.Title;
@@ -423,6 +446,21 @@ public class NewsController : ControllerBase
             if (existingLink != null)
                 return BadRequest("Dokumentet är redan kopplat till denna nyhet");
 
+            // Blockera koppling om nyhetens målgrupp går utanför dokumentets kategoriåtkomst
+            var conflictingRoles = await GetRolesWithoutDocumentAccessAsync(
+                newsItem.VisibleToRoles, document.MainCategoryId);
+
+            if (conflictingRoles.Any())
+            {
+                _logger.LogWarning(
+                    "Blockerade koppling av dokument {DocumentId} till nyhet {NewsId}: rollerna {Roles} saknar åtkomst till dokumentets kategori.",
+                    request.DocumentId, newsId, string.Join(", ", conflictingRoles));
+
+                return BadRequest(
+                    $"Dokumentet kan inte kopplas. Nyheten är synlig för {string.Join(", ", conflictingRoles)} " +
+                    $"som saknar behörighet till dokumentets kategori. Ändra nyhetens roller eller dokumentets kategori så att de stämmer överens.");
+            }
+
             var newsDocument = new NewsDocument
             {
                 NewsId = newsId,
@@ -486,5 +524,28 @@ public class NewsController : ControllerBase
 
         var newsRoles = news.VisibleToRoles.Split(',', StringSplitOptions.RemoveEmptyEntries);
         return newsRoles.Any(role => userRoles.Contains(role, StringComparer.OrdinalIgnoreCase));
+    }
+
+    // Returnerar de nyhetsroller som INTE har åtkomst till dokumentets kategori.
+    private async Task<List<string>> GetRolesWithoutDocumentAccessAsync(string visibleToRoles, int categoryId)
+    {
+        var newsRoles = visibleToRoles
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(r => !string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase))
+            .Distinct()
+            .ToList();
+
+        var rolesWithoutAccess = new List<string>();
+        foreach (var role in newsRoles)
+        {
+            // Kontrollera varje roll enskilt mot kategorins åtkomst
+            var hasAccess = await _roleValidationService.UserHasAccessToCategoryAsync(categoryId, new[] { role });
+            if (!hasAccess)
+            {
+                rolesWithoutAccess.Add(role);
+            }
+        }
+
+        return rolesWithoutAccess;
     }
 }

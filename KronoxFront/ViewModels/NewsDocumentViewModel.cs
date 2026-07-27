@@ -8,6 +8,10 @@ public class NewsDocumentViewModel
     public long FileSize { get; set; }
     public int SortOrder { get; set; }
 
+    // Kategoriinfo som behövs för konfliktkontroll mot nyhetens roller
+    public string CategoryName { get; set; } = "";
+    public List<string> CategoryAllowedRoles { get; set; } = new();
+
     public string FormattedFileSize => FormatFileSize(FileSize);
 
     private static string FormatFileSize(long bytes)

@@ -20,24 +20,6 @@
                     <h1 class="h3">Hantera navigation</h1>
                     <p class="text-muted">Hantera ordning och synlighet för alla navigationslänkar</p>
                 </div>
-                <div class="d-flex gap-2">
-                    <a href="/admin/pages" class="btn btn-outline-primary">
-                        <i class="fa-solid fa-cog me-1"></i>
-                        Hantera specialsidor
-                    </a>
-                    <button class="btn btn-success" @onclick="SaveAllChanges" disabled="@isSaving">
-                        @if (isSaving)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
-                            <text>Sparar...</text>
-                        }
-                        else
-                        {
-                            <i class="fa-solid fa-save me-1"></i>
-                            <text>Spara alla ändringar</text>
-                        }
-                    </button>
-                </div>
             </div>
 
             <!-- Förbättrad informationsruta -->
@@ -49,11 +31,11 @@
                             Hur fungerar navigationshantering?
                         </h6>
                         <ul class="mb-0 small">
-                            <li><strong>Ordning:</strong> Använd nummerboxarna (1-20) för att ändra ordning. Lägre nummer visas först.</li>
+                            <li><strong>Ordning:</strong> Använd nummerboxarna för att ändra ordning. Lägre nummer visas först. Övriga sidor numreras automatiskt om så att inga nummer krockar.</li>
                             <li><strong>Separata inställningar:</strong> Du kan ställa in olika ordning för inloggade och oinloggade användare.</li>
                             <li><strong>Dropdown-menyer:</strong> Sidor markerade med <span class="badge bg-info text-dark">Dropdown</span> har undersidor.</li>
                             <li><strong>Undersidor följer huvudsidan:</strong> När du ändrar ordning på en huvudsida flyttas alla dess undersidor automatiskt med.</li>
-                            <li><strong>Skapa nya sidor:</strong> Använd "Hantera specialsidor" för att skapa nya sidor och ställa in dropdown-struktur.</li>
+                            <li><strong>Hantera undersidor:</strong> Gå in på respektive specialsida som är satt som en undersida för att ändra hur de visas i navigationen.</li>
                         </ul>
                     </div>
                     <div class="col-md-4 text-end">
@@ -132,7 +114,7 @@
                                                                style="width: 70px;"
                                                                min="1" max="20"
                                                                @bind="item.SortOrder"
-                                                               @bind:after="() => MarkAsChanged(item)"
+                                                               @bind:after="() => OnSortOrderChanged(item, guestNavigationItems)"
                                                                disabled="@(IsProtectedItem(item))" />
                                                     </div>
                                                 </div>
@@ -201,7 +183,7 @@
                                                                style="width: 70px;"
                                                                min="1" max="20"
                                                                @bind="item.SortOrder"
-                                                               @bind:after="() => MarkAsChanged(item)"
+                                                               @bind:after="() => OnSortOrderChanged(item, memberNavigationItems)"
                                                                disabled="@(IsProtectedItem(item))" />
                                                     </div>
                                                 </div>
@@ -222,6 +204,21 @@
                     <strong>Osparade ändringar:</strong> Du har @changedItems.Count objekt med ändringar. Glöm inte att spara!
                 </div>
             }
+
+            <div class="d-flex justify-content-end mt-3">
+                <button class="btn btn-success" @onclick="SaveAllChanges" disabled="@isSaving">
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        <text>Sparar...</text>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-save me-1"></i>
+                        <text>Spara navigationsordning</text>
+                    }
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -270,7 +267,8 @@
                         IsVisibleToGuests = dto.IsVisibleToGuests,
                         IsVisibleToMembers = dto.IsVisibleToMembers,
                         IsActive = dto.IsActive,
-                        IsSystemItem = dto.IsSystemItem
+                        IsSystemItem = dto.IsSystemItem,
+                        RequiredRoles = dto.RequiredRoles
                     }).ToList();
 
                 memberNavigationItems = dtos
@@ -287,12 +285,14 @@
                         IsVisibleToGuests = dto.IsVisibleToGuests,
                         IsVisibleToMembers = dto.IsVisibleToMembers,
                         IsActive = dto.IsActive,
-                        IsSystemItem = dto.IsSystemItem
+                        IsSystemItem = dto.IsSystemItem,
+                        RequiredRoles = dto.RequiredRoles
                     }).ToList();
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Kunde inte ladda navigationsobjekt");
             await Toast.Error("Kunde inte ladda navigation");
         }
     }
@@ -323,6 +323,50 @@
 
         changedItems.Add(item.Id);
         StateHasChanged();
+    }
+
+    // Anropas när ett ordningsnummer ändras. Klampar värdet och numrerar om
+    // listan så att alla redigerbara poster får unika, löpande nummer.
+    private void OnSortOrderChanged(NavigationConfigViewModel item, List<NavigationConfigViewModel> list)
+    {
+        if (IsProtectedItem(item)) return;
+
+        var editableCount = list.Count(i => !IsProtectedItem(i));
+
+        // Klampa den inmatade positionen till giltigt intervall
+        if (item.SortOrder < 1) item.SortOrder = 1;
+        if (item.SortOrder > editableCount) item.SortOrder = editableCount;
+
+        ResequenceList(list, item);
+
+        StateHasChanged();
+    }
+
+    private void ResequenceList(List<NavigationConfigViewModel> list, NavigationConfigViewModel changed)
+    {
+        // Redigerbara poster i nuvarande ordning, men utan den ändrade posten.
+        var editable = list
+            .Where(i => !IsProtectedItem(i) && i.Id != changed.Id)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+        // Sätt in den ändrade posten på önskat index (1-baserat nummer -> 0-baserat index).
+        var targetIndex = Math.Clamp(changed.SortOrder - 1, 0, editable.Count);
+        editable.Insert(targetIndex, changed);
+
+        // Numrera om alla till unika, löpande nummer.
+        var order = 1;
+        foreach (var i in editable)
+        {
+            if (i.SortOrder != order)
+            {
+                i.SortOrder = order;
+                changedItems.Add(i.Id); // posten fick nytt nummer och måste sparas
+            }
+            order++;
+        }
+
+        changedItems.Add(changed.Id);
     }
 
     private bool IsProtectedItem(NavigationConfigViewModel item)
@@ -361,9 +405,6 @@
 
     private int GetTotalNavigationItemsCount()
     {
-        var totalGuests = guestNavigationItems.Count;
-        var totalMembers = memberNavigationItems.Count;
-
         var allUniqueItems = guestNavigationItems.Select(g => g.PageKey)
             .Union(memberNavigationItems.Select(m => m.PageKey))
             .Distinct()
@@ -419,7 +460,8 @@
                     MemberSortOrder = memberSortOrder,
                     IsVisibleToGuests = item.IsVisibleToGuests,
                     IsVisibleToMembers = item.IsVisibleToMembers,
-                    IsActive = item.IsActive
+                    IsActive = item.IsActive,
+                    RequiredRoles = item.RequiredRoles
                 };
 
                 var response = await httpClient.PutAsJsonAsync($"api/navigation/{item.Id}", updateDto);
@@ -431,7 +473,7 @@
             }
 
             changedItems.Clear();
-            await Toast.Success($"Alla ändringar sparade! Navigationen kommer att uppdateras.");
+            await Toast.Success($"Navigationsordningen är sparad! Navigationen kommer att uppdateras.");
             await LoadNavigationData();
         }
         catch (Exception ex)

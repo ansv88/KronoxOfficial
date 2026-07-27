@@ -59,7 +59,7 @@ else
                     </div>
                 </div>
 
-                <div class="alert alert-info mb-4">
+@*                 <div class="alert alert-info mb-4">
                     <div class="row">
                         <div class="col-md-8">
                             <h6 class="mb-1">
@@ -75,16 +75,21 @@ else
                                     <strong>Status:</strong> @(customPage.IsActive ? "Aktiv" : "Inaktiv")<br>
                                     <strong>I navigation:</strong> @(customPage.ShowInNavigation ? "Ja" : "Nej")
                                 </div>
+                                <div class="col-sm-6">
+                                    <strong>Behörighet:</strong>
+                                    @if (customPage.RequiredRoles.Any())
+                                    {
+                                        @string.Join(", ", customPage.RequiredRoles)
+                                    }
+                                    else
+                                    {
+                                        <text>Publik (alla användare)</text>
+                                    }
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-4 text-end">
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="@(() => Nav.NavigateTo("/admin/pages"))">
-                                <i class="fa-solid fa-cog me-1"></i>
-                                Ändra inställningar
-                            </button>
-                        </div>
                     </div>
-                </div>
+                </div> *@
 
                 @* Navigeringsinställningar *@
                 <NavigationSettings @key="PageKey"
@@ -101,8 +106,9 @@ else
                 @* Dynamiska sektioner *@
                 @foreach (var sectionConfig in sectionConfigItems.Where(s => s.IsEnabled).OrderBy(s => s.SortOrder))
                 {
-                    @switch (sectionConfig.Type)
-                    {
+                    <div id="section-@sectionConfig.Type">
+                        @switch (sectionConfig.Type)
+                        {
                         case SectionType.Banner:
                             <BannerImageUploader PageKey="@PageKey" OnUploaded="OnBannerUploaded" />
                             break;
@@ -208,7 +214,8 @@ else
                                 </div>
                             </div>
                             break;
-                    }
+                        }
+                    </div>
                 }
 
                 @if (!sectionConfigItems.Any(s => s.IsEnabled))

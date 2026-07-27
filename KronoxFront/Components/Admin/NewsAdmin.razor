@@ -205,7 +205,7 @@
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
          role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="editModalTitle">
@@ -217,252 +217,191 @@
                 <EditForm Model="editModel" OnSubmit="HandleFormSubmit">
                     <DataAnnotationsValidator />
                     <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label class="form-label">Titel *</label>
-                                    <InputText class="form-control" @bind-Value="editModel.Title" placeholder="Ange nyhetstitel..." />
-                                    <ValidationMessage For="() => editModel.Title" />
-                                </div>
+                        @* Titel *@
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Titel *</label>
+                            <InputText class="form-control" @bind-Value="editModel.Title" placeholder="Ange nyhetstitel..." />
+                            <ValidationMessage For="() => editModel.Title" />
+                        </div>
 
-                                <div class="mb-3">
-                                    <label class="form-label">Innehåll *</label>
-                                    <InputTextArea id="news-content-editor"
-                                                   class="form-control tinymce-editor"
-                                                   @bind-Value="editModel.Content"
-                                                   rows="12" />
-                                    <ValidationMessage For="() => editModel.Content" />                                   
+                        @* Innehåll *@
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold mb-0">Innehåll *</label>
+                            <InputTextArea id="news-content-editor"
+                                           class="form-control tinymce-editor"
+                                           @bind-Value="editModel.Content"
+                                           rows="12" />
+                            <ValidationMessage For="() => editModel.Content" />
+                        </div>
 
-                                    @if (!string.IsNullOrEmpty(editModel.Content))
-                                    {
-                                        <div class="form-text text-success">
-                                            <small>Innehåll detekterat: @(editModel.Content.Length) tecken</small>
-                                        </div>
-                                    }
+                        <hr class="my-4" />
 
-                                    @* Förhandsgranskning av innehåll *@
-                                    <div class="mt-3">
-                                        <button type="button" class="btn btn-secondary btn-sm"
-                                                @onclick="() => OpenPreviewModal(editModel.Content)">
-                                            <i class="fa-solid fa-eye me-1"></i> Förhandsgranska
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
+                        @* Publicering *@
+                        <div class="mb-4">
+                            <h6 class="fw-semibold mb-3">Publicering</h6>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-6">
                                     <label class="form-label">Publiceringsdatum</label>
                                     <InputDate Type="InputDateType.DateTimeLocal"
                                                class="form-control"
                                                @bind-Value="editModel.ScheduledPublishDate" />
-                                    <div class="form-text">Lämna tomt för omedelbar publicering</div>
+                                    <div class="form-text">Lämna tomt för omedelbar publicering.</div>
                                 </div>
-
-                                <div class="mb-3">
+                                <div class="col-md-6">
                                     <div class="form-check">
                                         <InputCheckbox class="form-check-input" @bind-Value="editModel.IsArchived" />
                                         <label class="form-check-label">Arkiverad</label>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div class="mb-3">
-                                    <label class="form-label">Synlig för roller</label>
-                                    <div class="form-text mb-2">Välj vilka roller som ska kunna se denna nyhet:</div>
-                                    @foreach (var role in editModel.AvailableRoles)
-                                    {
-                                        <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" id="role-@role.Value"
-                                                   checked="@role.IsSelected"
-                                                   @onchange="@(args => OnRoleSelectionChanged(role, args))" />
-                                            <label class="form-check-label" for="role-@role.Value">
-                                                @role.Label
-                                            </label>
-                                        </div>
-                                    }
-                                    <div class="form-text mt-2">
-                                        <small class="text-muted">
-                                            <i class="fa-solid fa-info-circle me-1"></i>
-                                            "Alla" väljer automatiskt Admin, Styrelse och Medlem.
-                                        </small>
+                        <hr class="my-4" />
+
+                        @* Synlighet *@
+                        <div class="mb-4">
+                            <h6 class="fw-semibold mb-1">Synlig för roller</h6>
+                            <div class="form-text mb-2">"Alla" väljer automatiskt Admin, Styrelse och Medlem.</div>
+                            <div class="d-flex flex-wrap gap-3">
+                                @foreach (var role in editModel.AvailableRoles)
+                                {
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="role-@role.Value"
+                                               checked="@role.IsSelected"
+                                               @onchange="@(args => OnRoleSelectionChanged(role, args))" />
+                                        <label class="form-check-label" for="role-@role.Value">
+                                            @role.Label
+                                        </label>
                                     </div>
-                                </div>
+                                }
+                            </div>
+                        </div>
 
-                                <div class="mb-3">
-                                    <label class="form-label">Bifogade dokument</label>
+                        <hr class="my-4" />
 
-                                    @* Säkerhetsinfo-sektion *@
-                                    <div class="alert alert-info mb-3">
-                                        <h6 class="alert-heading">
-                                            <i class="fa-solid fa-shield-alt me-1"></i>
-                                            Dokumentsäkerhet & Synlighet
-                                        </h6>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <p class="mb-2"><strong>Nyhetens målgrupp:</strong></p>
-                                                <div class="d-flex flex-wrap gap-1">
-                                                    @if (editModel.SelectedRoles.Any())
-                                                    {
-                                                        @foreach (var role in editModel.SelectedRoles)
-                                                        {
-                                                            <span class="badge bg-primary">@GetRoleDisplayName(role)</span>
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="badge bg-warning">Inga roller valda</span>
-                                                    }
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <small class="text-muted">
-                                                    <i class="fa-solid fa-info-circle me-1"></i>
-                                                    <strong>Kom ihåg:</strong> Dokument följer sina egna åtkomstregler. 
-                                                    Ett dokument visas bara för användare som har tillgång till både nyheten OCH dokumentets kategori.
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
+                        @* Bifogade dokument *@
+                        <div class="mb-2">
+                            <h6 class="fw-semibold mb-1">Bifogade dokument</h6>
+                            <div class="form-text mb-3">
+                                Alla roller som nyheten visas för måste ha åtkomst till dokumentets kategori.
+                            </div>
 
-                                    @* Befintliga dokument med säkerhetsinformation *@
-                                    @if (selectedNewsDocuments.Any())
+                            @* Lista över bifogade dokument *@
+                            @if (selectedNewsDocuments.Any())
+                            {
+                                <div class="list-group mb-3">
+                                    @foreach (var doc in selectedNewsDocuments.OrderBy(d => d.SortOrder))
                                     {
-                                        <div class="border rounded p-3 mb-3 bg-light">
-                                            <h6 class="text-muted mb-2">Bifogade dokument:</h6>
-                                            @foreach (var doc in selectedNewsDocuments.OrderBy(d => d.SortOrder))
-                                            {
-                                                <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
-                                                    <div class="flex-grow-1">
-                                                        <div class="d-flex align-items-center mb-1">
-                                                            <i class="@GetFileIcon(doc.FileName) me-2"></i>
-                                                            <span class="fw-medium">@doc.DisplayName</span>
-                                                            <small class="text-muted ms-2">(@doc.FormattedFileSize)</small>
-                                                        </div>
-                                                        
-
-                                                        @* Säkerhetsstatus för dokumentet *@
-                                                        @if (GetDocumentAccessInfo(doc.Id) is var accessInfo && accessInfo != null)
-                                                        {
-                                                            <div class="mt-1">
-                                                                <small class="text-muted">
-                                                                    <i class="fa-solid fa-building me-1"></i>
-                                                                    Kategori: @accessInfo.CategoryName
-                                                                </small>
-                                                                <br>
-                                                                <small class="@(accessInfo.HasConflict ? "text-danger" : "text-success")">
-                                                                    <i class="fa-solid @(accessInfo.HasConflict ? "fa-exclamation-triangle" : "fa-check-circle") me-1"></i>
-                                                                    @accessInfo.StatusMessage
-                                                                </small>
-                                                            </div>
-                                                        }
-                                                    </div>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                            @onclick="() => DetachDocument(doc.Id)"
-                                                            disabled="@(editingNews?.Id == 0 || detachingDocumentIds.Contains(doc.Id))">
-                                                            @if (detachingDocumentIds.Contains(doc.Id))
-                                                            {
-                                                                <span class="spinner-border spinner-border-sm me-1"></span>
-                                                            }
-                                                            <i class="fa-solid fa-times"></i>
-                                                    </button>
+                                        var accessInfo = GetDocumentAccessInfo(doc.Id);
+                                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div class="flex-grow-1 me-2">
+                                                <div>
+                                                    <i class="@GetFileIcon(doc.FileName) me-2"></i>
+                                                    <span class="fw-medium">@doc.DisplayName</span>
+                                                    <small class="text-muted ms-2">(@doc.FormattedFileSize)</small>
                                                 </div>
-                                            }
-                                        </div>
-                                    }
-
-                                    @* Dokumentväljare med säkerhetsinformation *@
-                                    @if (availableDocuments.Any())
-                                    {
-                                        <div class="mb-3">
-                                            <label class="form-label small">Välj dokument att bifoga:</label>
-                                            <select class="form-select" value="@selectedDocumentId" @onchange="OnDocumentSelectionChanged">
-                                                <option value="0">-- Välj dokument --</option>
-                                                @foreach (var category in GetGroupedDocuments())
+                                                @if (accessInfo != null)
                                                 {
-                                                    <optgroup label="@category.CategoryName (@category.AccessLevel)">
-                                                        @foreach (var doc in category.Documents)
-                                                        {
-                                                            <option value="@doc.Id" class="@(category.HasConflict ? "text-warning" : "")">
-                                                                @doc.FileName 
-                                                                @if (category.HasConflict)
-                                                                {
-                                                                    <text>[Begränsad synlighet]</text>
-                                                                }
-                                                            </option>
-                                                        }
-                                                    </optgroup>
+                                                    <small class="@(accessInfo.HasConflict ? "text-danger" : "text-success")">
+                                                        <i class="fa-solid @(accessInfo.HasConflict ? "fa-exclamation-triangle" : "fa-check-circle") me-1"></i>
+                                                        @accessInfo.StatusMessage
+                                                    </small>
                                                 }
-                                            </select>
-                                        </div>
-                                        
-                                        @* Detaljerad info om valt dokument *@
-                                        @if (selectedDocumentId > 0 && GetSelectedDocumentInfo() is var docInfo && docInfo != null)
-                                        {
-                                            <div class="alert @(docInfo.HasConflict ? "alert-warning" : "alert-success") p-3 mb-3">
-                                                <div class="d-flex align-items-start">
-                                                    <i class="fa-solid @(docInfo.HasConflict ? "fa-exclamation-triangle" : "fa-check-circle") me-2 mt-1"></i>
-                                                    <div class="flex-grow-1">
-                                                        <strong>@docInfo.FileName</strong>
-                                                        <div class="mt-1">
-                                                            <small>
-                                                                <strong>Kategori:</strong> @docInfo.CategoryName<br>
-                                                                <strong>Tillgång:</strong> @docInfo.AccessDescription<br>
-                                                                @if (docInfo.HasConflict)
-                                                                {
-                                                                    <span class="text-danger">
-                                                                        <strong>Varning:</strong> @docInfo.ConflictMessage
-                                                                    </span>
-                                                                }
-                                                                else
-                                                                {
-                                                                    @if (docInfo.AccessDescription.Contains("Alla användare"))
-                                                                    {
-                                                                        <span class="text-success">
-                                                                            <strong>OK:</strong> Alla som ser nyheten kan också se detta dokument
-                                                                        </span>
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        <span class="text-success">
-                                                                            <strong>OK:</strong> Alla valda roller för nyheten kan se detta dokument
-                                                                        </span>
-                                                                    }
-                                                                }
-                                                            </small>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             </div>
-                                        }
-                                        
-                                        <button type="button" class="btn btn-outline-primary btn-sm" 
-                                                @onclick="AttachSelectedDocument" 
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    @onclick="() => DetachDocument(doc.Id)"
+                                                    disabled="@(detachingDocumentIds.Contains(doc.Id))">
+                                                @if (detachingDocumentIds.Contains(doc.Id))
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fa-solid fa-times"></i>
+                                                }
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            @* Dokumentväljare *@
+                            @if (availableDocuments.Any())
+                            {
+                                <div class="row g-2 align-items-end">
+                                    <div class="col">
+                                        <select class="form-select" value="@selectedDocumentId" @onchange="OnDocumentSelectionChanged">
+                                            <option value="0">-- Välj dokument att bifoga --</option>
+                                            @foreach (var category in GetGroupedDocuments())
+                                            {
+                                                <optgroup label="@category.CategoryName (@category.AccessLevel)">
+                                                    @foreach (var doc in category.Documents)
+                                                    {
+                                                        <option value="@doc.Id">@doc.FileName</option>
+                                                    }
+                                                </optgroup>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="button" class="btn btn-outline-primary"
+                                                @onclick="AttachSelectedDocument"
                                                 disabled="@(selectedDocumentId == 0 || isAttachingDocument)">
                                             @if (isAttachingDocument)
                                             {
                                                 <span class="spinner-border spinner-border-sm me-1"></span>
                                             }
-                                            <i class="fa-solid fa-plus me-1"></i> Bifoga valt dokument
+                                            <i class="fa-solid fa-plus me-1"></i> Bifoga
                                         </button>
-                                    }
-                                    
-                                    @if (editingNews?.Id == 0 && selectedNewsDocuments.Any())
-                                    {
-                                        <div class="alert alert-warning mt-3 mb-0">
-                                            <small>
-                                                <i class="fa-solid fa-info-circle me-1"></i>
-                                                <strong>OBS:</strong> Dokumenten kommer att kopplas till nyheten när den skapas.
-                                            </small>
-                                        </div>
-                                    }
+                                    </div>
                                 </div>
-                            </div>
+
+                                @* Varning om vald dokument krockar *@
+                                @if (selectedDocumentId > 0 && GetSelectedDocumentInfo() is { HasConflict: true } docInfo)
+                                {
+                                    <div class="text-danger small mt-2">
+                                        <i class="fa-solid fa-exclamation-triangle me-1"></i>
+                                        @docInfo.ConflictMessage
+                                    </div>
+                                }
+                            }
                         </div>
-                    </div>
+
+                    @if (HasDocumentConflicts())
+                    {
+                        <div class="alert alert-danger mt-3 mb-0">
+                            <h6 class="alert-heading">
+                                <i class="fa-solid fa-ban me-2"></i>
+                                Nyheten kan inte publiceras
+                            </h6>
+                            <p class="mb-2 small">
+                                Ett eller flera bifogade dokument har en behörighet som krockar med
+                                nyhetens målgrupp. En nyhet får inte kunna visas för användare som
+                                saknar åtkomst till dess dokument.
+                            </p>
+                            <ul class="mb-2 small">
+                                @foreach (var conflict in GetConflictingDocuments())
+                                {
+                                    <li>
+                                        <strong>@conflict.Doc.DisplayName</strong>
+                                        (kategori: @conflict.Doc.CategoryName) –
+                                        Rollerna @string.Join(", ", conflict.RolesWithoutAccess) kan inte se detta dokument.
+                                    </li>
+                                }
+                            </ul>
+                            <p class="mb-0 small">
+                                <strong>Så här löser du det:</strong> ändra nyhetens roller så att de ryms
+                                inom dokumentets behörighet, justera dokumentets kategori, eller ta bort
+                                dokumentet från nyheten.
+                            </p>
+                        </div>
+                    }
+                </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">
                             Avbryt
                         </button>
-                        <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                        <button type="submit" class="btn btn-primary" disabled="@(isSaving || HasDocumentConflicts())">
                             @if (isSaving)
                             {
                                 <span class="spinner-border spinner-border-sm me-1"></span>
@@ -511,43 +450,6 @@
     </div>
 }
 
-@* Modal för förhandsgranskning av innehåll *@
-@if (showPreviewModal)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7);"
-         role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="previewModalTitle">Förhandsgranskning av nyhet</h5>
-                    <button type="button" class="btn-close" @onclick="ClosePreviewModal" aria-label="Stäng"></button>
-                </div>
-                <div class="modal-body">
-                    @if (!string.IsNullOrEmpty(previewContent))
-                    {
-                        <div class="preview-content">
-                            @((MarkupString)previewContent)
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="text-center text-muted py-5">
-                            <i class="fa-solid fa-newspaper fa-3x mb-3"></i>
-                            <h5>Inga förhandsgranskapsdata</h5>
-                            <p>Förhandsgranskning är inte tillgänglig för denna nyhet.</p>
-                        </div>
-                    }
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="ClosePreviewModal">
-                        Stäng
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
     private List<NewsItemViewModel> allNews = new();
     private List<NewsItemViewModel> filteredNews = new();
@@ -575,10 +477,6 @@
     private List<int> pendingDocumentIds = new(); // För nya nyheter
     private bool isAttachingDocument = false;
     private List<int> detachingDocumentIds = new(); // För borttagning av dokument
-
-    // Förhandsgranskning
-    private bool showPreviewModal = false;
-    private string previewContent = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -741,11 +639,26 @@
     private async Task HandleFormSubmit(EditContext context)
     {
         await SyncTinyMCEContent();
-        
-        if (context.Validate())
+
+        if (!context.Validate())
         {
-            await SaveNews();
+            return;
         }
+
+        // Hindra publicering om något bifogat dokument har en behörighet som krockar med nyhetens målgrupp.
+        if (HasDocumentConflicts())
+        {
+            var conflicts = GetConflictingDocuments();
+            var names = string.Join(", ", conflicts.Select(c => c.Doc.DisplayName));
+
+            await Toast.Error(
+                $"Nyheten kan inte publiceras. Följande dokument har en behörighet som krockar " +
+                $"med nyhetens målgrupp: {names}. Ändra nyhetens roller eller dokumentets kategori " +
+                $"så att behörigheterna stämmer överens, alternativt ta bort dokumentet.");
+            return;
+        }
+
+        await SaveNews();
     }
 
     private async Task SyncTinyMCEContent()
@@ -785,17 +698,13 @@
                 if (result != null)
                 {
                     await Toast.Success("Nyheten har skapats!");
-                    
-                    // Koppla alla pending dokument till den nya nyheten
-                    if (pendingDocumentIds.Any())
+
+                    foreach (var docId in pendingDocumentIds)
                     {
-                        foreach (var docId in pendingDocumentIds)
+                        var doc = availableDocuments.FirstOrDefault(d => d.Id == docId);
+                        if (doc != null)
                         {
-                            var doc = availableDocuments.FirstOrDefault(d => d.Id == docId);
-                            if (doc != null)
-                            {
-                                await NewsService.AttachDocumentToNewsAsync(result.Id, docId, doc.FileName);
-                            }
+                            await NewsService.AttachDocumentToNewsAsync(result.Id, docId, doc.FileName);
                         }
                     }
                 }
@@ -944,7 +853,7 @@
                 otherRole.IsSelected = false;
             }
         }
-        // Om någon specifik roll avmarkeras, avmarkera "Alla"
+        // Om någon specifik roll avmarkas, avmarkera "Alla"
         else if (role.Value != "Alla" && !isSelected)
         {
             var allaRole = editModel.AvailableRoles.FirstOrDefault(r => r.Value == "Alla");
@@ -1023,7 +932,9 @@
                         DisplayName = displayName,
                         FileName = doc.FileName,
                         FileSize = doc.FileSize,
-                        SortOrder = selectedNewsDocuments.Count
+                        SortOrder = selectedNewsDocuments.Count,
+                        CategoryName = doc.MainCategoryDto?.Name ?? "Okategoriserad",
+                        CategoryAllowedRoles = doc.MainCategoryDto?.AllowedRoles ?? new List<string>()
                     });
                     StateHasChanged();
                     await Toast.Success("Dokument markerat för koppling!");
@@ -1086,16 +997,38 @@
         }
     }
 
-    private void OpenPreviewModal(string? content)
+    // Returnerar alla bifogade dokument vars kategori-behörighet krockar med nyhetens roller.
+    private List<(NewsDocumentViewModel Doc, List<string> RolesWithoutAccess)> GetConflictingDocuments()
     {
-        previewContent = content ?? "";
-        showPreviewModal = true;
+        var newsRoles = GetSelectedRoles();
+        var result = new List<(NewsDocumentViewModel, List<string>)>();
+
+        foreach (var doc in selectedNewsDocuments)
+        {
+            var rolesWithoutAccess = newsRoles
+                .Where(role => !RoleHasCategoryAccess(role, doc.CategoryAllowedRoles))
+                .ToList();
+
+            if (rolesWithoutAccess.Any())
+            {
+                result.Add((doc, rolesWithoutAccess));
+            }
+        }
+
+        return result;
     }
 
-    private void ClosePreviewModal()
+    private bool HasDocumentConflicts() => GetConflictingDocuments().Any();
+
+    private static bool RoleHasCategoryAccess(string role, List<string> categoryRoles)
     {
-        showPreviewModal = false;
-        previewContent = "";
+        if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (categoryRoles == null || !categoryRoles.Any())
+            return string.Equals(role, "Medlem", StringComparison.OrdinalIgnoreCase);
+
+        return categoryRoles.Contains(role, StringComparer.OrdinalIgnoreCase);
     }
 
     // Hjälpklasser för dokumentsäkerhet
@@ -1119,42 +1052,56 @@
     
     private DocumentAccessInfo? GetDocumentAccessInfo(int documentId)
     {
-        var doc = availableDocuments.FirstOrDefault(d => d.Id == documentId);
-        if (doc == null) return null;
-        
-        var categoryName = doc.MainCategoryDto?.Name ?? "Okategoriserad";
-        var categoryRoles = doc.MainCategoryDto?.AllowedRoles ?? new List<string>();
-        var newsRoles = editModel.SelectedRoles ?? new List<string>();
-        
-        // Kontrollera om det finns konflikter
-        bool hasConflict = false;
-        string conflictMessage = "";
-        
-        if (categoryRoles.Any()) // Dokumentet har begränsningar
+        // Läs i första hand från det bifogade dokumentet (självförsörjande, ingen cache-uppslagning).
+        var attached = selectedNewsDocuments.FirstOrDefault(d => d.Id == documentId);
+
+        string categoryName;
+        List<string> categoryRoles;
+        string fileName;
+        string accessDescription;
+
+        if (attached != null)
         {
-            // Kontrollera om det finns nyhetens roller som INTE kan se dokumentet
-            var rolesWithoutAccess = newsRoles.Where(role => 
-                !categoryRoles.Contains(role, StringComparer.OrdinalIgnoreCase)).ToList();
-            
-            if (rolesWithoutAccess.Any())
-            {
-                hasConflict = true;
-                conflictMessage = $"Rollerna {string.Join(", ", rolesWithoutAccess)} kan inte se detta dokument!";
-            }
+            categoryName = string.IsNullOrEmpty(attached.CategoryName) ? "Okategoriserad" : attached.CategoryName;
+            categoryRoles = attached.CategoryAllowedRoles ?? new List<string>();
+            fileName = attached.FileName;
+            accessDescription = categoryRoles.Any()
+                ? $"Begränsad till: {string.Join(", ", categoryRoles)}"
+                : "Standard (endast Medlem)";
         }
-        // Om dokumentet inte har begränsningar (categoryRoles är tom) så kan alla se det
-        
-        string statusMessage = categoryRoles.Any() 
+        else
+        {
+            // Fallback för dokumentväljaren (dokument som ännu inte bifogats).
+            var doc = availableDocuments.FirstOrDefault(d => d.Id == documentId);
+            if (doc == null) return null;
+
+            categoryName = doc.MainCategoryDto?.Name ?? "Okategoriserad";
+            categoryRoles = doc.MainCategoryDto?.AllowedRoles ?? new List<string>();
+            fileName = doc.FileName;
+            accessDescription = doc.GetAccessibilityDescription();
+        }
+
+        var newsRoles = GetSelectedRoles();
+        var rolesWithoutAccess = newsRoles
+            .Where(role => !RoleHasCategoryAccess(role, categoryRoles))
+            .ToList();
+        bool hasConflict = rolesWithoutAccess.Any();
+
+        var conflictMessage = hasConflict
+            ? $"Rollerna {string.Join(", ", rolesWithoutAccess)} kan inte se detta dokument!"
+            : "";
+
+        string statusMessage = categoryRoles.Any()
             ? $"Begränsad till: {string.Join(", ", categoryRoles)}{(hasConflict ? " - KONFLIKT!" : "")}"
-            : "Alla användare kan se detta dokument";
-        
+            : $"Standard (endast Medlem){(hasConflict ? " - KONFLIKT!" : "")}";
+
         return new DocumentAccessInfo
         {
             CategoryName = categoryName,
             StatusMessage = statusMessage,
             HasConflict = hasConflict,
-            FileName = doc.FileName,
-            AccessDescription = doc.GetAccessibilityDescription(),
+            FileName = fileName,
+            AccessDescription = accessDescription,
             ConflictMessage = hasConflict ? conflictMessage : ""
         };
     }
@@ -1173,7 +1120,7 @@
             {
                 var firstDoc = g.First();
                 var categoryRoles = firstDoc.MainCategoryDto?.AllowedRoles ?? new List<string>();
-                var newsRoles = editModel.SelectedRoles ?? new List<string>();
+                var newsRoles = GetSelectedRoles();
                 
                 // Konfliktlogik för grupper
                 bool hasConflict = false;
