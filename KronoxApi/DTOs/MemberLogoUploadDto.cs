@@ -15,5 +15,5 @@ public class MemberLogoUploadDto
 
     [StringLength(2048, ErrorMessage = "Länken är för lång.")]
     [Url(ErrorMessage = "Ogiltig webbadress.")]
-    public string LinkUrl { get; set; } = "";
+    public string? LinkUrl { get; set; }
 }

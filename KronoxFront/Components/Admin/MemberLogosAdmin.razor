@@ -413,6 +413,18 @@
                 return;
             }
 
+            // Normalisera valfri länk: lägg till https:// om schema saknas
+            if (!string.IsNullOrWhiteSpace(addLogoModel.LinkUrl))
+            {
+                var trimmedLink = addLogoModel.LinkUrl.Trim();
+                if (!trimmedLink.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !trimmedLink.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    trimmedLink = "https://" + trimmedLink;
+                }
+                addLogoModel.LinkUrl = trimmedLink;
+            }
+
             addLogoModel.File = selectedFile;
 
             var newLogo = await Cms.UploadMemberLogoAsync(addLogoModel);
@@ -420,6 +432,11 @@
             await LoadMemberLogos();
             CloseAddLogoModal();
             await Toast.Success("Medlemslogotyp uppladdad framgångsrikt!");
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Fel vid uppladdning av medlemslogotyp");
+            await Toast.Error("Kunde inte ladda upp logotypen. Kontrollera att länken (om ifylld) är en giltig webbadress, t.ex. https://kronox.se.");
         }
         catch (Exception ex)
         {

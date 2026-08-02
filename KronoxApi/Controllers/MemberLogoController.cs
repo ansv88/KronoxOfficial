@@ -101,7 +101,7 @@ public class MemberLogoController : ControllerBase
                 Url = url,
                 AltText = dto.AltText,
                 SortOrd = dto.SortOrd > 0 ? dto.SortOrd : nextSort,
-                LinkUrl = dto.LinkUrl
+                LinkUrl = dto.LinkUrl ?? ""
             };
 
             _db.MemberLogos.Add(memberLogo);
@@ -144,7 +144,7 @@ public class MemberLogoController : ControllerBase
                 Url = url,
                 AltText = dto.AltText,
                 SortOrd = dto.SortOrd > 0 ? dto.SortOrd : nextSort,
-                LinkUrl = dto.LinkUrl
+                LinkUrl = dto.LinkUrl ?? ""
             };
 
             _db.MemberLogos.Add(memberLogo);

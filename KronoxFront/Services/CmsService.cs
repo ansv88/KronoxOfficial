@@ -807,7 +807,36 @@ public class CmsService
             {
                 var json = await response.Content.ReadAsStringAsync();
                 var logoDto = JsonSerializer.Deserialize<MemberLogoDto>(json, _jsonOptions);
-                return logoDto?.ToViewModel();
+                var vm = logoDto?.ToViewModel();
+
+                if (vm != null && !string.IsNullOrEmpty(vm.Url))
+                {
+                    try
+                    {
+                        var relUrl = vm.Url.StartsWith("/") ? vm.Url : "/" + vm.Url;
+                        var fileName = Path.GetFileName(relUrl);
+                        var membersDir = Path.Combine(_env.WebRootPath, "images", "members");
+                        Directory.CreateDirectory(membersDir);
+                        var localPath = Path.Combine(membersDir, fileName);
+
+                        if (!File.Exists(localPath))
+                        {
+                            var apiUrl = $"{_http.BaseAddress}{relUrl.TrimStart('/')}";
+                            var rs = await _http.GetAsync(apiUrl);
+                            if (rs.IsSuccessStatusCode)
+                            {
+                                await using var fs = File.Create(localPath);
+                                await rs.Content.CopyToAsync(fs);
+                            }
+                        }
+                    }
+                    catch (Exception syncEx)
+                    {
+                        _logger.LogWarning(syncEx, "Kunde inte synka logotypfil lokalt: {Url}", vm.Url);
+                    }
+                }
+
+                return vm;
             }
 
             var errorContent = await response.Content.ReadAsStringAsync();
