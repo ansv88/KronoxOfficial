@@ -141,6 +141,42 @@ public class FeatureSectionsController : ControllerBase
             {
                 var dto = dtos[i];
 
+                // Serverside-validering – matchar klientens regler och skyddar mot direkta API-anrop.
+                if (string.IsNullOrWhiteSpace(dto.Title))
+                    return BadRequest($"Sektion {i + 1}: Rubrik får inte vara tom.");
+                if (dto.Title.Length > 200)
+                    return BadRequest($"Sektion {i + 1}: Rubrik får vara max 200 tecken.");
+                if ((dto.ImageAltText?.Length ?? 0) > 200)
+                    return BadRequest($"Sektion {i + 1}: Bildbeskrivning får vara max 200 tecken.");
+                if ((dto.ContactHeading?.Length ?? 0) > 200)
+                    return BadRequest($"Sektion {i + 1}: Rubrik för kontaktpersoner får vara max 200 tecken.");
+
+                foreach (var (contactp, contactpIndex) in dto.ContactPersons.Select((c, idx) => (c, idx)))
+                {
+                    if (string.IsNullOrWhiteSpace(contactp.Name))
+                        return BadRequest($"Sektion {i + 1}, kontaktperson {contactpIndex + 1}: Namn är obligatoriskt.");
+                    if (contactp.Name.Length > 100)
+                        return BadRequest($"Sektion {i + 1}, kontaktperson {contactpIndex + 1}: Namn får vara max 100 tecken.");
+                    if ((contactp.Organization?.Length ?? 0) > 100)
+                        return BadRequest($"Sektion {i + 1}, kontaktperson {contactpIndex + 1}: Organisation får vara max 100 tecken.");
+
+                    if (!string.IsNullOrWhiteSpace(contactp.Email))
+                    {
+                        if (contactp.Email.Length > 256 ||
+                            !System.Text.RegularExpressions.Regex.IsMatch(contactp.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                            return BadRequest($"Sektion {i + 1}, kontaktperson {contactpIndex + 1}: Ogiltig e-postadress.");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(contactp.Phone))
+                    {
+                        // Normalisera en-dash/em-dash till vanligt bindestreck för enhetlig lagring.
+                        contactp.Phone = contactp.Phone.Replace('\u2013', '-').Replace('\u2014', '-').Trim();
+
+                        if (!System.Text.RegularExpressions.Regex.IsMatch(contactp.Phone, @"^[\d\s\+\-\(\)\.]{4,30}$"))
+                            return BadRequest($"Sektion {i + 1}, kontaktperson {contactpIndex + 1}: Ogiltigt telefonnummer.");
+                    }
+                }
+
                 // Konvertera ContactPersons till JSON om det finns data där
                 string contactPersonsJson = dto.ContactPersonsJson;
                 if (dto.ContactPersons.Any() && string.IsNullOrEmpty(contactPersonsJson))

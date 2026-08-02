@@ -215,6 +215,13 @@ public class CustomPageController : ControllerBase
                 return BadRequest("Det finns redan en sida med samma URL. Välj en annan URL.");
             }
 
+            if (!System.Text.RegularExpressions.Regex.IsMatch(request.DisplayName ?? string.Empty, @"[\p{L}\p{N}]"))
+            {
+                ModelState.AddModelError(nameof(request.DisplayName),
+                    "Länktexten måste innehålla minst en bokstav eller siffra.");
+                return BadRequest(ModelState);
+            }
+
             var customPage = new CustomPage
             {
                 PageKey = request.PageKey,
@@ -296,6 +303,13 @@ public class CustomPageController : ControllerBase
             if (page == null)
             {
                 return NotFound();
+            }
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(request.DisplayName ?? string.Empty, @"[\p{L}\p{N}]"))
+            {
+                ModelState.AddModelError(nameof(request.DisplayName),
+                    "Länktexten måste innehålla minst en bokstav eller siffra.");
+                return BadRequest(ModelState);
             }
 
             page.Title = request.Title;

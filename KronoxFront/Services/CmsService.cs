@@ -96,6 +96,30 @@ public class CmsService
         _cache.InvalidatePageCache(pageKey);
     }
 
+    // Sparar enbart metadata för en sida via PATCH. Rör aldrig titeln, vilket förhindrar race conditions där titeln skrivs över av sektionssparningar.
+    public async Task SavePageMetadataAsync(string pageKey, string metadataJson)
+    {
+        var dto = new { Metadata = metadataJson };
+        var json = JsonSerializer.Serialize(dto);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var resp = await _http.PatchAsync($"api/content/{pageKey}/metadata", content);
+        resp.EnsureSuccessStatusCode();
+
+        _cache.InvalidatePageCache(pageKey);
+    }
+
+    // Sparar enbart titeln (browserflikens titel) via PATCH. Rör aldrig HTML eller metadata, så att titeln inte skrivs över av sektions-/metadatasparningar.
+    public async Task SavePageTitleAsync(string pageKey, string title)
+    {
+        var dto = new { Title = title };
+        var json = JsonSerializer.Serialize(dto);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var resp = await _http.PatchAsync($"api/content/{pageKey}/title", content);
+        resp.EnsureSuccessStatusCode();
+
+        _cache.InvalidatePageCache(pageKey);
+    }
+
     // SIDBILDER
     public async Task<PageImageViewModel?> UploadPageImageAsync(string pageKey, Stream fileStream, string fileName, string altText)
     {
@@ -412,15 +436,8 @@ public class CmsService
                 }).ToArray()
             };
 
-            pageContent.Metadata = JsonSerializer.Serialize(existingMetadata);
-            pageContent.LastModified = DateTime.Now;
-
-            var json = JsonSerializer.Serialize(pageContent);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var resp = await _http.PutAsync($"api/content/{pageKey}", content);
-            resp.EnsureSuccessStatusCode();
-
-            _cache.InvalidatePageCache(pageKey);
+            var metadataJson = JsonSerializer.Serialize(existingMetadata);
+            await SavePageMetadataAsync(pageKey, metadataJson);
 
             _logger.LogDebug("Intro-sektion sparad för {PageKey}", pageKey);
         }
@@ -1004,10 +1021,8 @@ public class CmsService
             existingMetadata["sectionConfig"] = sectionConfig;
             existingMetadata["lastConfigUpdate"] = DateTime.UtcNow;
 
-            pageContent.Metadata = JsonSerializer.Serialize(existingMetadata, _jsonOptions);
-            pageContent.LastModified = DateTime.Now;
-
-            await SavePageContentAsync(pageKey, pageContent);
+            var metadataJson = JsonSerializer.Serialize(existingMetadata, _jsonOptions);
+            await SavePageMetadataAsync(pageKey, metadataJson);
 
             _logger.LogDebug("Sektionskonfiguration sparad för {PageKey}", pageKey);
             return true;

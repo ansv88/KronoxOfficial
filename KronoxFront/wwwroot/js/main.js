@@ -365,11 +365,11 @@ window.logFormData = function (data) {
 window.addEventListener('DOMContentLoaded', function () {
     if (typeof tinymce !== 'undefined') {
         tinymce.on('AddEditor', function (e) {
-            console.log('TinyMCE editor added:', e.editor.id);
+            // console.log('TinyMCE editor added:', e.editor.id);
         });
 
         tinymce.on('RemoveEditor', function (e) {
-            console.log('TinyMCE editor removed:', e.editor.id);
+            // console.log('TinyMCE editor removed:', e.editor.id);
         });
     }
 });

@@ -1016,13 +1016,12 @@ else
                 introSection.BreadcrumbTitle = newDisplayName.ToUpperInvariant();
             }
 
-            var tasks = new List<Task> { Cms.SavePageContentAsync(PageKey, pageContent) };
+            await Cms.SavePageContentAsync(PageKey, pageContent);
             if (sectionConfigItems.Any(s => s.Type == SectionType.Intro))
             {
-                tasks.Add(Cms.SaveIntroSectionAsync(PageKey, introSection));
+                await Cms.SaveIntroSectionAsync(PageKey, introSection);
             }
 
-            await Task.WhenAll(tasks);
             Cache.InvalidatePageCache(PageKey);
 
             await Toast.Success("Navigationsnamn uppdaterade sidtitel.");

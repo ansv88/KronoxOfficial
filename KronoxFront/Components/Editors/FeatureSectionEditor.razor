@@ -68,7 +68,8 @@
                                                    @bind="item.ImageAltText"
                                                    @bind:after="() => SectionsChanged()"
                                                    placeholder="Beskriv bilden för tillgänglighet"
-                                                   aria-label="Bildbeskrivning för sektion @(index + 1)" />
+                                                   aria-label="Bildbeskrivning för sektion @(index + 1)"
+                                                   max-length="200"/>
                                         </div>
                                     }
                                     else
@@ -99,7 +100,8 @@
                                 <label class="form-label" for="@($"title-{index}")">Rubrik</label>
                                 <input type="text" class="form-control" id="@($"title-{index}")"
                                        @bind="item.Title" @bind:after="() => SectionsChanged()"
-                                       aria-label="Rubrik för sektion @(index + 1)" />
+                                       aria-label="Rubrik för sektion @(index + 1)"
+                                       max-length="200"/>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="@($"feature-editor-{index}")">Innehåll</label>
@@ -172,7 +174,8 @@
                                             <input type="text" class="form-control" id="@($"contact-heading-{index}")"
                                                    @bind="item.ContactHeading" @bind:after="() => SectionsChanged()"
                                                    placeholder="T.ex. 'Kontaktinformation för styrelsen' eller 'Gruppen består av följande personer'"
-                                                   aria-label="Rubrik för kontaktpersoner i sektion @(index + 1)" />
+                                                   aria-label="Rubrik för kontaktpersoner i sektion @(index + 1)"
+                                                   max-length="200"/>
                                             <div class="form-text">Denna rubrik visas ovanför kontaktpersonerna för inloggade medlemmar.</div>
                                         </div>
 
@@ -195,30 +198,46 @@
                                                             <div class="row mb-2">
                                                                 <div class="col-md-3">
                                                                     <label class="form-label small fw-bold">Namn *</label>
-                                                                    <input type="text" class="form-control form-control-sm"
+                                                                    <input type="text" maxlength="100"
+                                                                           class="form-control form-control-sm @(string.IsNullOrWhiteSpace(contact.Name) ? "is-invalid" : "")"
                                                                            @bind="contact.Name" placeholder="Förnamn Efternamn"
                                                                            @bind:after="() => SectionsChanged()" />
+                                                                    @if (string.IsNullOrWhiteSpace(contact.Name))
+                                                                    {
+                                                                        <div class="invalid-feedback">Namn är obligatoriskt.</div>
+                                                                    }
                                                                 </div>
 
                                                                 <div class="col-md-3">
                                                                     <label class="form-label small fw-bold">Organisation</label>
-                                                                    <input type="text" class="form-control form-control-sm"
+                                                                    <input type="text" maxlength="100"
+                                                                           class="form-control form-control-sm"
                                                                            @bind="contact.Organization" placeholder="Högskola/Universitet"
                                                                            @bind:after="() => SectionsChanged()" />
                                                                 </div>
 
                                                                 <div class="col-md-2">
                                                                     <label class="form-label small fw-bold">E-post</label>
-                                                                    <input type="email" class="form-control form-control-sm"
+                                                                    <input type="email" maxlength="256"
+                                                                           class="form-control form-control-sm @(IsInvalidEmail(contact.Email) ? "is-invalid" : "")"
                                                                            @bind="contact.Email" placeholder="namn@domain.se"
                                                                            @bind:after="() => SectionsChanged()" />
+                                                                    @if (IsInvalidEmail(contact.Email))
+                                                                    {
+                                                                        <div class="invalid-feedback">Ogiltig e-postadress.</div>
+                                                                    }
                                                                 </div>
 
                                                                 <div class="col-md-2">
                                                                     <label class="form-label small fw-bold">Telefon</label>
-                                                                    <input type="text" class="form-control form-control-sm"
+                                                                    <input type="text" maxlength="30"
+                                                                           class="form-control form-control-sm @(IsInvalidPhone(contact.Phone) ? "is-invalid" : "")"
                                                                            @bind="contact.Phone" placeholder="08-123 45 67"
                                                                            @bind:after="() => SectionsChanged()" />
+                                                                    @if (IsInvalidPhone(contact.Phone))
+                                                                    {
+                                                                        <div class="invalid-feedback">Ogiltigt telefonnummer.</div>
+                                                                    }
                                                                 </div>
 
                                                                 <div class="col-md-2 d-flex align-items-end">
@@ -454,6 +473,14 @@
         try
         {
             await SyncEditors();
+
+            // Förhandsvalidering – blockera spar vid fel och ge tydlig feedback.
+            var validationError = ValidateSections();
+            if (validationError != null)
+            {
+                await ToastService.Error(validationError);
+                return;
+            }
 
             if (OnSaveSections.HasDelegate)
             {
@@ -975,5 +1002,50 @@
             return $"{bytes / (1024.0 * 1024.0):F1} MB";
         else
             return $"{bytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
+    }
+
+        // Validering för kontaktpersoner
+    private static bool IsInvalidEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return false; // E-post är valfritt
+        return !System.Text.RegularExpressions.Regex.IsMatch(
+            email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+    }
+
+    private static bool IsInvalidPhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) return false; // Telefon är valfritt
+        var normalized = phone.Replace('\u2013', '-').Replace('\u2014', '-');
+        return !System.Text.RegularExpressions.Regex.IsMatch(normalized, @"^[\d\s\+\-\(\)\.]{4,30}$");
+    }
+
+    // Returnerar ett felmeddelande om något är ogiltigt, annars null.
+    private string? ValidateSections()
+    {
+        foreach (var (section, sIndex) in Sections.Select((s, i) => (s, i)))
+        {
+            if (string.IsNullOrWhiteSpace(section.Title))
+                return $"Sektion {sIndex + 1}: Rubrik får inte vara tom.";
+
+            if (section.HasPrivateContent)
+            {
+                foreach (var (contact, cIndex) in section.ContactPersons.Select((c, i) => (c, i)))
+                {
+                    if (string.IsNullOrWhiteSpace(contact.Name))
+                        return $"Sektion {sIndex + 1}, kontaktperson {cIndex + 1}: Namn är obligatoriskt.";
+                    if (IsInvalidEmail(contact.Email))
+                        return $"Sektion {sIndex + 1}, kontaktperson {cIndex + 1}: Ogiltig e-postadress.";
+
+                    // Normalisera en-dash/em-dash till vanligt bindestreck före kontrollen.
+                    if (!string.IsNullOrWhiteSpace(contact.Phone))
+                    {
+                        contact.Phone = contact.Phone.Replace('\u2013', '-').Replace('\u2014', '-').Trim();
+                    }
+                    if (IsInvalidPhone(contact.Phone))
+                        return $"Sektion {sIndex + 1}, kontaktperson {cIndex + 1}: Ogiltigt telefonnummer.";
+                }
+            }
+        }
+        return null;
     }
 }

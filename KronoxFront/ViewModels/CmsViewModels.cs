@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace KronoxFront.ViewModels;
 
 // Innehåller ViewModels för CMS-data såsom sidor, bilder, logotyper.
@@ -65,8 +67,17 @@ public class LogoMoveRequest
 // För kontaktpersoner i privat information
 public class ContactPersonViewModel
 {
-    public string Name { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string Phone { get; set; } = string.Empty;
-    public string Organization { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Namn är obligatoriskt.")]
+    [StringLength(100, ErrorMessage = "Namn får vara max 100 tecken.")]
+    public string Name { get; set; } = "";
+
+    [StringLength(256, ErrorMessage = "E-post får vara max 256 tecken.")]
+    [EmailAddress(ErrorMessage = "Ogiltig e-postadress.")]
+    public string Email { get; set; } = "";
+
+    [StringLength(30, ErrorMessage = "Telefon får vara max 30 tecken.")]
+    public string Phone { get; set; } = "";
+
+    [StringLength(100, ErrorMessage = "Organisation får vara max 100 tecken.")]
+    public string Organization { get; set; } = "";
 }

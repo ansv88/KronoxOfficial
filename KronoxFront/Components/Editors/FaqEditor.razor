@@ -180,8 +180,8 @@
                     En eller flera rubriker eller frågor överskrider tillåten längd. Åtgärda dessa innan du sparar.
                 </div>
             }
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-primary" @onclick="SaveFaqSections"
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-success" @onclick="SaveFaqSections"
                         disabled="@(isSaving || HasInvalidFaqFields)" aria-label="Spara FAQ-sektioner">
                     @if (isSaving)
                     {

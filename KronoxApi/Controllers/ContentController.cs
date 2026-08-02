@@ -149,6 +149,96 @@ public class ContentController : ControllerBase
         }
     }
 
+    // Uppdaterar enbart metadata för ett innehållsblock
+    [HttpPatch("{pageKey}/metadata")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> UpdateMetadata(string pageKey, [FromBody] UpdateMetadataDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        try
+        {
+            var block = await _db.ContentBlocks
+                .FirstOrDefaultAsync(cb => cb.PageKey == pageKey);
+
+            if (block == null)
+            {
+                block = new ContentBlock
+                {
+                    PageKey = pageKey,
+                    Title = GetDefaultPageTitle(pageKey),
+                    HtmlContent = "",
+                    Metadata = dto.Metadata,
+                    LastModified = DateTime.UtcNow
+                };
+                _db.ContentBlocks.Add(block);
+            }
+            else
+            {
+                block.Metadata = dto.Metadata;
+                block.LastModified = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av metadata för {PageKey}", pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av metadata för {PageKey}", pageKey);
+            return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av metadata.");
+        }
+    }
+
+    // Uppdaterar enbart titeln för ett innehållsblock
+    [HttpPatch("{pageKey}/title")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> UpdateTitle(string pageKey, [FromBody] UpdatePageTitleDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        try
+        {
+            var block = await _db.ContentBlocks
+                .FirstOrDefaultAsync(cb => cb.PageKey == pageKey);
+
+            if (block == null)
+            {
+                block = new ContentBlock
+                {
+                    PageKey = pageKey,
+                    Title = dto.Title,
+                    HtmlContent = "",
+                    Metadata = "{}",
+                    LastModified = DateTime.UtcNow
+                };
+                _db.ContentBlocks.Add(block);
+            }
+            else
+            {
+                block.Title = dto.Title;
+                block.LastModified = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Samtidighetskonflikt vid uppdatering av titel för {PageKey}", pageKey);
+            return Conflict(new { message = "Innehållet uppdaterades av någon annan. Ladda om sidan och försök igen." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fel vid uppdatering av titel för {PageKey}", pageKey);
+            return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av titeln.");
+        }
+    }
+
     // Uppdaterar alt-texten för en bild kopplad till ett innehållsblock.
     [HttpPut("{pageKey}/images/{id}/alttext")]
     [RequireRole("Admin")]
