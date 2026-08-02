@@ -917,6 +917,19 @@ public class CmsService
     {
         try
         {
+            string? localFileName = null;
+            try
+            {
+                var logos = await GetMemberLogosAsync();
+                var logo = logos.FirstOrDefault(l => l.Id == logoId);
+                if (logo != null && !string.IsNullOrEmpty(logo.Url))
+                    localFileName = Path.GetFileName(logo.Url);
+            }
+            catch (Exception lookupEx)
+            {
+                _logger.LogWarning(lookupEx, "Kunde inte slå upp logotyp-URL före radering: {LogoId}", logoId);
+            }
+
             var response = await _http.DeleteAsync($"api/cms/logos/{logoId}");
 
             if (!response.IsSuccessStatusCode)
@@ -924,6 +937,20 @@ public class CmsService
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Kunde inte ta bort logotyp: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new HttpRequestException($"Fel vid borttagning av logotyp: {response.StatusCode}");
+            }
+
+            if (!string.IsNullOrEmpty(localFileName))
+            {
+                try
+                {
+                    var localPath = Path.Combine(_env.WebRootPath, "images", "members", localFileName);
+                    if (File.Exists(localPath))
+                        File.Delete(localPath);
+                }
+                catch (Exception delEx)
+                {
+                    _logger.LogWarning(delEx, "Kunde inte ta bort lokal logotypfil: {FileName}", localFileName);
+                }
             }
 
             _logger.LogDebug("Medlemslogotyp borttagen: {LogoId}", logoId);
