@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.Services
 @using KronoxFront.Requests.Suggestions
+@using KronoxFront.Components.Shared.UI
 @inject CmsService Cms
 @inject IToastService Toast
 @inject IJSRuntime JS
@@ -269,33 +270,20 @@
     </div>
 }
 
-<!-- Modal för ta bort logotyp -->
-@if (showDeleteLogoModal && selectedLogo != null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
-         role="dialog" aria-modal="true" aria-labelledby="deleteLogoModalTitle">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteLogoModalTitle">Ta bort medlemslogotyp</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDeleteLogoModal" aria-label="Stäng"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-center mb-3">
-                        <img src="@selectedLogo.Url" alt="@selectedLogo.AltText"
-                             class="img-thumbnail" style="max-width: 150px; max-height: 100px;" />
-                    </div>
-                    <p>Är du säker på att du vill ta bort logotypen '<strong>@selectedLogo.AltText</strong>'?</p>
-                    <p class="text-danger">Detta kommer att ta bort logotypen permanent från systemet.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteLogoModal">Avbryt</button>
-                    <button type="button" class="btn btn-danger" @onclick="DeleteLogo">Ta bort</button>
-                </div>
-            </div>
+<!-- Ta bort medlemslogotyp -->
+<ConfirmDialog IsVisible="@(showDeleteLogoModal && selectedLogo != null)"
+               Title="Ta bort medlemslogotyp"
+               WarningText="Detta kommer att ta bort logotypen permanent från systemet."
+               OnConfirmCallback="DeleteLogo"
+               OnCancelCallback="CloseDeleteLogoModal">
+    <BodyContent>
+        <div class="text-center mb-3">
+            <img src="@selectedLogo?.Url" alt="@selectedLogo?.AltText"
+                 class="img-thumbnail" style="max-width: 150px; max-height: 100px;" />
         </div>
-    </div>
-}
+        <p class="mb-0">Är du säker på att du vill ta bort logotypen '<strong>@selectedLogo?.AltText</strong>'?</p>
+    </BodyContent>
+</ConfirmDialog>
 
 @code {
     private List<MemberLogoViewModel> memberLogos = new();

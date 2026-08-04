@@ -55,16 +55,6 @@
         }
     }
 }
-else
-{
-    <div class="text-center text-muted">
-        <p>Innehållet laddas...</p>
-        @if (IsAdmin)
-        {
-            <p><a href="@AdminEditUrl" class="btn btn-primary">Lägg till innehåll</a></p>
-        }
-    </div>
-}
 
 @code {
     [Parameter] public string PageKey { get; set; } = "";

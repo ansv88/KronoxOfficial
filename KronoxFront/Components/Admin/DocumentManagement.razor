@@ -36,228 +36,310 @@
         <h1 class="h3">
             <i class="fa-solid fa-file-alt me-2"></i>Hantera dokument
         </h1>
-        <div>
-            <a href="/admin/page/dokument" class="btn btn-outline-secondary me-2">
-                <i class="fa-solid fa-edit me-1"></i> Redigera Dokument-sidan
-            </a>
-            <a href="/dokument" class="btn btn-outline-secondary">
-                <i class="fa-solid fa-eye me-1"></i> Visa publika sidan
-            </a>
+    </div>
+
+    @* ── Ladda upp dokument ── *@
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">
+                <i class="fa-solid fa-upload me-2"></i>Ladda upp dokument
+            </h5>
+        </div>
+        <div class="card-body">
+            <EditForm Model="uploadModel" OnValidSubmit="UploadDocument">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="row g-3">
+                    <!-- Filval -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="uploadFile">Dokument</label>
+                        <InputFile OnChange="OnInputFileChange"
+                                   id="uploadFile"
+                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                                   class="form-control" />
+                        <ValidationMessage For="() => uploadModel.File" />
+                        @if (selectedFile != null)
+                        {
+                            <div class="mt-1 small text-muted">@selectedFile.Name</div>
+                        }
+                    </div>
+
+                    <!-- Huvudkategori (obligatoriskt) -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="mainCategorySelectUpload">
+                            Huvudkategori <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="mainCategorySelectUpload"
+                                @bind="uploadModel.SelectedMainCategoryId">
+                            <option value="">-- Välj kategori --</option>
+                            @foreach (var mainCategory in mainCategoryDtos)
+                            {
+                                <option value="@mainCategory.Id">
+                                    @mainCategory.Name (@string.Join(", ", mainCategory.AllowedRoles))
+                                </option>
+                            }
+                        </select>
+                        <ValidationMessage For="() => uploadModel.SelectedMainCategoryId" />
+                        <div class="form-text">Minst en huvudkategori krävs.</div>
+                    </div>
+
+                    <!-- Underkategorier (valfritt) -->
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Underkategorier (valfritt)</label>
+                        <div class="d-flex flex-wrap gap-3">
+                            @foreach (var subCategory in subCategoryDtos)
+                            {
+                                <div class="form-check">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           id="subcat-upload-@subCategory.Id"
+                                           @onchange="(ChangeEventArgs e) => ToggleCategory(subCategory.Id, e?.Value as bool? == true)" />
+                                    <label class="form-check-label" for="subcat-upload-@subCategory.Id">@subCategory.Name</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-3">
+                    <button class="btn btn-primary" disabled="@isUploading">
+                        @if (isUploading)
+                        {
+                            <span class="spinner-border spinner-border-sm"></span>
+                            <span class="ms-1">Laddar upp…</span>
+                        }
+                        else
+                        {
+                            <text>Ladda upp dokument</text>
+                        }
+                    </button>
+                </div>
+            </EditForm>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <!-- Uppladdning -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header"><h2 class="h5">Ladda upp dokument</h2></div>
-                <div class="card-body">
-                    <EditForm Model="uploadModel" OnValidSubmit="UploadDocument">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary />
+    @* ── Hantera kategorier ── *@
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <button type="button"
+                    class="btn btn-link text-decoration-none text-reset p-0 w-100 d-flex justify-content-between align-items-center"
+                    @onclick="() => showCategorySection = !showCategorySection"
+                    aria-expanded="@showCategorySection">
+                <h5 class="card-title mb-0">
+                    <i class="fa-solid fa-folder-tree me-2"></i>Hantera kategorier
+                </h5>
+                <i class="fa-solid @(showCategorySection ? "fa-chevron-up" : "fa-chevron-down")"></i>
+            </button>
+        </div>
+        @if (showCategorySection)
+        {
+        <div class="card-body">
+            <EditForm Model="newCategory" OnValidSubmit="AddCategory">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
 
-                        <!-- Filval -->
-                        <div class="mb-3">
-                            <label for="uploadFile">Dokument</label>
-                            <InputFile OnChange="OnInputFileChange"
-                                       id="uploadFile"
-                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-                                       class="form-control" />
-                            <ValidationMessage For="() => uploadModel.File" />
-                            @if (selectedFile != null)
-                            {
-                                <div class="mt-1">@selectedFile.Name</div>
-                            }
-                        </div>
+                <div class="row g-3">
+                    <!-- Namn och Typ på samma rad -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="categoryName">Namn</label>
+                        <InputText id="categoryName" @bind-Value="newCategory.Name" class="form-control" />
+                        <ValidationMessage For="() => newCategory.Name" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="categoryType">Typ</label>
+                        <select id="categoryType" class="form-select" @bind="newCategoryString" @bind:event="onchange">
+                            <option value="">-- Välj Kategorinivå --</option>
+                            <option value="main">Huvudkategori</option>
+                            <option value="sub">Underkategori</option>
+                        </select>
+                    </div>
 
-                        <!-- Huvudkategorier (obligatoriskt) -->
-                        <div class="mb-3">
-                            <label class="fw-bold" for="mainCategorySelectUpload">
-                                Huvudkategorier <span class="text-danger">*</span>
-                            </label>
-                            <small class="text-muted d-block mb-2">
-                                <span class="text-danger">*</span> Minst en huvudkategori krävs.
-                            </small>
-                            <div class="d-flex flex-wrap gap-2">
-                                <select class="form-select" id="mainCategorySelectUpload"
-                                @bind="uploadModel.SelectedMainCategoryId">
-                                    <option value="">-- Välj kategori --</option>
-                                    @foreach (var mainCategory in mainCategoryDtos)
-                                    {
-                                        <option value="@mainCategory.Id">
-                                            @mainCategory.Name (@string.Join(", ", mainCategory.AllowedRoles))
-                                        </option>
-                                    }
-                                </select>
-                                <ValidationMessage For="() => uploadModel.SelectedMainCategoryId" />
-                            </div>
-                        </div>
-
-                        <!-- Underkategorier (valfritt) -->
-                        <div class="mb-3">
-                            <span>Underkategorier (valfritt)</span>
-                            <div class="d-flex flex-wrap gap-2">
-                                @foreach (var subCategory in subCategoryDtos)
+                    @if (newCategoryString == "main")
+                    {
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Tillåtna roller</label>
+                            <div class="d-flex flex-wrap gap-3">
+                                @foreach (var role in availableRoles)
                                 {
                                     <div class="form-check">
                                         <input type="checkbox"
-                                        class="form-check-input"
-                                               id="subcat-upload-@subCategory.Id"
-                                               @onchange="(ChangeEventArgs e) => ToggleCategory(subCategory.Id, e?.Value as bool? == true)" />
-                                        <label class="form-check-label" for="subcat-upload-@subCategory.Id">@subCategory.Name</label>
+                                               class="form-check-input"
+                                               id="role-@role"
+                                               checked="@newCategory.AllowedRoles.Contains(role)"
+                                               @onchange="(ChangeEventArgs e) => ToggleNewCategoryRole(role, e?.Value as bool? == true)" />
+                                        <label class="form-check-label" for="role-@role">@role</label>
                                     </div>
                                 }
                             </div>
                         </div>
+                    }
+                </div>
 
-                        <div class="d-flex justify-content-end">
-                            <button class="btn btn-primary" disabled="@isUploading">
-                                @if (isUploading)
-                                {
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                    <span class="ms-1">Laddar upp…</span>
-                                }
-                                else
-                                {
-                                    <text>Ladda upp dokument</text>
-                                }
-                            </button>
-                        </div>
-                    </EditForm>
+                <div class="d-flex justify-content-end mt-3">
+                    <button class="btn btn-primary">Lägg till ny kategori</button>
+                </div>
+            </EditForm>
+
+            <hr class="my-4" />
+
+            <!-- Befintliga kategorier -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h3 class="border-bottom pb-2 fw-bold h6">Huvudkategorier</h3>
+                    <ul class="list-group">
+                        @if (!mainCategoryDtos.Any())
+                        {
+                            <li class="list-group-item text-muted">Inga huvudkategorier</li>
+                        }
+                        else
+                        {
+                            @foreach (var category in mainCategoryDtos)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>@category.Name</strong>
+                                        <br />
+                                        <small class="text-muted">Roller: @string.Join(", ", category.AllowedRoles)</small>
+                                    </div>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-warning"
+                                                title="Redigera kategori"
+                                                @onclick="() => StartEditCategory(category, true)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger"
+                                                title="Radera kategori"
+                                                @onclick="() => DeleteCategory(category.Id, true)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h3 class="border-bottom pb-2 fw-bold h6">Underkategorier</h3>
+                    <ul class="list-group">
+                        @if (!subCategoryDtos.Any())
+                        {
+                            <li class="list-group-item text-muted">Inga underkategorier</li>
+                        }
+                        else
+                        {
+                            @foreach (var category in subCategoryDtos)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>@category.Name</span>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-warning"
+                                                title="Redigera kategori"
+                                                @onclick="() => StartEditCategory(category, false)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger"
+                                                title="Radera kategori"
+                                                @onclick="() => DeleteCategory(category.Id, false)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
                 </div>
             </div>
         </div>
+        }
+    </div>
 
-        <!-- Category Admin med Rollhantering -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between">
-                    <h2 class="h5">Hantera kategorier</h2>
-                </div>
-                <div class="card-body">
-                    <EditForm Model="newCategory" OnValidSubmit="AddCategory">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary />
+       <hr />
 
-                        <div class="mb-3">
-                            <label for="categoryName">Namn</label>
-                            <InputText id="categoryName" @bind-Value="newCategory.Name" class="form-control" />
-                            <ValidationMessage For="() => newCategory.Name" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="categoryType">Typ</label>
-                            <select id="categoryType" class="form-select" @bind="newCategoryString" @bind:event="onchange">
-                                <option value="">-- Välj Kategorinivå --</option>
-                                <option value="main">Huvudkategori</option>
-                                <option value="sub">Underkategori</option>
-                            </select>
-                        </div>
-
-                        @if (newCategoryString == "main")
-                        {
-                            <div class="mb-3">
-                                <label>Tillåtna roller</label>
-                                <div class="d-flex flex-wrap gap-2">
-                                    @foreach (var role in availableRoles)
-                                    {
-                                        <div class="form-check">
-                                            <input type="checkbox"
-                                                   class="form-check-input"
-                                                   id="role-@role"
-                                                   checked="@newCategory.AllowedRoles.Contains(role)"
-                                                   @onchange="(ChangeEventArgs e) => ToggleNewCategoryRole(role, e?.Value as bool? == true)" />
-                                            <label class="form-check-label" for="role-@role">@role</label>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        }
-
-                        <div class="d-flex justify-content-end">
-                            <button class="btn btn-primary">Lägg till ny kategori</button>
-                        </div>
-                    </EditForm>
-
-                    <!-- Lista över existerande kategorier -->
-                    <div class="mt-4">
-                        <h3 class="border-bottom pb-2 fw-bold h6">Huvudkategorier</h3>
-                        <ul class="list-group mb-3">
-                            @if (!mainCategoryDtos.Any())
-                            {
-                                <li class="list-group-item text-muted">Inga huvudkategorier</li>
-                            }
-                            else
-                            {
-                                @foreach (var category in mainCategoryDtos)
-                                {
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>@category.Name</strong>
-                                            <br />
-                                            <small class="text-muted">Roller: @string.Join(", ", category.AllowedRoles)</small>
-                                        </div>
-                                        <div class="d-flex gap-1">
-                                            <button class="btn btn-sm btn-warning me-1"
-                                            title="Redigera kategori"
-                                            @onclick="() => StartEditCategory(category, true)">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-danger"
-                                            @onclick="() => DeleteCategory(category.Id, true)"
-                                            title="Radera kategori">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </div>
-                                    </li>
-                                }
-                            }
-                        </ul>
-
-                        <h3 class="border-bottom pb-2 fw-bold h6">Underkategorier</h3>
-                        <ul class="list-group">
-                            @if (!subCategoryDtos.Any())
-                            {
-                                <li class="list-group-item text-muted">Inga underkategorier</li>
-                            }
-                            else
-                            {
-                                @foreach (var category in subCategoryDtos)
-                                {
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>@category.Name</span>
-                                        <div class="d-flex gap-1">
-                                            <button class="btn btn-sm btn-warning me-1"
-                                            title="Redigera kategori"
-                                            @onclick="() => StartEditCategory(category, false)">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-danger"
-                                            title="Radera kategori"
-                                            @onclick="() => DeleteCategory(category.Id, false)">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </div>
-                                    </li>
-                                }
-                            }
-                        </ul>
+    <!-- Filter- och sorteringssektion -->
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <h2 class="h5 mb-0"><i class="fa-solid fa-filter me-2"></i>Filtrera och sortera dokument</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="showArchived"
+                               @bind="showArchived" />
+                        <label class="form-check-label" for="showArchived">
+                            Visa arkiverade dokument
+                        </label>
                     </div>
                 </div>
+            </div>
+            <div class="row g-2 mt-1">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">
+                        <i class="fa-solid fa-folder me-1"></i>Huvudkategori
+                    </label>
+                    <select class="form-select form-select-sm" @bind="filterMainCategoryId">
+                        <option value="">Alla kategorier</option>
+                        @foreach (var cat in mainCategoryDtos)
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">
+                        <i class="fa-solid fa-folder-tree me-1"></i>Underkategori
+                    </label>
+                    <select class="form-select form-select-sm" @bind="filterSubCategoryId">
+                        <option value="">Alla underkategorier</option>
+                        @foreach (var sub in subCategoryDtos)
+                        {
+                            <option value="@sub.Id">@sub.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">
+                        <i class="fa-solid fa-calendar me-1"></i>Uppladdningsår
+                    </label>
+                    <select class="form-select form-select-sm" @bind="filterYear">
+                        <option value="">Alla år</option>
+                        @foreach (var year in AvailableYears)
+                        {
+                            <option value="@year">@year</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">
+                        <i class="fa-solid fa-sort me-1"></i>Sortera efter
+                    </label>
+                    <select class="form-select form-select-sm" @bind="sortOption">
+                        <option value="@DocumentSortOption.UploadedDesc">Uppladdningsdatum (nyast först)</option>
+                        <option value="@DocumentSortOption.UploadedAsc">Uppladdningsdatum (äldst först)</option>
+                        <option value="@DocumentSortOption.NameAsc">Filnamn (A–Ö)</option>
+                        <option value="@DocumentSortOption.NameDesc">Filnamn (Ö–A)</option>
+                        <option value="@DocumentSortOption.MainCategoryAsc">Huvudkategori (A–Ö)</option>
+                        <option value="@DocumentSortOption.MainCategoryDesc">Huvudkategori (Ö–A)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        @onclick="ResetFilters" disabled="@(!HasActiveFilters)">
+                    <i class="fa-solid fa-rotate-left me-1"></i>Återställ filter
+                </button>
             </div>
         </div>
     </div>
 
-    <hr />
-
-    <!-- Dokument‐tabell -->
+    <!-- Dokumentlista -->
     <div class="card">
-        <div class="card-header d-flex justify-content-between">
-            <h2 class="h5">Hantera dokument</h2>
-            <div class="form-check form-switch">
-                <input type="checkbox" class="form-check-input" id="showArchived" @bind="showArchived" />
-                <label class="form-check-label" for="showArchived">Visa arkiverade</label>
-            </div>
+        <div class="card-header bg-light">
+            <h2 class="h5 mb-0">
+                <i class="fa-solid fa-file-alt me-2"></i>
+                Dokument (@FilteredDocuments.Count() av @documents.Count)
+            </h2>
         </div>
         <div class="card-body">
             @if (isLoading)
@@ -271,7 +353,7 @@
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-striped">
+                    <table class="table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>Fil</th>
@@ -289,10 +371,6 @@
                                 <tr class="@(document.IsArchived ? "table-secondary" : "")">
                                     <td>
                                         @document.FileName
-                                        @if (document.IsArchived)
-                                        {
-                                            <span class="badge bg-secondary ms-1">Arkiverad</span>
-                                        }
                                     </td>
                                     <td>@FormatFileSize(document.FileSize)</td>
                                     <td>
@@ -321,42 +399,35 @@
                                     </td>
                                     <td>@document.UploadedAt.ToString("yyyy-MM-dd")</td>
                                     <td>
-                                        <button class="btn btn-sm btn-warning me-1"
-                                        title="Redigera kategorier för dokumentet"
-                                        @onclick="() => EditDocument(document)">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-info me-1"
-                                        title="Visa dokument i PDF-läsare"
-                                        @onclick="() => ViewDocument(document.Id, document.FileName)">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-primary me-1"
-                                        title="Ladda ner dokumentet"
-                                        @onclick="() => DownloadDocument(document.Id)">
-                                            <i class="fas fa-download"></i>
-                                        </button>
-                                        @if (document.IsArchived)
-                                        {
-                                            <button class="btn btn-sm btn-success me-1"
-                                            title="Återställ dokument"
-                                            @onclick="() => UnarchiveDocument(document.Id)">
-                                                <i class="fas fa-undo"></i>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-warning"
+                                                    title="Redigera kategorier för dokumentet"
+                                                    @onclick="() => EditDocument(document)">
+                                                <i class="fas fa-edit"></i>
                                             </button>
-                                        }
-                                        else
-                                        {
-                                            <button class="btn btn-sm btn-secondary me-1"
-                                            title="Arkivera dokument"
-                                            @onclick="() => ArchiveDocument(document.Id)">
-                                                <i class="fas fa-archive"></i>
+                                            <button type="button" class="btn btn-outline-info"
+                                                    title="Visa dokument i PDF-läsare"
+                                                    @onclick="() => ViewDocument(document.Id, document.FileName)">
+                                                <i class="fas fa-eye"></i>
                                             </button>
-                                        }
-                                        <button class="btn btn-sm btn-danger"
-                                        title="Radera dokumentet"
-                                        @onclick="() => DeleteDocument(document.Id)">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
+                                            <button type="button" class="btn btn-outline-primary"
+                                                    title="Ladda ner dokumentet"
+                                                    @onclick="() => DownloadDocument(document.Id)">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary"
+                                                    @onclick="@(document.IsArchived
+                                                        ? (() => UnarchiveDocument(document.Id))
+                                                        : (() => ArchiveDocument(document.Id)))"
+                                                    title="@(document.IsArchived ? "Avarkivera" : "Arkivera")">
+                                                <i class="fa-solid @(document.IsArchived ? "fa-box-open" : "fa-archive")"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger"
+                                                    title="Radera dokumentet"
+                                                    @onclick="() => DeleteDocument(document.Id)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -529,8 +600,65 @@ OnDownload="DownloadDocument" />
     List<SubCategoryDto> subCategoryDtos = new();
     List<string> availableRoles = new() { "Admin", "Styrelse", "Medlem" };
 
-    IEnumerable<DocumentViewModel> FilteredDocuments =>
-        documents.Where(d => showArchived || !d.IsArchived).OrderByDescending(d => d.UploadedAt);
+    private bool showCategorySection = false;
+
+    // Filtrering och sortering
+    private int? filterMainCategoryId = null;
+    private int? filterSubCategoryId = null;
+    private int? filterYear = null;
+    private DocumentSortOption sortOption = DocumentSortOption.UploadedDesc;
+
+    private enum DocumentSortOption
+    {
+        UploadedDesc, UploadedAsc,
+        NameAsc, NameDesc,
+        MainCategoryAsc, MainCategoryDesc,
+    }
+
+    // Tillgängliga år, härledda från dokumentens uppladdningsdatum (fallande)
+    private IEnumerable<int> AvailableYears => documents
+        .Select(d => d.UploadedAt.Year)
+        .Distinct()
+        .OrderByDescending(y => y);
+
+    IEnumerable<DocumentViewModel> FilteredDocuments
+    {
+        get
+        {
+            var query = documents.Where(d =>
+                (showArchived || !d.IsArchived) &&
+                (!filterMainCategoryId.HasValue || d.MainCategoryId == filterMainCategoryId.Value) &&
+                (!filterSubCategoryId.HasValue ||
+                    (d.SubCategoryDtos != null && d.SubCategoryDtos.Any(s => s.Id == filterSubCategoryId.Value))) &&
+                (!filterYear.HasValue || d.UploadedAt.Year == filterYear.Value));
+
+            return sortOption switch
+            {
+                DocumentSortOption.UploadedAsc      => query.OrderBy(d => d.UploadedAt),
+                DocumentSortOption.NameAsc          => query.OrderBy(d => d.FileName),
+                DocumentSortOption.NameDesc         => query.OrderByDescending(d => d.FileName),
+                DocumentSortOption.MainCategoryAsc  => query.OrderBy(d => d.MainCategoryDto.Name),
+                DocumentSortOption.MainCategoryDesc => query.OrderByDescending(d => d.MainCategoryDto.Name),
+                _                                   => query.OrderByDescending(d => d.UploadedAt),
+            };
+        }
+    }
+
+    private void ResetFilters()
+    {
+        filterMainCategoryId = null;
+        filterSubCategoryId = null;
+        filterYear = null;
+        sortOption = DocumentSortOption.UploadedDesc;
+        showArchived = false;
+    }
+
+    private bool HasActiveFilters =>
+        filterMainCategoryId.HasValue
+        || filterSubCategoryId.HasValue
+        || filterYear.HasValue
+        || sortOption != DocumentSortOption.UploadedDesc
+        || showArchived;
 
     protected override async Task OnInitializedAsync()
     {

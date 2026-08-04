@@ -8,6 +8,7 @@
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Forms
 @using KronoxFront.Services
+@using KronoxFront.Components.Shared.UI
 @using System.Text.RegularExpressions
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
@@ -407,39 +408,23 @@
     </div>
 }
 
-@* Modal för bekräfta borttagning *@
-@if (showDeleteModal && deletingItem != null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog" @onclick:stopPropagation>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Bekräfta borttagning</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Är du säker på att du vill ta bort åtgärden "<strong>@deletingItem.Activity</strong>"?</p>
-                    <p class="text-danger">
-                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                        Denna åtgärd kan inte ångras.
-                    </p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">
-                        Avbryt
-                    </button>
-                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
-                        @if (isDeleting)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
-                        }
-                        Ta bort
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+<ConfirmDialog IsVisible="@(showDeleteModal && deletingItem != null)"
+               Title="Bekräfta borttagning"
+               Message="@($"Är du säker på att du vill ta bort modulen/aktiviteten \"{deletingItem?.Activity}\"?")"
+               WarningText="Denna åtgärd kan inte ångras."
+               IsBusy="@isDeleting"
+               OnConfirmCallback="ConfirmDelete"
+               OnCancelCallback="CloseDeleteModal" />
+
+<ConfirmDialog IsVisible="@showArchiveConfirm"
+               Title="Flytta till Avslutat"
+               Message="@($"Flytta \"{itemToArchive?.Module}\" till Avslutat?")"
+               ConfirmText="Flytta"
+               ConfirmButtonClass="btn-primary"
+               IconClass="fa-box-archive text-primary"
+               IsBusy="@isArchiving"
+               OnConfirmCallback="ConfirmArchiveItem"
+               OnCancelCallback="() => showArchiveConfirm = false" />
 
 @if (libraryOpen)
 {
@@ -568,36 +553,13 @@
     </div>
 }
 
-@if (showSubgoalDeleteModal && deletingSubgoal != null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog" @onclick:stopPropagation>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Bekräfta borttagning</h5>
-                    <button type="button" class="btn-close" @onclick="CloseSubgoalDeleteModal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Är du säker på att du vill ta bort delmålet "<strong>@deletingSubgoal.Activity</strong>"?</p>
-                    <p class="text-danger">
-                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                        Denna åtgärd kan inte ångras.
-                    </p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseSubgoalDeleteModal">Avbryt</button>
-                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteSubgoal" disabled="@isDeletingSubgoal">
-                        @if (isDeletingSubgoal)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
-                        }
-                        Ta bort
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+<ConfirmDialog IsVisible="@(showSubgoalDeleteModal && deletingSubgoal != null)"
+               Title="Bekräfta borttagning"
+               Message="@($"Är du säker på att du vill ta bort delmålet \"{deletingSubgoal?.Activity}\"?")"
+               WarningText="Denna åtgärd kan inte ångras."
+               IsBusy="@isDeletingSubgoal"
+               OnConfirmCallback="ConfirmDeleteSubgoal"
+               OnCancelCallback="CloseSubgoalDeleteModal" />
 
 @code {
     private ActionPlanTableViewModel? actionPlan;
@@ -630,6 +592,11 @@
     private bool showDeleteModal = false;
     private bool isDeleting = false;
     private ActionPlanItem? deletingItem;
+
+    // Arkiveringsbekräftelse
+    private bool showArchiveConfirm = false;
+    private bool isArchiving = false;
+    private ActionPlanItem? itemToArchive;
 
     // Bildbibliotek
     private bool libraryOpen = false;
@@ -1063,15 +1030,21 @@
         }
     }
 
-    private async Task ArchiveItem(ActionPlanItem item)
+    private void ArchiveItem(ActionPlanItem item)
     {
+        itemToArchive = item;
+        showArchiveConfirm = true;
+    }
+
+    private async Task ConfirmArchiveItem()
+    {
+        if (itemToArchive == null) return;
+
+        isArchiving = true;
         try
         {
-            var ok = await JS.InvokeAsync<bool>("showConfirmDialog", $"Flytta \"{item.Module}\" till Avslutat?");
-            if (!ok) return;
-
             var http = HttpClientFactory.CreateClient("KronoxAPI");
-            var response = await http.PostAsync($"api/ActionPlan/{pageKey}/items/{item.Id}/archive", null);
+            var response = await http.PostAsync($"api/ActionPlan/{pageKey}/items/{itemToArchive.Id}/archive", null);
 
             if (response.IsSuccessStatusCode)
             {
@@ -1088,6 +1061,12 @@
         {
             Logger.LogError(ex, "Fel vid arkivering av åtgärd");
             await Toast.Error("Ett fel inträffade vid arkivering.");
+        }
+        finally
+        {
+            isArchiving = false;
+            showArchiveConfirm = false;
+            itemToArchive = null;
         }
     }
 

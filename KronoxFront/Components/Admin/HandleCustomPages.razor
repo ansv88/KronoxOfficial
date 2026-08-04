@@ -357,7 +357,16 @@
             }
         </div>
     </div>
-</div>
+    </div>
+
+<ConfirmDialog IsVisible="@showDeleteConfirm"
+               Title="Ta bort sida"
+               Message="@($"Är du säker på att du vill ta bort sidan '{pageToDelete?.DisplayName}'? Detta tar bort sidan, alla sektioner och navigationslänkar.")"
+               WarningText="Åtgärden kan inte ångras."
+               ConfirmText="Ta bort"
+               IsBusy="@isDeleting"
+               OnConfirmCallback="ConfirmDeletePage"
+               OnCancelCallback="() => showDeleteConfirm = false" />
 
 @code {
     private List<CustomPageViewModel> customPages = new();
@@ -368,6 +377,9 @@
     private bool showCreateForm = false;
     private bool isCreating = false;
     private List<string> pageKeySuggestions = new();
+    private bool showDeleteConfirm = false;
+    private bool isDeleting = false;
+    private CustomPageViewModel? pageToDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -504,34 +516,45 @@
         }
     }
 
-    private async Task DeletePage(CustomPageViewModel page)
+    private void DeletePage(CustomPageViewModel page)
     {
-        var confirmMessage = $"Är du säker på att du vill ta bort sidan '{page.DisplayName}'?\n\nDetta kommer att ta bort:\n- Sidan och allt dess innehåll\n- Alla relaterade sektioner\n- Navigationslänkar\n\nÅtgärden kan inte ångras.";
+        pageToDelete = page;
+        showDeleteConfirm = true;
+    }
 
-        if (await JS.InvokeAsync<bool>("confirm", confirmMessage))
+    private async Task ConfirmDeletePage()
+    {
+        if (pageToDelete == null) return;
+
+        isDeleting = true;
+        try
         {
-            try
-            {
-                var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
-                var response = await httpClient.DeleteAsync($"api/custompage/{page.PageKey}");
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.DeleteAsync($"api/custompage/{pageToDelete.PageKey}");
 
-                if (response.IsSuccessStatusCode)
-                {
-                    await Toast.Success($"Sidan '{page.DisplayName}' har tagits bort");
-                    await LoadCustomPages();
-                }
-                else
-                {
-                    var error = await response.Content.ReadAsStringAsync();
-                    Logger.LogError("Fel vid borttagning av sida: {Error}", error);
-                    await Toast.Error("Fel vid borttagning av sida");
-                }
-            }
-            catch (Exception ex)
+            if (response.IsSuccessStatusCode)
             {
-                Logger.LogError(ex, "Fel vid borttagning av sida");
-                await Toast.Error("Ett fel uppstod vid borttagning");
+                await Toast.Success($"Sidan '{pageToDelete.DisplayName}' har tagits bort");
+                await LoadCustomPages();
+                NavEvents.NotifyUpdated();
             }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Logger.LogError("Fel vid borttagning av sida: {Error}", error);
+                await Toast.Error("Fel vid borttagning av sida");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid borttagning av sida");
+            await Toast.Error("Ett fel uppstod vid borttagning");
+        }
+        finally
+        {
+            isDeleting = false;
+            showDeleteConfirm = false;
+            pageToDelete = null;
         }
     }
 

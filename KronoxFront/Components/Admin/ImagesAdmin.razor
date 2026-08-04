@@ -22,30 +22,31 @@
         <div>
             <strong>Så fungerar bildhanteringen</strong>
             <ul class="mb-0 mt-1 ps-3 small">
-                <li>Här laddar du upp och tar bort bilder. Biblioteket är en <strong>lagringsplats</strong> – själva placeringen av bilder styrs på respektive sida.</li>
-                <li><span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Bannerbild</span> visar att bilden just nu används som <strong>bannerbild</strong> på en sida.</li>
-                <li>För att byta banner-, intro- eller sektionsbild går du till motsvarande sida och redigerar den där.</li>
-                <li>Bilder som <strong>används</strong> någonstans kan inte tas bort – byt ut eller ta bort dem på sidan först.</li>
-                <li>Medlemslogotyper hanteras separat under <a href="/admin/memberlogos" class="alert-link">Medlemslogotyper</a>.</li>
+                <li>Här laddar du upp och tar bort bilder som kan användas på webbplatsens sidor.</li>
+                <li>Var en bild <strong>visas</strong> styr du på respektive sida – inte här.</li>
+                <li>Bilder som används någonstans kan inte tas bort – ta bort dem på sidan först.</li>
+                <li>Medlemslogotyper hanteras under <a href="/admin/memberlogos" class="alert-link">Medlemslogotyper</a>.</li>
             </ul>
         </div>
     </div>
 </div>
 
 @* ── Ladda upp nya bilder ── *@
-<div class="card mb-4 shadow-sm border-primary border-opacity-25">
-    <div class="card-header bg-primary bg-opacity-10 py-2 d-flex align-items-center gap-2">
-        <i class="fa-solid fa-upload text-primary"></i>
-        <strong class="small text-primary">Ladda upp nya bilder</strong>
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">
+            <i class="fa-solid fa-upload me-2"></i>Ladda upp nya bilder
+        </h5>
     </div>
-    <div class="card-body p-3">
+    <div class="card-body">
 
         @* Steg 1: Välj filer *@
         <div class="mb-3">
             <label class="form-label small fw-semibold mb-1">
-                <span class="badge bg-primary me-1">1</span> Välj bilder att ladda upp
+                Välj bilder att ladda upp
             </label>
-            <InputFile OnChange="FilesSelected"
+            <InputFile @key="inputFileKey"
+                       OnChange="FilesSelected"
                        multiple
                        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
                        class="form-control form-control-sm"
@@ -58,7 +59,7 @@
         {
             <div class="border rounded p-3 bg-light mb-3">
                 <div class="small fw-semibold mb-2">
-                    <span class="badge bg-primary me-1">2</span> Ange information om bilderna
+                    Ange information om bilderna
                 </div>
                 <div class="row g-2">
                     <div class="col-12 col-sm-6">
@@ -100,7 +101,7 @@
                         <li class="list-group-item px-0 py-1 d-flex align-items-center gap-2">
                             @if (item.Status == UploadStatus.Pending)
                             {
-                                <i class="fa-regular fa-circle text-muted" title="Väntar"></i>
+                                <i class="fa-solid fa-circle text-muted" style="font-size:.4rem;" title="Väntar"></i>
                             }
                             else if (item.Status == UploadStatus.Uploading)
                             {
@@ -127,7 +128,7 @@
             <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-primary"
                         @onclick="UploadAll"
-                        disabled="@(isUploading || uploadQueue.All(x => x.Status == UploadStatus.Done))">
+                        disabled="@(isUploading || !uploadQueue.Any(x => x.Status == UploadStatus.Pending))">
                     @if (isUploading)
                     {
                         <span class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -150,16 +151,15 @@
 </div>
 
 @* ── Bildbibliotek ── *@
-<div class="card shadow-sm border-success border-opacity-25">
-    <div class="card-header bg-success bg-opacity-10 py-2 d-flex align-items-center justify-content-between gap-2 flex-wrap">
-        <div class="d-flex align-items-center gap-2">
-            <i class="fa-solid fa-images text-success"></i>
-            <strong class="small text-success">Bildbibliotek</strong>
+<div class="card">
+    <div class="card-header bg-light d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <h5 class="card-title mb-0">
+            <i class="fa-solid fa-images me-2"></i>Bildbibliotek
             @if (images.Count > 0)
             {
-                <span class="badge bg-success bg-opacity-75">@images.Count st</span>
+                <span class="badge bg-secondary ms-1">@images.Count st</span>
             }
-        </div>
+        </h5>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <input class="form-control form-control-sm"
                    style="max-width: 220px;"
@@ -172,7 +172,7 @@
                     <option value="@key"></option>
                 }
             </datalist>
-            <button class="btn btn-sm btn-success" @onclick="Load" title="Filtrera bildbiblioteket">
+            <button class="btn btn-sm btn-primary" @onclick="Load" title="Filtrera bildbiblioteket">
                 <i class="fa-solid fa-filter me-1"></i>Filtrera
             </button>
             <button class="btn btn-sm btn-outline-secondary" @onclick="ShowAll" title="Rensa filter och visa alla bilder">
@@ -214,13 +214,6 @@
                                      style="object-fit: cover;" />
                             </div>
 
-                            @if (img.IsActive)
-                            {
-                                <div class="position-absolute top-0 start-0 m-1">
-                                    <span class="badge bg-success" title="Används som bannerbild på @img.PageKey"><i class="fa-solid fa-circle-check me-1"></i>Bannerbild</span>
-                                </div>
-                            }
-
                             <div class="card-body p-2">
                                 @if (!string.IsNullOrWhiteSpace(img.PageKey))
                                 {
@@ -259,7 +252,7 @@
 }
 else
 {
-    <div class="small text-muted mt-2"><i class="fa-regular fa-circle me-1"></i>Används inte</div>
+     <div class="small text-muted mt-2"><i class="fa-solid fa-link-slash me-1"></i>Används inte</div>
 }
 
 <div class="mt-2 d-flex gap-1 flex-wrap">
@@ -281,6 +274,15 @@ else
 
 <ImageModal ImageUrl="@previewUrl" OnClose="@ClosePreview" />
 
+<ConfirmDialog IsVisible="@showDeleteConfirm"
+               Title="Ta bort bild"
+               Message="@($"Ta bort bilden '{imageToDeleteName}'? Filen raderas permanent.")"
+               WarningText="Åtgärden kan inte ångras."
+               ConfirmText="Ta bort"
+               IsBusy="@isDeletingImage"
+               OnConfirmCallback="ConfirmDeleteImage"
+               OnCancelCallback="() => showDeleteConfirm = false" />
+
 @code {
     private bool isLoading;
     private string? filterPageKey;
@@ -298,7 +300,14 @@ else
     private bool isUploading;
     private List<UploadItem> uploadQueue = new();
 
+    private bool showDeleteConfirm = false;
+    private bool isDeletingImage = false;
+    private PageImageViewModel? imageToDelete;
+    private string imageToDeleteName = "";
+
     private enum UploadStatus { Pending, Uploading, Done, Error }
+
+    private Guid inputFileKey = Guid.NewGuid();
 
     private class UploadItem
     {
@@ -323,7 +332,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(uploadPageKey))
         {
-            await Toast.Warning("Ange en sidnyckel innan uppladdning.");
+            await Toast.Error("Ange en sidnyckel innan uppladdning.");
             return;
         }
 
@@ -375,22 +384,32 @@ else
 
         isUploading = false;
 
+        var errorCount = pending.Count(x => x.Status == UploadStatus.Error);
+
         if (successCount > 0)
         {
-            await Toast.Success($"{successCount} bild(er) laddades upp till '{uploadPageKey}'.");
+            await Toast.Success($"{successCount} {ImageWord(successCount)} laddades upp till '{uploadPageKey}'.");
             await Load();
+
+            uploadQueue.RemoveAll(x => x.Status == UploadStatus.Done);
+
+            if (errorCount == 0)
+                uploadAltText = "";
+                inputFileKey = Guid.NewGuid();
         }
 
-        var errorCount = pending.Count(x => x.Status == UploadStatus.Error);
         if (errorCount > 0)
-            await Toast.Error($"{errorCount} bild(er) misslyckades – se listan ovan.");
+            await Toast.Error($"{errorCount} {ImageWord(errorCount)} misslyckades – se listan ovan.");
     }
 
     private void ClearQueue()
     {
         uploadQueue.Clear();
         uploadAltText = "";
+        inputFileKey = Guid.NewGuid();
     }
+
+    private static string ImageWord(int count) => count == 1 ? "bild" : "bilder";
 
     protected override async Task OnInitializedAsync()
     {
@@ -407,7 +426,7 @@ else
         catch (Exception ex)
         {
             Logger.LogError(ex, "Kunde inte hämta PageKeys");
-            await Toast.Warning($"Kunde inte hämta sidnycklar: {ex.Message}");
+            await Toast.Error($"Kunde inte hämta sidnycklar: {ex.Message}");
         }
     }
 
@@ -441,47 +460,60 @@ private async Task Load()
     }
 }
 
-    private async Task ShowAll()
-    {
+private async Task ShowAll()
+{
         filterPageKey = null;
         await Load();
-    }
+}
 
-    private void Preview(string url) => previewUrl = url;
-    private void ClosePreview() => previewUrl = null;
+private void Preview(string url) => previewUrl = url;
+private void ClosePreview() => previewUrl = null;
 
-   private async Task DeleteEverywhere(PageImageViewModel img)
+ private async Task DeleteEverywhere(PageImageViewModel img)
 {
-    var usages = UsagesFor(img.Url);
-    if (usages.Count > 0)
-    {
-        await Toast.Warning("Bilden används och kan inte tas bort: "
-            + string.Join(", ", usages.Select(u => u.Description).Distinct())
-            + ". Ta bort den på respektive sida först.");
-        return;
-    }
-
-    try
-    {
-        var ok = await JS.InvokeAsync<bool>("showConfirmDialog",
-            $"Ta bort bilden '{System.IO.Path.GetFileName(img.Url)}'? Filen raderas permanent.");
-        if (!ok) return;
-
-        var (success, error) = await Cms.DeletePageImageAsync(img.PageKey, img.Id, img.Url);
-        if (success)
+        var usages = UsagesFor(img.Url);
+        if (usages.Count > 0)
         {
-            await Toast.Success("Bilden har tagits bort.");
-            await Load();
+            await Toast.Error("Bilden används och kan inte tas bort: "
+                + string.Join(", ", usages.Select(u => u.Description).Distinct())
+                + ". Ta bort den på respektive sida först.");
+            return;
         }
-        else
+
+        imageToDelete = img;
+        imageToDeleteName = System.IO.Path.GetFileName(img.Url);
+        showDeleteConfirm = true;
+}
+
+private async Task ConfirmDeleteImage()
+{
+        if (imageToDelete == null) return;
+
+        isDeletingImage = true;
+        try
         {
-            await Toast.Warning(error ?? "Bilden kunde inte tas bort eftersom den används.");
-            await Load();
+            var (success, error) = await Cms.DeletePageImageAsync(imageToDelete.PageKey, imageToDelete.Id, imageToDelete.Url);
+            if (success)
+            {
+                await Toast.Success("Bilden har tagits bort.");
+                await Load();
+            }
+            else
+            {
+                await Toast.Error(error ?? "Bilden kunde inte tas bort eftersom den används.");
+                await Load();
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        await Toast.Error($"Kunde inte ta bort: {ex.Message}");
-    }
+        catch (Exception ex)
+        {
+            await Toast.Error($"Kunde inte ta bort: {ex.Message}");
+        }
+        finally
+        {
+            isDeletingImage = false;
+            showDeleteConfirm = false;
+            imageToDelete = null;
+            imageToDeleteName = "";
+        }
 }
 }

@@ -1,0 +1,63 @@
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
+         role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDialogTitle">
+                        <i class="fa-solid @IconClass me-2"></i>@Title
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="OnCancel" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    @if (BodyContent != null)
+                    {
+                        @BodyContent
+                    }
+                    else
+                    {
+                        <p class="mb-0">@Message</p>
+                    }
+                    @if (!string.IsNullOrEmpty(WarningText))
+                    {
+                        <p class="text-danger mt-2 mb-0">
+                            <i class="fa-solid fa-triangle-exclamation me-2"></i>@WarningText
+                        </p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancel" disabled="@IsBusy">
+                        @CancelText
+                    </button>
+                    <button type="button" class="btn @ConfirmButtonClass" @onclick="OnConfirm" disabled="@IsBusy">
+                        @if (IsBusy)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        @ConfirmText
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string Title { get; set; } = "Bekräfta";
+    [Parameter] public string Message { get; set; } = "Är du säker?";
+    [Parameter] public string? WarningText { get; set; }
+    [Parameter] public string ConfirmText { get; set; } = "Ta bort";
+    [Parameter] public string CancelText { get; set; } = "Avbryt";
+    [Parameter] public string ConfirmButtonClass { get; set; } = "btn-danger";
+    [Parameter] public string IconClass { get; set; } = "fa-exclamation-triangle text-warning";
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public RenderFragment? BodyContent { get; set; }
+
+    [Parameter] public EventCallback OnConfirmCallback { get; set; }
+    [Parameter] public EventCallback OnCancelCallback { get; set; }
+
+    private Task OnConfirm() => OnConfirmCallback.InvokeAsync();
+    private Task OnCancel() => OnCancelCallback.InvokeAsync();
+}

@@ -43,14 +43,13 @@ public class NewsController : ControllerBase
 
         try
         {
-            // Konvertera från lokal tid till UTC för lagring
-            var publishDate = request.ScheduledPublishDate?.ToUniversalTime() ?? DateTime.UtcNow;
+            var publishDate = ToUtcFromSwedish(request.ScheduledPublishDate) ?? DateTime.UtcNow;
 
             var post = new NewsModel
             {
                 Title = request.Title,
                 Content = request.Content,
-                ScheduledPublishDate = request.ScheduledPublishDate?.ToUniversalTime(),
+                ScheduledPublishDate = ToUtcFromSwedish(request.ScheduledPublishDate),
                 PublishedDate = publishDate,
                 IsArchived = request.IsArchived,
                 VisibleToRoles = request.VisibleToRoles,
@@ -116,8 +115,8 @@ public class NewsController : ControllerBase
 
             post.Title = request.Title;
             post.Content = request.Content;
-            post.ScheduledPublishDate = request.ScheduledPublishDate;
-            post.PublishedDate = request.ScheduledPublishDate ?? post.PublishedDate;
+            post.ScheduledPublishDate = ToUtcFromSwedish(request.ScheduledPublishDate);
+            post.PublishedDate = ToUtcFromSwedish(request.ScheduledPublishDate) ?? post.PublishedDate;
             post.IsArchived = request.IsArchived;
             post.VisibleToRoles = request.VisibleToRoles;
             post.LastModified = DateTime.UtcNow;
@@ -136,6 +135,15 @@ public class NewsController : ControllerBase
             _logger.LogError(ex, "Ett fel inträffade vid uppdatering av nyhetsinlägg med ID {Id}", id);
             return StatusCode(500, "Ett oväntat fel inträffade vid uppdatering av nyhetsinlägget");
         }
+    }
+
+    // Hjälpmetod som tolkar admin-inmatad tid som svensk och returnerar UTC
+    private static DateTime? ToUtcFromSwedish(DateTime? local)
+    {
+        if (!local.HasValue) return null;
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+        var unspecified = DateTime.SpecifyKind(local.Value, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(unspecified, tz);
     }
 
     // Tar bort ett nyhetsinlägg permanent från databasen

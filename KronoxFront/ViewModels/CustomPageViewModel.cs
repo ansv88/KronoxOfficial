@@ -7,18 +7,18 @@ public class CustomPageViewModel
 {
     public int Id { get; set; }
 
-    [Required(ErrorMessage = "PageKey är obligatoriskt")]
-    [StringLength(100, ErrorMessage = "PageKey får vara max 100 tecken")]
-    [RegularExpression(@"^[a-z0-9-]+$", ErrorMessage = "PageKey får endast innehålla små bokstäver, siffror och bindestreck")]
+    [Required(ErrorMessage = "URL är obligatoriskt")]
+    [StringLength(50, ErrorMessage = "URL får vara max 100 tecken")]
+    [RegularExpression(@"^[a-z0-9-]+$", ErrorMessage = "URL får endast innehålla små bokstäver, siffror och bindestreck")]
     [CustomValidation(typeof(PageKeyValidator), nameof(PageKeyValidator.ValidatePageKey))]
     public string PageKey { get; set; } = "";
 
-    [Required(ErrorMessage = "Titel är obligatoriskt")]
-    [StringLength(200, ErrorMessage = "Titel får vara max 200 tecken")]
+    [Required(ErrorMessage = "Sidtitel är obligatoriskt")]
+    [StringLength(60, ErrorMessage = "Sidtitel får vara max 60 tecken")]
     public string Title { get; set; } = "";
 
-    [Required(ErrorMessage = "Visningsnamn är obligatoriskt")]
-    [StringLength(100, ErrorMessage = "Visningsnamn får vara max 100 tecken")]
+    [Required(ErrorMessage = "Visningstitel är obligatoriskt")]
+    [StringLength(40, ErrorMessage = "Visningstitel får vara max 40 tecken")]
     public string DisplayName { get; set; } = "";
 
     [StringLength(500, ErrorMessage = "Beskrivning får vara max 500 tecken")]

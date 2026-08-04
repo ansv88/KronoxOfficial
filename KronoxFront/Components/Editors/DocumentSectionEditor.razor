@@ -8,34 +8,20 @@
                    AdminButtonText="Hantera dokument"
                    AdminButtonIcon="fa-solid fa-cog">
     <ChildContent>
-        <div class="alert alert-info mb-3">
-            <i class="fa-solid fa-info-circle me-2"></i>
-            <strong>@Title</strong><br>
-            @Description
-        </div>
+        <p class="text-muted mb-3">@Description</p>
 
-        <div class="row">
-            <div class="col-md-6">
-                <div class="d-grid gap-2">
-                    <a href="/@GetPageUrl()" class="btn btn-outline-info" target="_blank">
-                        <i class="fa-solid fa-external-link-alt me-1"></i>
-                        Visa sida med dokumentsektion
-                    </a>
-                </div>
+        <div class="alert alert-info mb-0 d-flex">
+            <i class="fa-solid fa-circle-info me-2 mt-1"></i>
+            <div>
+                <strong>Så fungerar dokumentsektionen</strong>
+                <ul class="list-unstyled small mb-0 mt-2">
+                    <li class="mb-1"><i class="fa-solid fa-check text-success me-2"></i>Kan aktiveras på valfri sida – inte bara dokumentsidan.</li>
+                    <li class="mb-1"><i class="fa-solid fa-check text-success me-2"></i>Användare ser endast dokument för sina roller.</li>
+                    <li class="mb-1"><i class="fa-solid fa-check text-success me-2"></i>Dokument grupperas automatiskt per kategori.</li>
+                    <li class="mb-1"><i class="fa-solid fa-check text-success me-2"></i>Sök- och filtreringsfunktioner inkluderas.</li>
+                    <li><i class="fa-solid fa-check text-success me-2"></i>Admin kan se och hantera arkiverade dokument.</li>
+                </ul>
             </div>
-        </div>
-
-        <div class="mt-4">
-            <h6 class="text-muted mb-2">
-                <i class="fa-solid fa-info-circle me-1"></i>
-                Vad som visas:
-            </h6>
-            <ul class="list-unstyled small text-muted">
-                <li><i class="fas fa-check text-success me-2"></i>Användare ser endast dokument för sina roller</li>
-                <li><i class="fas fa-check text-success me-2"></i>Dokument grupperas automatiskt per kategori</li>
-                <li><i class="fas fa-check text-success me-2"></i>Sök- och filtreringsfunktioner inkluderas</li>
-                <li><i class="fas fa-check text-success me-2"></i>Admin kan se och hantera arkiverade dokument</li>
-            </ul>
         </div>
     </ChildContent>
 </AdminSectionFrame>
@@ -43,31 +29,6 @@
 @code {
     [Parameter] public string PageKey { get; set; } = "";
     [Parameter] public string Title { get; set; } = "Dokumentsektion";
-    [Parameter] public string Description { get; set; } = "Denna sektion visar automatiskt relevanta dokument baserat på användarens roller och behörigheter.";
+    [Parameter] public string Description { get; set; } = "Dokumentsektionen kan läggas till på valfri sida och visar automatiskt relevanta dokument baserat på användarens roller och behörigheter.";
 
-    private string GetPageUrl()
-    {
-        return PageKey.ToLowerInvariant() switch
-        {
-            "home" => "",
-            "medlemsnytt" => "medlemsnytt",
-            "forstyrelsen" => "forstyrelsen",
-            "forvnsg" => "forvnsg",
-            "dokument" => "dokument",
-            _ => PageKey
-        };
-    }
-    
-    // private string GetPageDisplayName()
-    // {
-    //     return PageKey.ToLowerInvariant() switch
-    //     {
-    //         "home" => "Startsida",
-    //         "medlemsnytt" => "Medlemsnytt",
-    //         "forstyrelsen" => "Styrelse",
-    //         "forvnsg" => "VNSG",
-    //         "dokument" => "Dokument",
-    //         _ => PageKey
-    //     };
-    // }
 }

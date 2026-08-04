@@ -8,6 +8,7 @@
 @using KronoxFront.DTOs.Users
 @using KronoxFront.Requests.Admin
 @using KronoxFront.ViewModels.Users
+@using KronoxFront.Components.Shared.UI
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
@@ -164,7 +165,10 @@
                                 <button class="btn btn-info btn-sm me-1" @onclick="() => OpenChangePasswordModal(selectedUser)">
                                     <i class="fa-solid fa-key me-1"></i> Byt lösenord
                                 </button>
-                                <button class="btn btn-danger btn-sm" @onclick="() => OpenDeleteUserModal(selectedUser)">
+                                <button class="btn btn-danger btn-sm"
+                                        @onclick="() => OpenDeleteUserModal(selectedUser)"
+                                        disabled="@SelectedIsLastAdmin"
+                                        title="@(SelectedIsLastAdmin ? "Systemet måste ha minst en administratör." : null)">
                                     <i class="fa-solid fa-trash me-1"></i> Ta bort
                                 </button>
                             }
@@ -183,12 +187,20 @@
 
                                 <div class="mb-3">
                                     <label class="form-label">Roll</label>
-                                    <select class="form-select" @bind="selectedRoleForEdit">
+                                    <select class="form-select" @bind="selectedRoleForEdit"
+                                            disabled="@SelectedIsLastAdmin">
                                         @foreach (var role in availableRoles.Where(r => r != "Ny användare"))
                                         {
                                             <option value="@role">@role</option>
                                         }
                                     </select>
+                                    @if (SelectedIsLastAdmin)
+                                    {
+                                        <div class="form-text text-warning">
+                                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                            Systemet måste ha minst en administratör. Rollen kan inte ändras.
+                                        </div>
+                                    }
                                 </div>
 
                                 <div class="mb-3">
@@ -311,53 +323,22 @@
     </div>
 }
 
-<!-- Modalfönster för avslå användare -->
-@if (showRejectUserModal && selectedUser != null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
-         role="dialog" aria-modal="true" aria-labelledby="rejectUserModalTitle">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="rejectUserModalTitle">Avslå användaransökan</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="Stäng"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Är du säker på att du vill avslå användaransökan för <strong>@selectedUser.UserName</strong>?</p>
-                    <p class="text-danger">Detta kommer att ta bort användaren från systemet.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
-                    <button type="button" class="btn btn-danger" @onclick="RejectUser">Avslå</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+@* Avslå användaransökan *@
+<ConfirmDialog IsVisible="@(showRejectUserModal && selectedUser != null)"
+               Title="Avslå användaransökan"
+               Message="@($"Är du säker på att du vill avslå användaransökan för {selectedUser?.UserName}?")"
+               WarningText="Detta kommer att ta bort användaren från systemet."
+               ConfirmText="Avslå"
+               OnConfirmCallback="RejectUser"
+               OnCancelCallback="CloseModals" />
 
-<!-- Modalfönster för ta bort användare -->
-@if (showDeleteUserModal && selectedUser != null)
-{
-  <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
-         role="dialog" aria-modal="true" aria-labelledby="deleteUserModalTitle">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteUserModalTitle">Ta bort användare</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="Stäng"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Är du säker på att du vill ta bort användaren <strong>@selectedUser.UserName</strong>?</p>
-                    <p class="text-danger">Detta kommer att ta bort användaren permanent från systemet.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
-                    <button type="button" class="btn btn-danger" @onclick="DeleteUser">Ta bort</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+@* Ta bort användare *@
+<ConfirmDialog IsVisible="@(showDeleteUserModal && selectedUser != null)"
+               Title="Ta bort användare"
+               Message="@($"Är du säker på att du vill ta bort användaren {selectedUser?.UserName}?")"
+               WarningText="Detta kommer att ta bort användaren permanent från systemet."
+               OnConfirmCallback="DeleteUser"
+               OnCancelCallback="CloseModals" />
 
 <!-- Modalfönster för ändra lösenord -->
 @if (showChangePasswordModal && selectedUser != null)
@@ -520,6 +501,12 @@
             u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         )
         .OrderBy(u => u.UserName);
+
+    private int AdminCount => allUsers
+        .Count(u => u.Roles?.Contains("Admin") == true);
+
+    private bool SelectedIsLastAdmin =>
+        selectedUser?.Roles?.Contains("Admin") == true && AdminCount <= 1;
 
     private void SelectUser(UserViewModel user)
     {
@@ -740,7 +727,10 @@
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                await Toast.Error($"Fel vid borttagning av användare: {error}");
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                    await Toast.Error(error);
+                else
+                    await Toast.Error($"Fel vid borttagning av användare: {error}");
             }
         }
         catch (Exception ex)

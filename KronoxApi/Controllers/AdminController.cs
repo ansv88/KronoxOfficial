@@ -27,6 +27,7 @@ public class AdminController : ControllerBase
     private readonly ILogger<AdminController> _logger;
     private readonly EmailTemplates _emailTemplates;
     private const string NewUserRole = "Ny användare";
+    private const string AdminRole = "Admin";
 
     public AdminController(
               UserManager<ApplicationUser> userManager,
@@ -40,6 +41,16 @@ public class AdminController : ControllerBase
         _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _emailTemplates = emailTemplatesOptions?.Value ?? throw new ArgumentNullException(nameof(emailTemplatesOptions));
+    }
+
+    // Returnerar true om användaren är den enda kvarvarande administratören i systemet
+    private async Task<bool> IsLastAdminAsync(ApplicationUser user)
+    {
+        if (!await _userManager.IsInRoleAsync(user, AdminRole))
+            return false;
+
+        var admins = await _userManager.GetUsersInRoleAsync(AdminRole);
+        return admins.Count <= 1;
     }
 
     // Hämtar alla tillgängliga roller i systemet, returnerar en lista med rollnamn
@@ -188,6 +199,14 @@ public class AdminController : ControllerBase
                 return BadRequest($"Rollen '{model.RoleName}' existerar inte");
             }
 
+            // Hindra att den sista administratören degraderas till en icke-admin-roll
+            if (!string.Equals(model.RoleName, AdminRole, StringComparison.Ordinal)
+                && await IsLastAdminAsync(user))
+            {
+                _logger.LogWarning("Blockerade rollbyte som skulle degradera sista administratören {UserName}", model.UserName);
+                return BadRequest("Du kan inte ändra rollen på den sista administratören i systemet.");
+            }
+
             // Hämta befintlig roll för användaren och ta bort den
             var currentRoles = await _userManager.GetRolesAsync(user);
             if (currentRoles.Any())
@@ -275,6 +294,12 @@ public class AdminController : ControllerBase
             if (user == null)
             {
                 return NotFound($"Användare med användarnamn '{username}' hittades inte");
+            }
+
+            if (await IsLastAdminAsync(user))
+            {
+                _logger.LogWarning("Blockerade försök att radera sista administratören {UserName}", username);
+                return BadRequest("Du kan inte ta bort den sista administratören i systemet.");
             }
 
             var result = await _userManager.DeleteAsync(user);

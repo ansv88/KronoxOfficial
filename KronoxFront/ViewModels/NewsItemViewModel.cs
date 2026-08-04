@@ -27,7 +27,7 @@ public class NewsItemViewModel
 
 
     // Helper properties för UI
-    public bool IsScheduled => ScheduledPublishDate.HasValue && ScheduledPublishDate > DateTime.Now;
+    public bool IsScheduled => ScheduledPublishDate.HasValue && ScheduledPublishDate.Value > DateTime.UtcNow;
     public string FormattedPublishDate => FormatSwedishDateTime(PublishedDate);
     public string FormattedCreatedDate => FormatSwedishDateTime(CreatedDate);
     public List<string> RolesList => VisibleToRoles.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();

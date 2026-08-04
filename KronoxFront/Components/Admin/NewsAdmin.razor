@@ -3,6 +3,7 @@
 @using KronoxFront.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using KronoxFront.Components.Shared.UI
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
@@ -58,14 +59,14 @@
                     <div class="card-header bg-light">
                         <h5 class="card-title mb-0">
                             <i class="fa-solid fa-filter me-2"></i>
-                            Filtrera nyheter
+                            Filtrera och sortera nyheter
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="showArchived"
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="showArchived"
                                            @bind="showArchived" @bind:after="LoadNews">
                                     <label class="form-check-label" for="showArchived">
                                         Visa arkiverade nyheter
@@ -73,23 +74,48 @@
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="showScheduled"
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="showScheduled"
                                            @bind="showScheduled" @bind:after="FilterNews">
                                     <label class="form-check-label" for="showScheduled">
                                         Visa schemalagda nyheter
                                     </label>
                                 </div>
                             </div>
+                          </div>
+                        <div class="row g-2 mt-1">
                             <div class="col-md-6">
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fa-solid fa-search"></i>
-                                    </span>
-                                    <input type="text" class="form-control" placeholder="Sök efter titel..."
-                                           @bind="searchTerm" @bind:after="FilterNews" />
-                                </div>
+                                <label class="form-label small mb-1">
+                                    <i class="fa-solid fa-calendar me-1"></i>Publiceringsår
+                                </label>
+                                <select class="form-select form-select-sm"
+                                        @bind="filterYear" @bind:after="FilterNews">
+                                    <option value="">Alla år</option>
+                                    @foreach (var year in AvailableYears)
+                                    {
+                                        <option value="@year">@year</option>
+                                    }
+                                </select>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">
+                                    <i class="fa-solid fa-sort me-1"></i>Sortera efter
+                                </label>
+                                <select class="form-select form-select-sm"
+                                        @bind="sortOption" @bind:after="FilterNews">
+                                    <option value="@NewsSortOption.PublishedDesc">Publiceringsdatum (nyast först)</option>
+                                    <option value="@NewsSortOption.PublishedAsc">Publiceringsdatum (äldst först)</option>
+                                    <option value="@NewsSortOption.TitleAsc">Titel (A–Ö)</option>
+                                    <option value="@NewsSortOption.TitleDesc">Titel (Ö–A)</option>
+                                </select>
+                            </div>
+                            <div class="d-flex justify-content-end mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    @onclick="ResetFilters"
+                                    disabled="@(!HasActiveFilters)">
+                                <i class="fa-solid fa-rotate-left me-1"></i>Återställ filter
+                            </button>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -125,15 +151,15 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach (var news in filteredNews.OrderByDescending(n => n.CreatedDate))
+                                        @foreach (var news in filteredNews)
                                         {
                                             <tr class="@(news.IsArchived ? "table-secondary" : "")">
                                                 <td>
                                                     <div class="fw-bold">@news.Title</div>
                                                     @if (news.IsScheduled)
                                                     {
-                                                        <small class="text-info">
-                                                            <i class="fa-solid fa-clock me-1"></i>
+                                                        <small class="">
+                                                            <i class="fa-solid fa-clock text-warning me-1"></i>
                                                             Publiceras: @FormatSwedishDateTime(news.ScheduledPublishDate)
                                                         </small>
                                                     }
@@ -146,6 +172,11 @@
                                                 </td>
                                                 <td>
                                                     <small>@FormatSwedishDateTime(news.PublishedDate)</small>
+                                                    @if (news.IsScheduled)
+                                                    {
+                                                        <i class="fa-solid fa-clock text-warning ms-1"
+                                                           title="Schemalagd: publiceras @FormatSwedishDateTime(news.ScheduledPublishDate)"></i>
+                                                    }
                                                 </td>
                                                 <td>
                                                     @if (news.IsArchived)
@@ -156,7 +187,7 @@
                                                     }
                                                     else if (news.IsScheduled)
                                                     {
-                                                        <span class="badge bg-info">
+                                                        <span class="badge bg-warning">
                                                             <i class="fa-solid fa-clock me-1"></i>Schemalagd
                                                         </span>
                                                     }
@@ -414,40 +445,13 @@
     </div>
 }
 
-@* Modal för bekräfta borttagning *@
-@if (showDeleteModal && deletingNews != null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
-         role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteModalTitle">Bekräfta borttagning</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDeleteModal" aria-label="Stäng"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Är du säker på att du vill ta bort nyheten "<strong>@deletingNews.Title</strong>"?</p>
-                    <p class="text-danger">
-                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                        Denna åtgärd kan inte ångras.
-                    </p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">
-                        Avbryt
-                    </button>
-                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
-                        @if (isDeleting)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
-                        }
-                        Ta bort
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+<ConfirmDialog IsVisible="@(showDeleteModal && deletingNews != null)"
+               Title="Bekräfta borttagning"
+               Message="@($"Är du säker på att du vill ta bort nyheten \"{deletingNews?.Title}\"?")"
+               WarningText="Denna åtgärd kan inte ångras."
+               IsBusy="@isDeleting"
+               OnConfirmCallback="ConfirmDelete"
+               OnCancelCallback="CloseDeleteModal" />
 
 @code {
     private List<NewsItemViewModel> allNews = new();
@@ -456,7 +460,24 @@
     private bool hasError = false;
     private bool showArchived = false;
     private bool showScheduled = true;
-    private string searchTerm = "";
+    
+    // Sortering och årsfiltrering
+    private NewsSortOption sortOption = NewsSortOption.PublishedDesc;
+    private int? filterYear = null; // null = alla år
+
+    private enum NewsSortOption
+    {
+        PublishedDesc,   // Nyast först (publiceringsdatum)
+        PublishedAsc,    // Äldst först
+        TitleAsc,        // Titel A–Ö
+        TitleDesc        // Titel Ö–A
+    }
+
+    // Tillgängliga år, härledda från nyheternas publiceringsdatum (fallande)
+    private IEnumerable<int> AvailableYears => allNews
+        .Select(n => n.PublishedDate.Year)
+        .Distinct()
+        .OrderByDescending(y => y);
 
     // Edit modal
     private bool showEditModal = false;
@@ -534,12 +555,37 @@
 
     private void FilterNews()
     {
-        filteredNews = allNews.Where(n =>
+        var query = allNews.Where(n =>
             (showArchived || !n.IsArchived) &&
             (showScheduled || !n.IsScheduled) &&
-            (string.IsNullOrEmpty(searchTerm) || n.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-        ).ToList();
+            (!filterYear.HasValue || n.PublishedDate.Year == filterYear.Value)
+        );
+
+        query = sortOption switch
+        {
+            NewsSortOption.PublishedAsc  => query.OrderBy(n => n.PublishedDate),
+            NewsSortOption.TitleAsc      => query.OrderBy(n => n.Title),
+            NewsSortOption.TitleDesc     => query.OrderByDescending(n => n.Title),
+            _                            => query.OrderByDescending(n => n.PublishedDate),
+        };
+
+        filteredNews = query.ToList();
     }
+
+        private void ResetFilters()
+    {
+        filterYear = null;
+        sortOption = NewsSortOption.PublishedDesc;
+        showArchived = false;
+        showScheduled = true;
+        FilterNews();
+    }
+
+    private bool HasActiveFilters =>
+        filterYear.HasValue
+        || sortOption != NewsSortOption.PublishedDesc
+        || showArchived
+        || !showScheduled;
 
     private async Task LoadAvailableDocuments()
     {
