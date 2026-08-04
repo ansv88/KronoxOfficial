@@ -23,11 +23,13 @@ public class DevelopmentSuggestionFormViewModel
     public string EmailConfirmation { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Vad är behovet? är obligatoriskt")]
-    [StringLength(2000, ErrorMessage = "Behovet får vara max 2000 tecken")]
+    [StringLength(2000, MinimumLength = 10, 
+        ErrorMessage = "Behovet måste vara mellan 10 och 2000 tecken")]
     public string Requirement { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Vilken effekt/nytta förväntas? är obligatoriskt")]
-    [StringLength(2000, ErrorMessage = "Effekt/nytta får vara max 2000 tecken")]
+    [StringLength(2000, MinimumLength = 10, 
+        ErrorMessage = "Effekt/nytta måste vara mellan 10 och 2000 tecken")]
     public string ExpectedBenefit { get; set; } = string.Empty;
 
     [StringLength(2000, ErrorMessage = "Ytterligare info får vara max 2000 tecken")]

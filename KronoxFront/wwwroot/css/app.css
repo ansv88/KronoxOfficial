@@ -298,6 +298,22 @@ a.btn,
     background-color: var(--bs-white) !important;
 }
 
+/* Markera ogiltiga formulärfält (Blazor sätter .invalid vid valideringsfel) */
+.contact-form-field.invalid {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.contact-form-field.invalid:focus {
+     border-color: #dc3545 !important;
+     box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.35);
+}
+
+/* Markera giltiga (ifyllda, godkända) fält med grön ram */
+.contact-form-field.modified.valid {
+     border-color: #198754 !important;
+}
+
 /* Stabilisera footern för att minska layout shifts */
 .footer-custom {
     min-height: 235px; /* Desktop-version */

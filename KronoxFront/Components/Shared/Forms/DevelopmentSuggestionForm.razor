@@ -48,6 +48,7 @@
                                 <InputText id="name" 
                                            class="form-control contact-form-field border-secondary" 
                                            @bind-Value="formModel.Name" 
+                                           maxlength="100"
                                            placeholder="Ditt fullständiga namn" />
                                 <ValidationMessage For="() => formModel.Name" class="text-danger small mt-1" />
                             </div>
@@ -59,6 +60,7 @@
                                            type="email" 
                                            class="form-control contact-form-field border-secondary" 
                                            @bind-Value="formModel.Email" 
+                                           maxlength="100"
                                            placeholder="din.epost@organisation.se" />
                                 <ValidationMessage For="() => formModel.Email" class="text-danger small mt-1" />
                             </div>
@@ -71,6 +73,7 @@
                                    type="email" 
                                    class="form-control contact-form-field border-secondary" 
                                    @bind-Value="formModel.EmailConfirmation" 
+                                   maxlength="100"
                                    placeholder="Bekräfta din e-postadress" />
                         <ValidationMessage For="() => formModel.EmailConfirmation" class="text-danger small mt-1" />
                     </div>
@@ -80,6 +83,7 @@
                         <InputTextArea id="requirement" 
                                        class="form-control contact-form-field border-secondary" 
                                        rows="4" 
+                                       maxlength="2000"
                                        @bind-Value="formModel.Requirement"
                                        placeholder="Beskriv ditt behov eller förslag detaljerat..." />
                         <ValidationMessage For="() => formModel.Requirement" class="text-danger small mt-1" />
@@ -90,6 +94,7 @@
                         <InputTextArea id="expectedBenefit" 
                                        class="form-control contact-form-field border-secondary" 
                                        rows="4" 
+                                       maxlength="2000"
                                        @bind-Value="formModel.ExpectedBenefit"
                                        placeholder="Vilken nytta eller effekt kommer detta att ge?" />
                         <ValidationMessage For="() => formModel.ExpectedBenefit" class="text-danger small mt-1" />
@@ -100,6 +105,7 @@
                         <InputTextArea id="additionalInfo" 
                                        class="form-control contact-form-field border-secondary" 
                                        rows="3" 
+                                       maxlength="2000"
                                        @bind-Value="formModel.AdditionalInfo"
                                        placeholder="Övrig information som kan vara relevant..." />
                         <ValidationMessage For="() => formModel.AdditionalInfo" class="text-danger small mt-1" />
@@ -151,8 +157,21 @@
             }
             else
             {
-                await ToastService.Error("Ett fel uppstod vid skickande av förslaget. Försök igen.");
-                Logger.LogError("Misslyckades att skicka utvecklingsförslag: {StatusCode}", response.StatusCode);
+                var problem = await response.Content.ReadAsStringAsync();
+                Logger.LogError(
+                    "Misslyckades att skicka utvecklingsförslag: {StatusCode} {Body}",
+                    response.StatusCode, problem);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    await ToastService.Error(
+                        "Formuläret innehåller ogiltiga värden eller för få tecken. Kontrollera fälten och försök igen.");
+                }
+                else
+                {
+                    await ToastService.Error(
+                        "Ett fel uppstod vid skickande av förslaget. Försök igen.");
+                }
             }
         }
         catch (Exception ex)

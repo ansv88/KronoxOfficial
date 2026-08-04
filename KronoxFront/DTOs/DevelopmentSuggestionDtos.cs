@@ -20,13 +20,13 @@ public class DevelopmentSuggestionDto
     public string Email { get; set; } = "";
 
     [Required(ErrorMessage = "Behovet är obligatoriskt")]
-    [StringLength(2000, ErrorMessage = "Behovet får vara max 2000 tecken")]
-    [MinLength(10, ErrorMessage = "Behovet måste vara minst 10 tecken")]
+    [StringLength(2000, MinimumLength = 10, 
+        ErrorMessage = "Behovet måste vara mellan 10 och 2000 tecken")]
     public string Requirement { get; set; } = "";
 
     [Required(ErrorMessage = "Förväntad effekt/nytta är obligatoriskt")]
-    [StringLength(2000, ErrorMessage = "Förväntad effekt/nytta får vara max 2000 tecken")]
-    [MinLength(10, ErrorMessage = "Förväntad effekt/nytta måste vara minst 10 tecken")]
+    [StringLength(2000, MinimumLength = 10, 
+        ErrorMessage = "Förväntad effekt/nytta måste vara mellan 10 och 2000 tecken")]
     public string ExpectedBenefit { get; set; } = "";
 
     [StringLength(2000, ErrorMessage = "Ytterligare info får vara max 2000 tecken")]
@@ -54,13 +54,13 @@ public class CreateDevelopmentSuggestionDto
     public string Email { get; set; } = "";
 
     [Required(ErrorMessage = "Behovet är obligatoriskt")]
-    [StringLength(2000, ErrorMessage = "Behovet får vara max 2000 tecken")]
-    [MinLength(10, ErrorMessage = "Behovet måste vara minst 10 tecken")]
+    [StringLength(2000, MinimumLength = 10, 
+        ErrorMessage = "Behovet måste vara mellan 10 och 2000 tecken")]
     public string Requirement { get; set; } = "";
 
     [Required(ErrorMessage = "Förväntad effekt/nytta är obligatoriskt")]
-    [StringLength(2000, ErrorMessage = "Förväntad effekt/nytta får vara max 2000 tecken")]
-    [MinLength(10, ErrorMessage = "Förväntad effekt/nytta måste vara minst 10 tecken")]
+    [StringLength(2000, MinimumLength = 10, 
+        ErrorMessage = "Förväntad effekt/nytta måste vara mellan 10 och 2000 tecken")]
     public string ExpectedBenefit { get; set; } = "";
 
     [StringLength(2000, ErrorMessage = "Ytterligare info får vara max 2000 tecken")]
