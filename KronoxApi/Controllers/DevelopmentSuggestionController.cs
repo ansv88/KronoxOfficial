@@ -78,6 +78,7 @@ public class DevelopmentSuggestionController : ControllerBase
     }
 
     [HttpPut("{id}/process")]
+    [RequireRole("Admin")]
     public async Task<IActionResult> MarkAsProcessed(int id, [FromBody] ProcessSuggestionRequest request)
     {
         var suggestion = await _context.DevelopmentSuggestions.FindAsync(id);
@@ -93,6 +94,27 @@ public class DevelopmentSuggestionController : ControllerBase
         await _context.SaveChangesAsync();
 
         _logger.LogDebug("Utvecklingsförslag {Id} markerat som behandlat av {ProcessedBy}", id, request.ProcessedBy);
+
+        return Ok();
+    }
+
+    [HttpPut("{id}/unprocess")]
+    [RequireRole("Admin")]
+    public async Task<IActionResult> MarkAsUnprocessed(int id)
+    {
+        var suggestion = await _context.DevelopmentSuggestions.FindAsync(id);
+        if (suggestion == null)
+        {
+            return NotFound();
+        }
+
+        suggestion.IsProcessed = false;
+        suggestion.ProcessedBy = null;
+        suggestion.ProcessedAt = null;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogDebug("Utvecklingsförslag {Id} återställt till obehandlat", id);
 
         return Ok();
     }

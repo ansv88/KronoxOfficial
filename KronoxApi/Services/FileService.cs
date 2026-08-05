@@ -75,7 +75,7 @@ public class FileService : IFileService
 
             if (System.IO.File.Exists(filePath))
             {
-                fileName = $"{fileNameWithoutExtension}_{DateTime.Now:yyyyMMddHHmmss}{extension}";
+                fileName = $"{fileNameWithoutExtension}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
                 filePath = Path.Combine(absDir, fileName);
                 _log.LogWarning("Filnamnskonflikt, nytt filnamn genererat: {FileName}", fileName);
             }

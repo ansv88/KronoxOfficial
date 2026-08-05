@@ -38,8 +38,10 @@ Seeding körs automatiskt vid uppstart (se `Program.cs` → `SeedAllAsync`). Det
     - Featurebilder från `SeedAssets/FeatureImages` kopieras till `wwwroot/images/pages/home` och registreras i DB.
     - Medlemslogotyper hämtas från frontendens `KronoxFront/wwwroot/images/members` och registreras i DB med länkningar.
   - Skapar kontaktdata (postadress, kontaktpersoner, e‑postlistor).
-  - Sidor som seedas (exempel): `home`, `omkonsortiet`, `visioner`, `dokument`, `omsystemet`, `kontaktaoss`, `forvaltning`, `medlemsnytt` (inkl. NavigationButtons där relevant).
+  - Sidor som seedas: `home`, `omkonsortiet`, `visioner`, `dokument`, `omsystemet`, `kontaktaoss`, `forvaltning`, `medlemsnytt` (inkl. NavigationButtons där relevant).
   - Respekterar anpassningar: fyller endast på saknade delar (t.ex. lägger till `introSection` om den saknas).
+  - Exempel på seedad `sectionConfig` (`forvaltning`): Banner, Intro, ActionPlanTable,
+    DevelopmentSuggestionForm, MemberLogos — i den ordningen.
 
 Tips
 - Vill du re‑seeda en enskild del, ta bort de berörda raderna i databasen (t.ex. `FeatureSections` för en `PageKey`) och starta om API:t.
@@ -67,10 +69,14 @@ README listar inte enskilda endpoints (för att undvika att de blir inaktuella).
 - FAQ (sektioner + frågor/svar)
 - Navigation och sidstatus
 - Dokument och kategorier
-- Nyheter
+- Nyheter (inkl. schemalagd publicering)
+  - **Tidszon:** publiceringsdatum lagras alltid i **UTC** i databasen.
+    `NewsController` konverterar admin-inmatad tid från svensk tid till UTC via
+    hjälpmetoden `ToUtcFromSwedish(...)` vid både skapande och uppdatering.
+    Filtrering av schemalagda nyheter (`member-news`) jämför mot `DateTime.UtcNow`.
 - Medlemslogotyper
 - Handlingsplan
-- Utvecklingsförslag (inlämning och administrativ hantering)
+- Utvecklingsförslag (inlämning samt administrativ hantering: markera som behandlad och återta till obehandlad)
 - Användar-/adminfunktioner (roller, godkännanden m.m.)
 
 ## Bygga och köra

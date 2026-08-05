@@ -240,11 +240,10 @@ public class DocumentController : ControllerBase
                 if (!await _roleValidationService.UserHasAccessToCategoryAsync(document.MainCategoryId, userRoles))
                 {
                     _logger.LogWarning("Användare utan behörighet försökte ladda ner dokument {Id}", id);
-                    return Forbid("Du har inte behörighet att ladda ner detta dokument.");
-                }
+                    return StatusCode(403, "Du har inte behörighet att ladda ner detta dokument.");
 
-                // Kontrollera att dokumentet inte är arkiverat (utom för admin)
-                if (document.IsArchived)
+                    // Kontrollera att dokumentet inte är arkiverat (utom för admin)
+                    if (document.IsArchived)
                 {
                     _logger.LogWarning("Försök att ladda ner arkiverat dokument {Id} av icke-admin", id);
                     return NotFound();

@@ -57,7 +57,7 @@ Offline/fallback: Vill du köra helt utan internet, lägg in Bootstrap/Font Awes
 - Invalidering sker automatiskt vid sparning; manuellt via `InvalidateGroup/InvalidatePageCache` där relevant.
 
 ## Sidtyper och sektioner
-- Sidor (exempel): `/`, `/omkonsortiet`, `/visioner`, `/omsystemet`, `/kontaktaoss`, `/medlemsnytt`, `/forvaltning`, `/forvnsg`, `/dokument`
+- Sidor (exempel): `/`, `/omkonsortiet`, `/visioner`, `/omsystemet`, `/kontaktaoss`, `/medlemsnytt`, `/forvaltning`, `/forvnsg`, `/dokument`, `/forstyrelsen`
 - Varje sida styrs av `SectionConfigItem` i metadata (banner, intro, navigation buttons, feature, faq, dokument, nyheter, handlingsplan, utvecklingsförslag, kontaktformulär, medlemslogotyper).
 - Intro/Feature/FAQ redigeras via admin och skrivs både till API och metadata för fallback.
 
@@ -104,3 +104,11 @@ Editorerna (TinyMCE) initialiseras via wwwroot/js/tinymce-config.js.
 - Token skickas med i request till API:t, som verifierar den server-side (se KronoxApi-README).
 - Site key är publik och exponeras avsiktligt i klienten; håll endast secret key hemlig (den ligger i API:t).
 - Obs: `ContactFormSection` genererar reCAPTCHA-token endast i sin inbyggda submit-väg (POST till `api/contact/send`). Om en förälder tar över via `OnFormSubmitted` måste den själv hämta och skicka en token (`recaptchaHelper.execute("contact")`).
+
+### Nyheter – tidszon
+- API:t lagrar publiceringsdatum i UTC. Admin-gränssnittet arbetar i svensk tid.
+- `NewsAdmin.razor` konverterar i båda riktningarna: `FormatSwedishDateTime(...)` för visning
+  i listan och `ToSwedishFromUtc(...)` när redigeringsformuläret fylls.
+- `NewsItemViewModel.IsScheduled` jämför mot `DateTime.UtcNow`.
+- Viktigt vid vidareutveckling: all ny kod som läser eller skriver publiceringsdatum måste
+  respektera denna symmetri, annars förskjuts tiden med 1–2 timmar (CET/CEST).

@@ -640,7 +640,7 @@
         {
             Title = news.Title,
             Content = news.Content,
-            ScheduledPublishDate = news.ScheduledPublishDate,
+            ScheduledPublishDate = ToSwedishFromUtc(news.ScheduledPublishDate),
             IsArchived = news.IsArchived,
             SelectedRoles = news.RolesList,
             AvailableRoles = new List<RoleOption>
@@ -945,6 +945,16 @@
             TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time"));
         
         return swedishTime.ToString("yyyy-MM-dd HH:mm");
+    }
+
+    // Konverterar lagrad UTC-tid till svensk tid för visning i datetime-local-fält
+    private static DateTime? ToSwedishFromUtc(DateTime? utc)
+    {
+        if (!utc.HasValue) return null;
+
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+        var utcValue = DateTime.SpecifyKind(utc.Value, DateTimeKind.Utc);
+        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, tz);
     }
 
     private async Task AttachSelectedDocument()

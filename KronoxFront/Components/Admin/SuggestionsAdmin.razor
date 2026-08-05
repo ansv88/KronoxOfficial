@@ -107,10 +107,16 @@
                                             <span class="badge bg-success mb-1">Behandlad</span>
                                             @if (!string.IsNullOrEmpty(suggestion.ProcessedBy) && suggestion.ProcessedAt.HasValue)
                                             {
-                                                <small class="text-muted">
+                                                <small class="text-muted mb-1">
                                                     av @suggestion.ProcessedBy, @suggestion.ProcessedAt.Value.ToString("yyyy-MM-dd HH:mm")
                                                 </small>
                                             }
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    @onclick="() => OpenUnprocessConfirm(suggestion)"
+                                                    disabled="@(processingSuggestionIds.Contains(suggestion.Id))">
+                                                <i class="fa-solid fa-rotate-left me-1"></i>
+                                                Återta som obehandlad
+                                            </button>
                                         }
                                         else
                                         {
@@ -184,12 +190,25 @@
     </div>
 </div>
 
+<ConfirmDialog IsVisible="@(showUnprocessConfirm && suggestionToUnprocess != null)"
+               Title="Återta som obehandlad"
+               Message="@($"Vill du återställa förslaget från \"{suggestionToUnprocess?.Organization}\" till obehandlat?")"
+               ConfirmText="Återta"
+               ConfirmButtonClass="btn-primary"
+               IconClass="fa-rotate-left text-primary"
+               IsBusy="@isUnprocessing"
+               OnConfirmCallback="ConfirmUnprocess"
+               OnCancelCallback="CloseUnprocessConfirm" />
+
 @code {
     private List<DevelopmentSuggestionViewModel> suggestions = new();
     private bool isLoading = true;
     private bool showProcessed = false;
     private string currentUser = "";
     private HashSet<int> processingSuggestionIds = new();
+    private DevelopmentSuggestionViewModel? suggestionToUnprocess;
+    private bool showUnprocessConfirm = false;
+    private bool isUnprocessing = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -325,9 +344,65 @@ Status: {(suggestion.IsProcessed ? "Behandlad" : "Obehandlad")}";
 
 Tack för ditt utvecklingsförslag som inlämnades {suggestion.SubmittedAt:yyyy-MM-dd}.
 
-Vi har tagit del av ditt förslag gällande ""{suggestion.Requirement.Substring(0, Math.Min(suggestion.Requirement.Length, 50))}..."" och kommer att behandla det inom ramen för vår utvecklingsprocess.
+Vi har tagit del av ditt förslag gällande ""{suggestion.Requirement[..Math.Min(suggestion.Requirement.Length, 50)]}..."" och kommer att behandla det inom ramen för vår utvecklingsprocess.
 
 Med vänliga hälsningar,
 KronoX-teamet");
+    }
+
+    private void OpenUnprocessConfirm(DevelopmentSuggestionViewModel suggestion)
+    {
+        suggestionToUnprocess = suggestion;
+        showUnprocessConfirm = true;
+    }
+
+    private void CloseUnprocessConfirm()
+    {
+        showUnprocessConfirm = false;
+        suggestionToUnprocess = null;
+    }
+
+    private async Task ConfirmUnprocess()
+    {
+        if (suggestionToUnprocess == null) return;
+
+        var suggestion = suggestionToUnprocess;
+        isUnprocessing = true;
+
+        try
+        {
+            processingSuggestionIds.Add(suggestion.Id);
+
+            var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            var response = await httpClient.PutAsJsonAsync(
+                $"api/developmentsuggestion/{suggestion.Id}/unprocess",
+                new { });
+
+            if (response.IsSuccessStatusCode)
+            {
+                suggestion.IsProcessed = false;
+                suggestion.ProcessedBy = null;
+                suggestion.ProcessedAt = null;
+
+                await Toast.Success("Förslaget är återställt till obehandlat");
+                CloseUnprocessConfirm();
+                StateHasChanged();
+            }
+            else
+            {
+                Logger.LogError("Fel vid återställning till obehandlad: {StatusCode}", response.StatusCode);
+                await Toast.Error("Kunde inte återställa förslaget");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid återställning till obehandlad");
+            await Toast.Error("Ett fel uppstod");
+        }
+        finally
+        {
+            processingSuggestionIds.Remove(suggestion.Id);
+            isUnprocessing = false;
+        }
     }
 }

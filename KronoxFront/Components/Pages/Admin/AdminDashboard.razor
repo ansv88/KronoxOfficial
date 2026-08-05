@@ -1,7 +1,8 @@
 ﻿@page "/admin/dashboard"
 @page "/admin"
-@using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
+@using KronoxFront.ViewModels
+@using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
@@ -563,19 +564,14 @@
         // Hämta utvecklingsförslag
         try
         {
-            // Hämta alla förslag
-            var allSuggestionsResponse = await http.GetFromJsonAsync<List<object>>("api/developmentsuggestion");
-            if (allSuggestionsResponse != null)
-            {
-                totalSuggestionsCount = allSuggestionsResponse.Count;
-            }
+            var all = await http.GetFromJsonAsync<List<DevelopmentSuggestionViewModel>>(
+            "api/developmentsuggestion?includeProcessed=true");
 
-            // Hämta nya förslag (ej behandlade)
-            var newSuggestionsResponse = await http.GetFromJsonAsync<List<object>>("api/developmentsuggestion?includeProcessed=false");
-            if (newSuggestionsResponse != null)
-            {
-                newSuggestionsCount = newSuggestionsResponse.Count;
-            }
+        if (all != null)
+        {
+         totalSuggestionsCount = all.Count;
+           newSuggestionsCount = all.Count(s => !s.IsProcessed);
+        }
         }
         catch (HttpRequestException ex)
         {

@@ -18,10 +18,12 @@ Denna lista pekar ut koddelar som ofta efterfrågas men inte ligger i admin‑gr
 - Ändra mailsvaret: uppdatera metoden `GetEmailBody(...)`.
 - Tips: E‑postklienter hanterar radbrytningar i `mailto:` olika. `EscapeDataString` ser till att radbrytningar och citationstecken kodas korrekt, men testa i din klient.
 
-API‑del (oförändrat):
+API‑del:
 - `KronoxApi/Controllers/DevelopmentSuggestionController.cs`
+  - POST `api/developmentsuggestion` (publik inlämning)
   - GET `api/developmentsuggestion` (Admin, lista)
   - PUT `api/developmentsuggestion/{id}/process` (markera behandlad)
+  - PUT `api/developmentsuggestion/{id}/unprocess` (återta till obehandlad)
 
 ## 3) Institutioner och länkar (”Om konsortiet”)
 - Fil: `KronoxFront/Components/Pages/Omkonsortiet.razor`
@@ -31,14 +33,14 @@ API‑del (oförändrat):
 ## 4) Hero-/bannerbild per sida
 - Var: Bannerbilden hämtas via extension-metoderna `PageContentViewModel.GetBannerUrl()` / `GetBannerAlt()` (se `KronoxFront/Extensions/PageImageExtensions.cs`).
 - Mekanik: Sanningskälla är `PageImage.IsActive` – exakt en aktiv bild per sida. När en ny banner sätts som aktiv inaktiveras övriga automatiskt via API:t (`SetImageActive`).
-- Ändra: Ladda upp/välj bild via admin (Banner-sektionen i "Redigera sida"); den markeras då som aktiv. Bildbiblioteket (`/admin/images`) visar vilken bild som är aktiv med en "Bannerbild"-badge.
+- Ändra: Ladda upp/välj bild via admin (Banner-sektionen i "Redigera sida"); den markeras då som aktiv. Bildbiblioteket (`/admin/images`) visar under varje bild var den används, inklusive om den är en aktiv bannerbild.
 
 ## 5) Fasta sidor i adminvyer
 - Fil: `KronoxFront/Components/Pages/Admin/MainPageAdmin.razor`
 - Vad: `validFixedPages` (visa möjliga fasta sidor) och `pageUrlMapping` (URL‑mapping).
 - Ändra: Lägg till här om du introducerar nya fasta sidor eller byter URL.
 
-## 6) Rollupptäckt för sidor i navigation (Authorize)
+## 6) Rollupptäckter för sidor i navigation (Authorize)
 - Fil: `KronoxFront/Components/Shared/Admin/NavigationSettings.razor` → `DetectPageAuthorizeRoles()`
 - Vad: Kartläggning `PageKey -> komponenttyp` för att läsa `[Authorize]`‑attribut.
 - Ändra: Uppdatera mapping om du byter klassnamn/filnamn för fasta sidor (t.ex. `Visionerverksamhetside`).

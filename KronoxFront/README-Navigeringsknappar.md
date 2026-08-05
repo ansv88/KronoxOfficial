@@ -2,7 +2,7 @@
 
 Den här guiden beskriver hur navigeringsknapparna under intro-sektionen hanteras, inklusive hur du maskerar externa (eller känsliga) mål-URL:er så att endast en intern, “vänlig” väg syns vid hover (t.ex. `/go/manualen`).
 
-Innehållet gäller Blazor-projektet KronoxFront (.NET 8).
+Innehållet gäller Blazor-projektet KronoxFront (.NET 10).
 
 ## Begrepp
 - Vanlig länk: Du skriver den riktiga URL:en direkt i admingränssnittet (t.ex. `/dokument` eller `https://exempel.se`). Inget extra behövs.
