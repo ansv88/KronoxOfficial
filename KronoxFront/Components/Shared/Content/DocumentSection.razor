@@ -111,7 +111,7 @@ else
                     </div>
                 </div>
 
-                @if (ShowArchiveToggle && IsAdmin)
+                @if (ShowArchiveToggle && IsLoggedIn)
                 {
                     <div class="row mt-2">
                         <div class="col-12">
@@ -302,6 +302,7 @@ else
     private bool IsLoading = true;
     private bool HasError = false;
     private bool IsAdmin = false;
+    private bool IsLoggedIn { get; set; }
     private bool isViewerOpen = false;
     private int selectedDocumentId = 0;
     private string selectedDocumentName = "";
@@ -327,6 +328,7 @@ else
             // Kontrollera användarroller
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             IsAdmin = authState.User.IsInRole("Admin");
+            IsLoggedIn = authState.User.Identity?.IsAuthenticated == true;
 
             await LoadDocuments();
             
@@ -487,7 +489,7 @@ else
         // Arkivfilter:
         // - Moduler utan arkivtoggle: oförändrat (admin ser arkiverade, övriga inte).
         // - Med arkivtoggle (Dokument-sidan): admin styr via "Visa arkiverade".
-        bool hideArchived = ShowArchiveToggle ? (!IsAdmin || !showArchived) : !IsAdmin;
+        bool hideArchived = ShowArchiveToggle ? !showArchived : !IsAdmin;
         if (hideArchived)
         {
             documents = documents.Where(d => !d.IsArchived);

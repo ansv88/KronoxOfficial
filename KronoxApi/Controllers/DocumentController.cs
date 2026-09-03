@@ -179,8 +179,7 @@ public class DocumentController : ControllerBase
             // Filtrera dokument baserat på kategoriroller och mappa till DTO
             var accessibleDocuments = await _db.Documents
                 .Include(d => d.MainCategory)
-                .Where(d => !d.IsArchived &&
-                           accessibleCategoryIds.Contains(d.MainCategoryId))
+                .Where(d => accessibleCategoryIds.Contains(d.MainCategoryId))
                 .Select(d => new DocumentDto
                 {
                     Id = d.Id,
@@ -241,12 +240,6 @@ public class DocumentController : ControllerBase
                 {
                     _logger.LogWarning("Användare utan behörighet försökte ladda ner dokument {Id}", id);
                     return StatusCode(403, "Du har inte behörighet att ladda ner detta dokument.");
-                }
-                // Kontrollera att dokumentet inte är arkiverat (utom för admin)
-                if (document.IsArchived)
-                {
-                    _logger.LogWarning("Försök att ladda ner arkiverat dokument {Id} av icke-admin", id);
-                    return NotFound();
                 }
             }
 

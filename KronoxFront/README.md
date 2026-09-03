@@ -78,8 +78,8 @@ Editorerna (TinyMCE) initialiseras via wwwroot/js/tinymce-config.js.
 ## Dokument
 - Delad modul `Components/Shared/Content/DocumentSection.razor` visar dokument som kort och återanvänds på flera sidor (t.ex. `/dokument`, `/forstyrelsen`, `/forvnsg`).
 - Varje dokument har en huvudkategori (`MainCategoryId`) och kan ha flera underkategorier (`SubCategories` som ID-lista). Behörighet styrs server-side via huvudkategorins `AllowedRoles`.
-- Parametrar (urval): `ShowSubcategories` (filter/sortering per underkategori), `ShowArchiveToggle` (admin kan visa/dölja arkiverade), `MaxDocumentsPerCategory`, `AutoDetectCategoryFromUrl` (av på "visa allt"-sidor som `/dokument`).
-- Arkivering: dokument kan arkiveras (`IsArchived`, `ArchivedAt`, `ArchivedBy`). Arkiverade visas endast för admin och bara när "Visa arkiverade" är ibockad.
+- Parametrar (urval): `ShowSubcategories` (filter/sortering per underkategori), `ShowArchiveToggle` (inloggade kan visa/dölja arkiverade), `MaxDocumentsPerCategory`, `AutoDetectCategoryFromUrl` (av på "visa allt"-sidor som `/dokument`).
+- Arkivering: dokument kan arkiveras (`IsArchived`, `ArchivedAt`, `ArchivedBy`). Arkiverade dokument visas för **inloggade användare** när "Visa arkiverade" är ibockad, men endast inom de kategorier användaren har behörighet till (`AllowedRoles`). Utloggade besökare får aldrig arkiverade dokument – API:t (`GetAccessibleDocuments`) kräver inloggning. På sidor utan arkivtoggle döljs arkiverade för alla utom admin.
 - Kategorier hanteras i admin under `/admin/documents/manage`; underkategorinamn hämtas via `CategoryService`.
 
 ## Feature‑sektioner och privat innehåll
