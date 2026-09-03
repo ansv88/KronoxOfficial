@@ -69,7 +69,11 @@ public class ApiAuthHandler : DelegatingHandler
             }
             else
             {
-                _logger.LogWarning("Inga användarroller hittades för anrop till {Url}", request.RequestUri);
+                _logger.LogWarning(
+                    "Inga användarroller hittades för anrop till {Url}. Autentiserad: {IsAuth}, HttpContext finns: {HasContext}",
+                    request.RequestUri,
+                    context?.User?.Identity?.IsAuthenticated ?? false,
+                    context != null);
             }
         }
 
