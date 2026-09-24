@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
+using NLog.Extensions.Logging;
 using System.Threading.RateLimiting;
 
 namespace KronoxApi;
@@ -20,6 +21,15 @@ public class Program
         // Konfigurera databas och Identity
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' saknas.");
+
+        builder.Services.AddLogging(loggingBuilder =>
+        {
+            // configure Logging with NLog
+            loggingBuilder.ClearProviders();
+            loggingBuilder.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+            loggingBuilder.AddNLog(builder.Configuration);
+        });
+
 
         builder.Services.AddDbContext<ApplicationDbContext>(o => o.UseSqlServer(connectionString));
 

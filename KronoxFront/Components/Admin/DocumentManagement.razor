@@ -664,17 +664,34 @@ OnDownload="DownloadDocument" />
     {
         isLoading = true;
 
-        // Hämta dokument med kategorier (från cache eller databas)
-        documents = await GetDocumentsFromCacheOrDatabase();
+        try
+        {
+            // Hämta alla huvud- och underkategorier FÖRST, en gång, så att
+            // dokumentberikningen nedan kan slå upp lokalt istället för att
+            // göra ett API-anrop per dokument/underkategori (N+1). De N+1-
+            // anropen anvande GetFromJsonAsync, som kastar ett obehandlat
+            // HttpRequestException vid t.ex. 403 - vilket, korande direkt i
+            // OnInitializedAsync utan try/catch, kraschade hela Blazor
+            // Server-kretsen.
+            var mainCategoryDtosUnsorted = await CategoryService.GetMainCategoriesAsync();
+            mainCategoryDtos = mainCategoryDtosUnsorted.OrderBy(m => m.Name).ToList();
 
-        // Hämta alla huvudkategorier
-        var mainCategoryDtosUnsorted = await CategoryService.GetMainCategoriesAsync();
-        mainCategoryDtos = mainCategoryDtosUnsorted.OrderBy(m => m.Name).ToList();
+            var subCategoryDtosUnsorted = await CategoryService.GetSubCategoriesAsync();
+            subCategoryDtos = subCategoryDtosUnsorted.OrderBy(s => s.Name).ToList();
 
-        var subCategoryDtosUnsorted = await CategoryService.GetSubCategoriesAsync();
-        subCategoryDtos = subCategoryDtosUnsorted.OrderBy(s => s.Name).ToList();
-
-        isLoading = false;
+            // Hämta dokument med kategorier (från cache eller databas)
+            documents = await GetDocumentsFromCacheOrDatabase();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fel vid initiering av dokumenthanteringssidan");
+            await ToastService.Error("Kunde inte ladda dokument och kategorier. Försök ladda om sidan.");
+            documents = new List<DocumentViewModel>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task<List<DocumentViewModel>> GetDocumentsFromCacheOrDatabase()
@@ -695,34 +712,42 @@ OnDownload="DownloadDocument" />
         return docs;
     }
 
-    private async Task<List<DocumentViewModel>> CreateDocumentDto()
+    private Task<List<DocumentViewModel>> CreateDocumentDto()
     {
-        // Säkerställ icke-null lista
-        var documentsDto = await DocumentService.GetDocumentsAsync() ?? new List<DocumentViewModel>();
+        return CreateDocumentDtoAsync();
 
-        foreach (var document in documentsDto)
+        async Task<List<DocumentViewModel>> CreateDocumentDtoAsync()
         {
-            var mainCategoryForDocument = await CategoryService.GetMainCategoryByIdAsync(document.MainCategoryId);
-            if (mainCategoryForDocument != null)
-            {
-                document.MainCategoryDto = mainCategoryForDocument;
-            }
+            // Säkerställ icke-null lista
+            var documentsDto = await DocumentService.GetDocumentsAsync() ?? new List<DocumentViewModel>();
 
-            if (document.SubCategories != null)
+            // Slå upp kategorier lokalt (redan hämtade i OnInitializedAsync)
+            // istället för ett API-anrop per dokument/underkategori.
+            var mainCategoriesById = mainCategoryDtos.ToDictionary(m => m.Id);
+            var subCategoriesById = subCategoryDtos.ToDictionary(s => s.Id);
+
+            foreach (var document in documentsDto)
             {
-                foreach (var subCategoryId in document.SubCategories)
+                if (mainCategoriesById.TryGetValue(document.MainCategoryId, out var mainCategoryForDocument))
                 {
-                    var subCategory = await CategoryService.GetSubCategoryByIdAsync(subCategoryId);
-                    if (subCategory != null)
+                    document.MainCategoryDto = mainCategoryForDocument;
+                }
+
+                if (document.SubCategories != null)
+                {
+                    foreach (var subCategoryId in document.SubCategories)
                     {
-                        document.SubCategoryDtos ??= new List<SubCategoryDto>();
-                        document.SubCategoryDtos.Add(subCategory);
+                        if (subCategoriesById.TryGetValue(subCategoryId, out var subCategory))
+                        {
+                            document.SubCategoryDtos ??= new List<SubCategoryDto>();
+                            document.SubCategoryDtos.Add(subCategory);
+                        }
                     }
                 }
             }
-        }
 
-        return documentsDto;
+            return documentsDto;
+        }
     }
 
     void OnInputFileChange(InputFileChangeEventArgs e)

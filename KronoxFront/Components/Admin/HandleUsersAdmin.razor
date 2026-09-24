@@ -1,4 +1,4 @@
-Ôªø@page "/admin/users"
+@page "/admin/users"
 @using System.Text.Json
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Authorization
@@ -16,18 +16,19 @@
 @inject IJSRuntime JS
 @inject IToastService Toast
 @inject ILogger<HandleUsersAdmin> Logger
+@inject UserRolesHeaderService RolesHeader
 
 <HeadContent>
-    <meta name="description" content="Administrera anv√§ndare i KronoX. Godk√§nn nya ans√∂kningar, √§ndra roller och hantera anv√§ndaruppgifter." />
+    <meta name="description" content="Administrera anv‰ndare i KronoX. Godk‰nn nya ansˆkningar, ‰ndra roller och hantera anv‰ndaruppgifter." />
 </HeadContent>
 
-<PageTitle>KronoX - Anv√§ndarhantering</PageTitle>
+<PageTitle>KronoX - Anv‰ndarhantering</PageTitle>
 
 <div class="container-fluid">
-    <h1 class="mb-4 h3"><i class="fa-solid fa-users me-2"></i>Hantera anv√§ndare</h1>
+    <h1 class="mb-4 h3"><i class="fa-solid fa-users me-2"></i>Hantera anv‰ndare</h1>
 
     <div class="row">
-        <!-- V√§nster panel f√∂r anv√§ndarlista och nya ans√∂kningar -->
+        <!-- V‰nster panel fˆr anv‰ndarlista och nya ansˆkningar -->
         <div class="col-md-5">
             <div class="card mb-4">
                 <div class="card-header bg-light">
@@ -36,14 +37,14 @@
                             <button class="nav-link active" id="all-users-tab" data-bs-toggle="tab"
                                     data-bs-target="#all-users" type="button" role="tab"
                                     aria-controls="all-users" aria-selected="true">
-                                Alla anv√§ndare
+                                Alla anv‰ndare
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="new-users-tab" data-bs-toggle="tab"
                                     data-bs-target="#new-users" type="button" role="tab"
                                     aria-controls="new-users" aria-selected="false">
-                                Nya ans√∂kningar
+                                Nya ansˆkningar
                                 @if (newUsers.Any())
                                 {
                                     <span class="badge bg-danger ms-1">@newUsers.Count</span>
@@ -54,15 +55,15 @@
                 </div>
                 <div class="card-body">
                     <div class="tab-content" id="userTabsContent">
-                        <!-- Alla anv√§ndare -->
+                        <!-- Alla anv‰ndare -->
                         <div class="tab-pane fade show active" id="all-users" role="tabpanel" aria-labelledby="all-users-tab">
                             <div class="input-group mb-3">
-                                <label for="searchUsers" class="visually-hidden">S√∂k anv√§ndare</label>
+                                <label for="searchUsers" class="visually-hidden">Sˆk anv‰ndare</label>
                                 <span class="input-group-text"><i class="fa-solid fa-search"></i></span>
                                 <input id="searchUsers"
                                        type="text"
                                        class="form-control"
-                                       placeholder="S√∂k anv√§ndare..."
+                                       placeholder="Sˆk anv‰ndare..."
                                        @bind-value="searchTerm"
                                        @bind-value:event="oninput" />
                             </div>
@@ -71,14 +72,14 @@
                             {
                                 <div class="text-center my-3">
                                     <div class="spinner-border" role="status">
-                                        <span class="visually-hidden">Laddar anv√§ndare...</span>
+                                        <span class="visually-hidden">Laddar anv‰ndare...</span>
                                     </div>
                                 </div>
                             }
                             else if (!allUsers.Any())
                             {
                                 <div class="alert alert-info">
-                                    Inga anv√§ndare hittades.
+                                    Inga anv‰ndare hittades.
                                 </div>
                             }
                             else
@@ -101,20 +102,20 @@
                             }
                         </div>
 
-                        <!-- Nya ans√∂kningar -->
+                        <!-- Nya ansˆkningar -->
                         <div class="tab-pane fade" id="new-users" role="tabpanel" aria-labelledby="new-users-tab">
                             @if (loading)
                             {
                                 <div class="text-center my-3">
                                     <div class="spinner-border" role="status">
-                                        <span class="visually-hidden">Laddar ans√∂kningar...</span>
+                                        <span class="visually-hidden">Laddar ansˆkningar...</span>
                                     </div>
                                 </div>
                             }
                             else if (!newUsers.Any())
                             {
                                 <div class="alert alert-info">
-                                    Inga nya anv√§ndarans√∂kningar.
+                                    Inga nya anv‰ndaransˆkningar.
                                 </div>
                             }
                             else
@@ -129,7 +130,7 @@
                                                 <div class="text-muted small">@user.FirstName @user.LastName</div>
                                                 <div class="text-muted small">@user.Email</div>
                                             </div>
-                                            <span class="badge bg-warning text-dark">Ny ans√∂kan</span>
+                                            <span class="badge bg-warning text-dark">Ny ansˆkan</span>
                                         </button>
                                     }
                                 </div>
@@ -140,21 +141,21 @@
             </div>
         </div>
 
-        <!-- H√∂ger panel f√∂r anv√§ndardetaljer och √•tg√§rder -->
+        <!-- Hˆger panel fˆr anv‰ndardetaljer och Âtg‰rder -->
         <div class="col-md-7">
             @if (selectedUser != null)
             {
                 <div class="card mb-4">
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h2 class="mb-0 h5">Anv√§ndardetaljer</h2>
+                        <h2 class="mb-0 h5">Anv‰ndardetaljer</h2>
                         <div>
-                            @if (selectedUser.Roles?.Contains("Ny anv√§ndare") == true)
+                            @if (selectedUser.Roles?.Contains("Ny anv‰ndare") == true)
                             {
                                 <button class="btn btn-success btn-sm me-1" @onclick="() => OpenApproveUserModal(selectedUser)">
-                                    <i class="fa-solid fa-check me-1"></i> Godk√§nn
+                                    <i class="fa-solid fa-check me-1"></i> Godk‰nn
                                 </button>
                                 <button class="btn btn-danger btn-sm" @onclick="() => OpenRejectUserModal(selectedUser)">
-                                    <i class="fa-solid fa-ban me-1"></i> Avsl√•
+                                    <i class="fa-solid fa-ban me-1"></i> AvslÂ
                                 </button>
                             }
                             else
@@ -163,12 +164,12 @@
                                     <i class="fa-solid fa-edit me-1"></i> Redigera
                                 </button>
                                 <button class="btn btn-info btn-sm me-1" @onclick="() => OpenChangePasswordModal(selectedUser)">
-                                    <i class="fa-solid fa-key me-1"></i> Byt l√∂senord
+                                    <i class="fa-solid fa-key me-1"></i> Byt lˆsenord
                                 </button>
                                 <button class="btn btn-danger btn-sm"
                                         @onclick="() => OpenDeleteUserModal(selectedUser)"
                                         disabled="@SelectedIsLastAdmin"
-                                        title="@(SelectedIsLastAdmin ? "Systemet m√•ste ha minst en administrat√∂r." : null)">
+                                        title="@(SelectedIsLastAdmin ? "Systemet mÂste ha minst en administratˆr." : null)">
                                     <i class="fa-solid fa-trash me-1"></i> Ta bort
                                 </button>
                             }
@@ -181,7 +182,7 @@
                                 <DataAnnotationsValidator />
 
                                 <div class="mb-3">
-                                    <label class="form-label">Anv√§ndarnamn</label>
+                                    <label class="form-label">Anv‰ndarnamn</label>
                                     <input type="text" class="form-control-plaintext" value="@selectedUser.UserName" readonly />
                                 </div>
 
@@ -189,7 +190,7 @@
                                     <label class="form-label">Roll</label>
                                     <select class="form-select" @bind="selectedRoleForEdit"
                                             disabled="@SelectedIsLastAdmin">
-                                        @foreach (var role in availableRoles.Where(r => r != "Ny anv√§ndare"))
+                                        @foreach (var role in availableRoles.Where(r => r != "Ny anv‰ndare"))
                                         {
                                             <option value="@role">@role</option>
                                         }
@@ -198,13 +199,13 @@
                                     {
                                         <div class="form-text text-warning">
                                             <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                                            Systemet m√•ste ha minst en administrat√∂r. Rollen kan inte √§ndras.
+                                            Systemet mÂste ha minst en administratˆr. Rollen kan inte ‰ndras.
                                         </div>
                                     }
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label">F√∂rnamn</label>
+                                    <label class="form-label">Fˆrnamn</label>
                                     <InputText class="form-control" @bind-Value="editUserModel.FirstName" />
                                     <ValidationMessage For="@(() => editUserModel.FirstName)" />
                                 </div>
@@ -222,7 +223,7 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label">L√§ros√§te</label>
+                                    <label class="form-label">L‰ros‰te</label>
                                     <InputText class="form-control" @bind-Value="editUserModel.Academy" />
                                     <ValidationMessage For="@(() => editUserModel.Academy)" />
                                 </div>
@@ -232,7 +233,7 @@
                                         Avbryt
                                     </button>
                                     <button type="submit" class="btn btn-primary">
-                                        Spara √§ndringar
+                                        Spara ‰ndringar
                                     </button>
                                 </div>
                             </EditForm>
@@ -242,7 +243,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <span class="fw-bold">Anv√§ndarnamn:</span>
+                                        <span class="fw-bold">Anv‰ndarnamn:</span>
                                         <div>@selectedUser.UserName</div>
                                     </div>
                                     <div class="mb-3">
@@ -264,12 +265,12 @@
                                         <div>@selectedUser.Email</div>
                                     </div>
                                     <div class="mb-3">
-                                        <span class="fw-bold">L√§ros√§te:</span>
+                                        <span class="fw-bold">L‰ros‰te:</span>
                                         <div>@selectedUser.Academy</div>
                                     </div>
                                     <div class="mb-3">
                                         <span class="fw-bold">Skapad:</span>
-                                        <div>@(selectedUser.CreatedDate.HasValue ? selectedUser.CreatedDate.Value.ToString("yyyy-MM-dd") : "Ok√§nt")</div>
+                                        <div>@(selectedUser.CreatedDate.HasValue ? selectedUser.CreatedDate.Value.ToString("yyyy-MM-dd") : "Ok‰nt")</div>
                                     </div>
                                 </div>
                             </div>
@@ -282,8 +283,8 @@
                 <div class="card mb-4">
                     <div class="card-body text-center text-muted py-5">
                         <i class="fa-solid fa-user fa-3x mb-3"></i>
-                        <h2 class="h5">V√§lj en anv√§ndare f√∂r att visa detaljer</h2>
-                        <p>Du kan visa och hantera anv√§ndaruppgifter h√§r.</p>
+                        <h2 class="h5">V‰lj en anv‰ndare fˆr att visa detaljer</h2>
+                        <p>Du kan visa och hantera anv‰ndaruppgifter h‰r.</p>
                     </div>
                 </div>
             }
@@ -291,7 +292,7 @@
     </div>
 </div>
 
-<!-- Modalf√∂nster f√∂r godk√§nna anv√§ndare -->
+<!-- Modalfˆnster fˆr godk‰nna anv‰ndare -->
 @if (showApproveUserModal && selectedUser != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
@@ -299,15 +300,15 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="approveUserModalTitle">Godk√§nn anv√§ndare</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="St√§ng"></button>
+                    <h5 class="modal-title" id="approveUserModalTitle">Godk‰nn anv‰ndare</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="St‰ng"></button>
                 </div>
                 <div class="modal-body">
-                    <p>V√§lj en roll f√∂r anv√§ndaren <strong>@selectedUser.UserName</strong>:</p>
+                    <p>V‰lj en roll fˆr anv‰ndaren <strong>@selectedUser.UserName</strong>:</p>
 
                     <div class="mb-3">
-                        <select class="form-select" @bind="selectedRole" aria-label="V√§lj roll">
-                            @foreach (var role in availableRoles.Where(r => r != "Ny anv√§ndare"))
+                        <select class="form-select" @bind="selectedRole" aria-label="V‰lj roll">
+                            @foreach (var role in availableRoles.Where(r => r != "Ny anv‰ndare"))
                             {
                                 <option value="@role">@role</option>
                             }
@@ -316,31 +317,31 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
-                    <button type="button" class="btn btn-success" @onclick="ApproveUser">Godk√§nn</button>
+                    <button type="button" class="btn btn-success" @onclick="ApproveUser">Godk‰nn</button>
                 </div>
             </div>
         </div>
     </div>
 }
 
-@* Avsl√• anv√§ndarans√∂kan *@
+@* AvslÂ anv‰ndaransˆkan *@
 <ConfirmDialog IsVisible="@(showRejectUserModal && selectedUser != null)"
-               Title="Avsl√• anv√§ndarans√∂kan"
-               Message="@($"√Ñr du s√§ker p√• att du vill avsl√• anv√§ndarans√∂kan f√∂r {selectedUser?.UserName}?")"
-               WarningText="Detta kommer att ta bort anv√§ndaren fr√•n systemet."
-               ConfirmText="Avsl√•"
+               Title="AvslÂ anv‰ndaransˆkan"
+               Message="@($"ƒr du s‰ker pÂ att du vill avslÂ anv‰ndaransˆkan fˆr {selectedUser?.UserName}?")"
+               WarningText="Detta kommer att ta bort anv‰ndaren frÂn systemet."
+               ConfirmText="AvslÂ"
                OnConfirmCallback="RejectUser"
                OnCancelCallback="CloseModals" />
 
-@* Ta bort anv√§ndare *@
+@* Ta bort anv‰ndare *@
 <ConfirmDialog IsVisible="@(showDeleteUserModal && selectedUser != null)"
-               Title="Ta bort anv√§ndare"
-               Message="@($"√Ñr du s√§ker p√• att du vill ta bort anv√§ndaren {selectedUser?.UserName}?")"
-               WarningText="Detta kommer att ta bort anv√§ndaren permanent fr√•n systemet."
+               Title="Ta bort anv‰ndare"
+               Message="@($"ƒr du s‰ker pÂ att du vill ta bort anv‰ndaren {selectedUser?.UserName}?")"
+               WarningText="Detta kommer att ta bort anv‰ndaren permanent frÂn systemet."
                OnConfirmCallback="DeleteUser"
                OnCancelCallback="CloseModals" />
 
-<!-- Modalf√∂nster f√∂r √§ndra l√∂senord -->
+<!-- Modalfˆnster fˆr ‰ndra lˆsenord -->
 @if (showChangePasswordModal && selectedUser != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);"
@@ -348,22 +349,22 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="changePasswordModalTitle">√Ñndra l√∂senord</h5>
-                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="St√§ng"></button>
+                    <h5 class="modal-title" id="changePasswordModalTitle">ƒndra lˆsenord</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals" aria-label="St‰ng"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Ange ett nytt l√∂senord f√∂r anv√§ndaren <strong>@selectedUser.UserName</strong>:</p>
+                    <p>Ange ett nytt lˆsenord fˆr anv‰ndaren <strong>@selectedUser.UserName</strong>:</p>
 
                     <EditForm Model="passwordModel" OnValidSubmit="ChangePassword">
                         <DataAnnotationsValidator />
 
                         <div class="mb-3">
-                            <label class="form-label" for="newPassword">Nytt l√∂senord</label>
+                            <label class="form-label" for="newPassword">Nytt lˆsenord</label>
                             <div class="input-group">
                                 <InputText id="newPassword" type="@(showPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.NewPassword" />
                                 <button type="button" class="btn btn-outline-secondary" @onclick="() => showPassword = !showPassword"
-                                        aria-label="@(showPassword ? "D√∂lj l√∂senord" : "Visa l√∂senord")"
-                                        title="@(showPassword ? "D√∂lj l√∂senord" : "Visa l√∂senord")">
+                                        aria-label="@(showPassword ? "Dˆlj lˆsenord" : "Visa lˆsenord")"
+                                        title="@(showPassword ? "Dˆlj lˆsenord" : "Visa lˆsenord")">
                                     <i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")" aria-hidden="true"></i>
                                 </button>
                             </div>
@@ -371,12 +372,12 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label" for="confirmPassword">Bekr√§fta l√∂senord</label>
+                            <label class="form-label" for="confirmPassword">Bekr‰fta lˆsenord</label>
                             <div class="input-group">
                                 <InputText id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")" class="form-control" @bind-Value="passwordModel.ConfirmPassword" />
                                 <button type="button" class="btn btn-outline-secondary" @onclick="() => showConfirmPassword = !showConfirmPassword"
-                                        aria-label="@(showConfirmPassword ? "D√∂lj l√∂senord" : "Visa l√∂senord")"
-                                        title="@(showConfirmPassword ? "D√∂lj l√∂senord" : "Visa l√∂senord")">
+                                        aria-label="@(showConfirmPassword ? "Dˆlj lˆsenord" : "Visa lˆsenord")"
+                                        title="@(showConfirmPassword ? "Dˆlj lˆsenord" : "Visa lˆsenord")">
                                     <i class="fa-solid @(showConfirmPassword ? "fa-eye-slash" : "fa-eye")" aria-hidden="true"></i>
                                 </button>
                             </div>
@@ -385,7 +386,7 @@
 
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" @onclick="CloseModals">Avbryt</button>
-                            <button type="submit" class="btn btn-primary">Spara l√∂senord</button>
+                            <button type="submit" class="btn btn-primary">Spara lˆsenord</button>
                         </div>
                     </EditForm>
                 </div>
@@ -413,7 +414,7 @@
     private bool showDeleteUserModal = false;
     private bool showChangePasswordModal = false;
 
-    // Modeller f√∂r formul√§r
+    // Modeller fˆr formul‰r
     private UpdateUserRequest editUserModel = new();
     private ChangePasswordViewModel passwordModel = new();
 
@@ -424,10 +425,11 @@
             loading = true;
 
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
 
             try
             {
-                // Ladda alla anv√§ndare
+                // Ladda alla anv‰ndare
                 var response = await http.GetAsync("api/admin/users");
                 if (response.IsSuccessStatusCode)
                 {
@@ -442,38 +444,38 @@
                     var errorContent = await response.Content.ReadAsStringAsync();
                     Logger.LogError("API returned error: {Status} with content: {Content}",
                                     response.StatusCode, errorContent);
-                    await Toast.Error($"Fel vid h√§mtning av anv√§ndare: {response.StatusCode}");
+                    await Toast.Error($"Fel vid h‰mtning av anv‰ndare: {response.StatusCode}");
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Fel vid avkodning av anv√§ndardata");
-                await Toast.Error("Det uppstod ett fel vid tolkning av anv√§ndardata.");
+                Logger.LogError(ex, "Fel vid avkodning av anv‰ndardata");
+                await Toast.Error("Det uppstod ett fel vid tolkning av anv‰ndardata.");
             }
 
-            // Ladda nya anv√§ndarans√∂kningar
+            // Ladda nya anv‰ndaransˆkningar
             var newUsersResponse = await http.GetFromJsonAsync<List<AdminUserDto>>("api/admin/registration-requests");
             if (newUsersResponse != null)
             {
                 newUsers = newUsersResponse.Select(MapAdminUserToViewModel).ToList();
             }
 
-            // Ladda tillg√§ngliga roller
+            // Ladda tillg‰ngliga roller
             var rolesResponse = await http.GetFromJsonAsync<List<string>>("api/admin/roles");
             if (rolesResponse != null)
             {
                 availableRoles = rolesResponse;
                 if (availableRoles.Any())
                 {
-                    selectedRole = availableRoles.FirstOrDefault(r => r != "Ny anv√§ndare") ?? availableRoles.First();
+                    selectedRole = availableRoles.FirstOrDefault(r => r != "Ny anv‰ndare") ?? availableRoles.First();
                     selectedRoleForEdit = selectedRole;
                 }
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid laddning av anv√§ndardata");
-            await Toast.Error("Det uppstod ett fel vid h√§mtning av anv√§ndardata.");
+            Logger.LogError(ex, "Fel vid laddning av anv‰ndardata");
+            await Toast.Error("Det uppstod ett fel vid h‰mtning av anv‰ndardata.");
         }
         finally
         {
@@ -519,8 +521,8 @@
             if (isNewUser)
             {
                 user.Roles ??= new List<string>();
-                if (!user.Roles.Contains("Ny anv√§ndare"))
-                    user.Roles = new List<string> { "Ny anv√§ndare" };
+                if (!user.Roles.Contains("Ny anv‰ndare"))
+                    user.Roles = new List<string> { "Ny anv‰ndare" };
             }
 
             editUserModel = new UpdateUserRequest
@@ -532,7 +534,7 @@
             };
 
             selectedRoleForEdit = user.Roles?.FirstOrDefault() ??
-                availableRoles.FirstOrDefault(r => r != "Ny anv√§ndare") ??
+                availableRoles.FirstOrDefault(r => r != "Ny anv‰ndare") ??
                 availableRoles.FirstOrDefault() ?? "";
         }
     }
@@ -544,7 +546,7 @@
             "Admin" => "bg-danger",
             "Styrelse" => "bg-primary",
             "Medlem" => "bg-success",
-            "Ny anv√§ndare" => "bg-warning text-dark",
+            "Ny anv‰ndare" => "bg-warning text-dark",
             _ => "bg-secondary"
         };
     }
@@ -580,7 +582,7 @@
         showRejectUserModal = false;
         showDeleteUserModal = false;
         showChangePasswordModal = false;
-        // √Öterst√§ll l√∂senordssynlighet
+        // ≈terst‰ll lˆsenordssynlighet
         showPassword = false;
         showConfirmPassword = false;
     }
@@ -590,15 +592,16 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
 
-            // Uppdatera nya anv√§ndarans√∂kningar
+            // Uppdatera nya anv‰ndaransˆkningar
             var newUsersResponse = await http.GetFromJsonAsync<List<AdminUserDto>>("api/admin/registration-requests");
             if (newUsersResponse != null)
             {
                 newUsers = newUsersResponse.Select(MapAdminUserToViewModel).ToList();
             }
 
-            // Uppdatera alla anv√§ndare
+            // Uppdatera alla anv‰ndare
             var response = await http.GetAsync("api/admin/users");
             if (response.IsSuccessStatusCode)
             {
@@ -610,7 +613,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid uppdatering av anv√§ndarlistor");
+            Logger.LogError(ex, "Fel vid uppdatering av anv‰ndarlistor");
         }
     }
 
@@ -627,45 +630,46 @@
                 };
 
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
 
             var response = await http.PostAsJsonAsync("api/admin/approve-user", model);
             if (response.IsSuccessStatusCode)
             {
-                await Toast.Success($"Anv√§ndaren '{selectedUser.UserName}' har godk√§nts med rollen '{selectedRole}'.");
+                await Toast.Success($"Anv‰ndaren '{selectedUser.UserName}' har godk‰nts med rollen '{selectedRole}'.");
 
                 // Uppdatera listorna
                 newUsers.Remove(selectedUser);
 
-                // S√§tt r√§tt roll p√• anv√§ndaren
-                selectedUser.Roles = new List<string> { selectedRole }; // F√∂rs√§kra att endast den nya rollen finns
+                // S‰tt r‰tt roll pÂ anv‰ndaren
+                selectedUser.Roles = new List<string> { selectedRole }; // Fˆrs‰kra att endast den nya rollen finns
 
-                // L√§gg till i allUsers om den inte redan finns
+                // L‰gg till i allUsers om den inte redan finns
                 if (!allUsers.Any(u => u.UserName == selectedUser.UserName))
                 {
                     allUsers.Add(selectedUser);
                 }
                 else
                 {
-                    // Uppdatera rollen f√∂r befintlig anv√§ndare
+                    // Uppdatera rollen fˆr befintlig anv‰ndare
                     var existingUser = allUsers.First(u => u.UserName == selectedUser.UserName);
                     existingUser.Roles = new List<string> { selectedRole };
                 }
 
                 CloseModals();
 
-                // Anropa RefreshUserLists f√∂r att uppdatera listorna fr√•n servern
+                // Anropa RefreshUserLists fˆr att uppdatera listorna frÂn servern
                 await RefreshUserLists();
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                await Toast.Error($"Fel vid godk√§nnande av anv√§ndare: {error}");
+                await Toast.Error($"Fel vid godk‰nnande av anv‰ndare: {error}");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid godk√§nnande av anv√§ndare");
-            await Toast.Error("Det uppstod ett fel vid godk√§nnande av anv√§ndare.");
+            Logger.LogError(ex, "Fel vid godk‰nnande av anv‰ndare");
+            await Toast.Error("Det uppstod ett fel vid godk‰nnande av anv‰ndare.");
         }
     }
 
@@ -676,32 +680,33 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
 
             var response = await http.DeleteAsync($"api/admin/registration-request/{selectedUser.UserName}");
             if (response.IsSuccessStatusCode)
             {
-                await Toast.Success($"Anv√§ndarans√∂kan f√∂r '{selectedUser.UserName}' har avslagits och ett meddelande har skickats till anv√§ndaren.");
+                await Toast.Success($"Anv‰ndaransˆkan fˆr '{selectedUser.UserName}' har avslagits och ett meddelande har skickats till anv‰ndaren.");
 
-                // Ta bort fr√•n listorna
+                // Ta bort frÂn listorna
                 newUsers.Remove(selectedUser);
                 allUsers.RemoveAll(u => u.UserName == selectedUser.UserName);
 
                 selectedUser = null;
                 CloseModals();
 
-                // Anropa RefreshUserLists f√∂r att uppdatera listorna fr√•n servern
+                // Anropa RefreshUserLists fˆr att uppdatera listorna frÂn servern
                 await RefreshUserLists();
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                await Toast.Error($"Fel vid avslag av anv√§ndarans√∂kan: {error}");
+                await Toast.Error($"Fel vid avslag av anv‰ndaransˆkan: {error}");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid avslag av anv√§ndarans√∂kan");
-            await Toast.Error("Det uppstod ett fel vid avslag av anv√§ndarans√∂kan.");
+            Logger.LogError(ex, "Fel vid avslag av anv‰ndaransˆkan");
+            await Toast.Error("Det uppstod ett fel vid avslag av anv‰ndaransˆkan.");
         }
     }
 
@@ -712,12 +717,13 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.DeleteAsync($"api/admin/delete-user/{selectedUser.UserName}");
             if (response.IsSuccessStatusCode)
             {
-                await Toast.Success($"Anv√§ndaren '{selectedUser.UserName}' har tagits bort.");
+                await Toast.Success($"Anv‰ndaren '{selectedUser.UserName}' har tagits bort.");
 
-                // Ta bort fr√•n listorna
+                // Ta bort frÂn listorna
                 allUsers.RemoveAll(u => u.UserName == selectedUser.UserName);
                 newUsers.RemoveAll(u => u.UserName == selectedUser.UserName);
 
@@ -730,20 +736,20 @@
                 if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                     await Toast.Error(error);
                 else
-                    await Toast.Error($"Fel vid borttagning av anv√§ndare: {error}");
+                    await Toast.Error($"Fel vid borttagning av anv‰ndare: {error}");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid borttagning av anv√§ndare");
-            await Toast.Error("Det uppstod ett fel vid borttagning av anv√§ndare.");
+            Logger.LogError(ex, "Fel vid borttagning av anv‰ndare");
+            await Toast.Error("Det uppstod ett fel vid borttagning av anv‰ndare.");
         }
     }
 
     private void CancelEdit()
     {
         isEditMode = false;
-        // √Öterst√§ll editUserModel till ursprungliga v√§rden
+        // ≈terst‰ll editUserModel till ursprungliga v‰rden
         if (selectedUser != null)
         {
             editUserModel = new UpdateUserRequest
@@ -763,18 +769,19 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
 
-            // Uppdatera anv√§ndaruppgifter
+            // Uppdatera anv‰ndaruppgifter
             var updateResponse = await http.PutAsJsonAsync($"api/admin/update-user/{selectedUser.UserName}", editUserModel);
 
             if (!updateResponse.IsSuccessStatusCode)
             {
                 var updateError = await updateResponse.Content.ReadAsStringAsync();
-                await Toast.Error($"Fel vid uppdatering av anv√§ndaruppgifter: {updateError}");
+                await Toast.Error($"Fel vid uppdatering av anv‰ndaruppgifter: {updateError}");
                 return;
             }
 
-            // Kontrollera och uppdatera roll om den har √§ndrats
+            // Kontrollera och uppdatera roll om den har ‰ndrats
             var currentRole = selectedUser.Roles?.FirstOrDefault() ?? "";
             if (currentRole != selectedRoleForEdit)
             {
@@ -788,27 +795,27 @@
                 if (!roleResponse.IsSuccessStatusCode)
                 {
                     var roleError = await roleResponse.Content.ReadAsStringAsync();
-                    await Toast.Error($"Fel vid √§ndring av anv√§ndarroll: {roleError}");
+                    await Toast.Error($"Fel vid ‰ndring av anv‰ndarroll: {roleError}");
                     return;
                 }
 
-                // Uppdatera den lokala anv√§ndarens roll
+                // Uppdatera den lokala anv‰ndarens roll
                 selectedUser.Roles = new List<string> { selectedRoleForEdit };
             }
 
-            // Uppdatera den lokala anv√§ndarens uppgifter
+            // Uppdatera den lokala anv‰ndarens uppgifter
             selectedUser.FirstName = editUserModel.FirstName;
             selectedUser.LastName = editUserModel.LastName;
             selectedUser.Email = editUserModel.Email;
             selectedUser.Academy = editUserModel.Academy;
 
             isEditMode = false;
-            await Toast.Success("Anv√§ndaruppgifter har uppdaterats.");
+            await Toast.Success("Anv‰ndaruppgifter har uppdaterats.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid uppdatering av anv√§ndaruppgifter");
-            await Toast.Error("Det uppstod ett fel vid uppdatering av anv√§ndaruppgifter.");
+            Logger.LogError(ex, "Fel vid uppdatering av anv‰ndaruppgifter");
+            await Toast.Error("Det uppstod ett fel vid uppdatering av anv‰ndaruppgifter.");
         }
     }
 
@@ -825,23 +832,24 @@
             };
 
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
 
             var response = await http.PostAsJsonAsync("api/admin/reset-password", model);
             if (response.IsSuccessStatusCode)
             {
-                await Toast.Success($"L√∂senordet f√∂r '{selectedUser.UserName}' har √§ndrats.");
+                await Toast.Success($"Lˆsenordet fˆr '{selectedUser.UserName}' har ‰ndrats.");
                 CloseModals();
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                await Toast.Error($"Fel vid √§ndring av l√∂senord: {error}");
+                await Toast.Error($"Fel vid ‰ndring av lˆsenord: {error}");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid √§ndring av l√∂senord");
-            await Toast.Error("Det uppstod ett fel vid √§ndring av l√∂senord.");
+            Logger.LogError(ex, "Fel vid ‰ndring av lˆsenord");
+            await Toast.Error("Det uppstod ett fel vid ‰ndring av lˆsenord.");
         }
     }
 }
