@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Caching.Memory;
+using NLog.Extensions.Logging;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 
@@ -37,6 +38,14 @@ public class Program
                    options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(2);
                    options.MaxBufferedUnacknowledgedRenderBatches = 20;
                });
+
+        builder.Services.AddLogging(loggingBuilder =>
+        {
+            // configure Logging with NLog
+            loggingBuilder.ClearProviders();
+            loggingBuilder.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+            loggingBuilder.AddNLog(builder.Configuration);
+        });
 
         builder.Services.AddSignalR(options =>
         {
@@ -91,40 +100,56 @@ public class Program
         // Registrera ApiAuthHandler
         builder.Services.AddTransient<ApiAuthHandler>();
 
+        // Registrera UserRolesHeaderService (Scoped - en instans per Blazor-krets,
+        // injiceras direkt i anropande komponenter/tjanster).
+        builder.Services.AddScoped<UserRolesHeaderService>();
+
         // Använd appsettings.json för API-adressen
         var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7231/";
 
-        // Registrera named HttpClient med ApiAuthHandler
-        builder.Services.AddHttpClient("KronoxAPI", client =>
+        // Konfigurerar bas-adress for API-klienten.
+        //
+        // OBS: X-User-Roles-headern bakas INTE in har langre. IHttpClientFactory
+        // bygger sin interna handler-pipeline (och kor bade configureClient-
+        // delegaten och eventuella AddHttpMessageHandler<T>-instanser) via sitt
+        // EGET internt cachade DI-scope - aldrig den anropande Blazor-kretsens
+        // scope. Detta ar en kand, dokumenterad begransning i .NET: scopeade
+        // tjanster (som AuthenticationStateProvider eller IHttpContextAccessor)
+        // som loses upp harifran pekar darfor pa fel/rotens scope, inte den
+        // faktiska inloggade anvandaren i kretsen. Bade HttpContext- och
+        // AuthenticationStateProvider-baserade forsok att baka in rollheadern
+        // har gav darfor samma symptom: fungerar under forrendringen (av en
+        // tillfallighet), men inte i den riktiga interaktiva kretsen.
+        //
+        // Den korrekta losningen ar att applicera X-User-Roles-headern i
+        // anropande tjanst/komponent istallet, dar AuthenticationStateProvider
+        // injiceras via vanlig konstruktorinjektion (garanterat ratt scope) -
+        // se CategoryService, DocumentService m.fl. samt AdminLayout.razor.
+        void ConfigureApiClient(IServiceProvider sp, HttpClient client)
         {
+            _ = sp; // Scopeade tjanster far inte losas har, se kommentar ovan.
             client.BaseAddress = new Uri(apiBaseUrl);
-        }).AddHttpMessageHandler<ApiAuthHandler>();
+        }
+
+        // Registrera named HttpClient med ApiAuthHandler
+        builder.Services.AddHttpClient("KronoxAPI", (Action<IServiceProvider, HttpClient>)ConfigureApiClient)
+            .AddHttpMessageHandler<ApiAuthHandler>();
 
         // Registrera typed HttpClient för CmsService med ApiAuthHandler
-        builder.Services.AddHttpClient<CmsService>(client =>
-        {
-            client.BaseAddress = new Uri(apiBaseUrl);
-        }).AddHttpMessageHandler<ApiAuthHandler>();
+        builder.Services.AddHttpClient<CmsService>((Action<IServiceProvider, HttpClient>)ConfigureApiClient)
+            .AddHttpMessageHandler<ApiAuthHandler>();
 
-        builder.Services.AddHttpClient<DocumentService>(client =>
-        {
-            client.BaseAddress = new Uri(apiBaseUrl);
-        }).AddHttpMessageHandler<ApiAuthHandler>();
+        builder.Services.AddHttpClient<DocumentService>((Action<IServiceProvider, HttpClient>)ConfigureApiClient)
+            .AddHttpMessageHandler<ApiAuthHandler>();
 
-        builder.Services.AddHttpClient<CategoryService>(client =>
-        {
-            client.BaseAddress = new Uri(apiBaseUrl);
-        }).AddHttpMessageHandler<ApiAuthHandler>();
+        builder.Services.AddHttpClient<CategoryService>((Action<IServiceProvider, HttpClient>)ConfigureApiClient)
+            .AddHttpMessageHandler<ApiAuthHandler>();
 
-        builder.Services.AddHttpClient<NewsService>(client =>
-        {
-            client.BaseAddress = new Uri(apiBaseUrl);
-        }).AddHttpMessageHandler<ApiAuthHandler>();
+        builder.Services.AddHttpClient<NewsService>((Action<IServiceProvider, HttpClient>)ConfigureApiClient)
+            .AddHttpMessageHandler<ApiAuthHandler>();
 
-        builder.Services.AddHttpClient<HealthService>(client =>
-        {
-            client.BaseAddress = new Uri(apiBaseUrl);
-        }).AddHttpMessageHandler<ApiAuthHandler>();
+        builder.Services.AddHttpClient<HealthService>((Action<IServiceProvider, HttpClient>)ConfigureApiClient)
+            .AddHttpMessageHandler<ApiAuthHandler>();
 
         // Lägg till memory cache
         builder.Services.AddMemoryCache();

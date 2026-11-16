@@ -12,6 +12,7 @@
 @inject IJSRuntime JS
 @inject ILogger<SuggestionsAdmin> Logger
 @inject AuthenticationStateProvider AuthState
+@inject UserRolesHeaderService RolesHeader
 
 <HeadContent>
     <meta name="description" content="Hantera utvecklingsförslag från medlemmar" />
@@ -224,6 +225,7 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             var response = await httpClient.GetAsync($"api/developmentsuggestion?includeProcessed={showProcessed}");
             
             if (response.IsSuccessStatusCode)
@@ -267,6 +269,7 @@
             if (!processingSuggestionIds.Add(suggestion.Id)) return; // redan pågående
 
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             var response = await httpClient.PutAsJsonAsync(
                 $"api/developmentsuggestion/{suggestion.Id}/process",
                 new ProcessSuggestionRequest { ProcessedBy = currentUser });
@@ -374,6 +377,7 @@ KronoX-teamet");
             processingSuggestionIds.Add(suggestion.Id);
 
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             var response = await httpClient.PutAsJsonAsync(
                 $"api/developmentsuggestion/{suggestion.Id}/unprocess",
                 new { });

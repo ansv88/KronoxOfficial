@@ -1,4 +1,4 @@
-ï»¿using KronoxFront.DTOs;
+using KronoxFront.DTOs;
 using KronoxFront.Extensions;
 using KronoxFront.ViewModels;
 using Microsoft.AspNetCore.Components.Forms;
@@ -14,14 +14,16 @@ public class CmsService
     private readonly ILogger<CmsService> _logger;
     private readonly IWebHostEnvironment _env;
     private readonly CacheService _cache;
+    private readonly UserRolesHeaderService _rolesHeader;
     private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-    public CmsService(HttpClient http, IWebHostEnvironment env, ILogger<CmsService> logger, CacheService cache)
+    public CmsService(HttpClient http, IWebHostEnvironment env, ILogger<CmsService> logger, CacheService cache, UserRolesHeaderService rolesHeader)
     {
         _http = http;
         _env = env;
         _logger = logger;
         _cache = cache;
+        _rolesHeader = rolesHeader;
     }
 
     // BANNERBILD
@@ -39,12 +41,13 @@ public class CmsService
                 AltText = image.AltText ?? string.Empty
             };
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/content/{pageKey}/images/{image.Id}/alttext", dto);
 
             if (response.IsSuccessStatusCode)
             {
                 _cache.InvalidatePageCache(pageKey);
-                _logger.LogDebug("Alt-text uppdaterad fÃ¶r bild {ImageId} pÃ¥ {PageKey}", image.Id, pageKey);
+                _logger.LogDebug("Alt-text uppdaterad för bild {ImageId} på {PageKey}", image.Id, pageKey);
                 return true;
             }
             else
@@ -56,15 +59,16 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppdatering av alt-text fÃ¶r bild {ImageId} pÃ¥ sida {PageKey}", image.Id, pageKey);
+            _logger.LogError(ex, "Fel vid uppdatering av alt-text för bild {ImageId} på sida {PageKey}", image.Id, pageKey);
             return false;
         }
     }
 
-    // SIDINNEHÃ…LL
+    // SIDINNEHÅLL
     public async Task<PageContentViewModel?> GetHomeAsync()
     {
-        _logger.LogDebug("HÃ¤mtar startsidans innehÃ¥ll");
+        _logger.LogDebug("Hämtar startsidans innehåll");
+        await _rolesHeader.ApplyToAsync(_http);
         var resp = await _http.GetAsync("api/content/home");
         if (!resp.IsSuccessStatusCode) return null;
         var json = await resp.Content.ReadAsStringAsync();
@@ -77,7 +81,8 @@ public class CmsService
     {
         return await _cache.GetPageContentAsync(pageKey, async () =>
         {
-            _logger.LogDebug("HÃ¤mtar sidinnehÃ¥ll frÃ¥n API: {PageKey}", pageKey);
+            _logger.LogDebug("Hämtar sidinnehåll från API: {PageKey}", pageKey);
+            await _rolesHeader.ApplyToAsync(_http);
             var resp = await _http.GetAsync($"api/content/{pageKey}");
             if (!resp.IsSuccessStatusCode) return null;
             return (await resp.Content.ReadAsStringAsync()).ToViewModel();
@@ -89,6 +94,7 @@ public class CmsService
         // Spara via ContentController
         var json = JsonSerializer.Serialize(model);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
+        await _rolesHeader.ApplyToAsync(_http);
         var resp = await _http.PutAsync($"api/content/{pageKey}", content);
         resp.EnsureSuccessStatusCode();
 
@@ -96,7 +102,7 @@ public class CmsService
         _cache.InvalidatePageCache(pageKey);
     }
 
-    // Sparar enbart metadata fÃ¶r en sida via PATCH. RÃ¶r aldrig titeln, vilket fÃ¶rhindrar race conditions dÃ¤r titeln skrivs Ã¶ver av sektionssparningar.
+    // Sparar enbart metadata för en sida via PATCH. Rör aldrig titeln, vilket förhindrar race conditions där titeln skrivs över av sektionssparningar.
     public async Task SavePageMetadataAsync(string pageKey, string metadataJson)
     {
         var dto = new { Metadata = metadataJson };
@@ -108,7 +114,7 @@ public class CmsService
         _cache.InvalidatePageCache(pageKey);
     }
 
-    // Sparar enbart titeln (browserflikens titel) via PATCH. RÃ¶r aldrig HTML eller metadata, sÃ¥ att titeln inte skrivs Ã¶ver av sektions-/metadatasparningar.
+    // Sparar enbart titeln (browserflikens titel) via PATCH. Rör aldrig HTML eller metadata, så att titeln inte skrivs över av sektions-/metadatasparningar.
     public async Task SavePageTitleAsync(string pageKey, string title)
     {
         var dto = new { Title = title };
@@ -125,7 +131,7 @@ public class CmsService
     {
         try
         {
-            _logger.LogDebug("Laddar upp sidbild {FileName} fÃ¶r sida {PageKey}", fileName, pageKey);
+            _logger.LogDebug("Laddar upp sidbild {FileName} för sida {PageKey}", fileName, pageKey);
 
             using var form = new MultipartFormDataContent();
             var fileContent = new StreamContent(fileStream);
@@ -133,6 +139,7 @@ public class CmsService
             form.Add(fileContent, "file", fileName);
             form.Add(new StringContent(altText ?? ""), "altText");
 
+            await _rolesHeader.ApplyToAsync(_http);
             var resp = await _http.PostAsync($"api/content/{pageKey}/images", form);
 
             if (resp.IsSuccessStatusCode)
@@ -140,7 +147,7 @@ public class CmsService
                 var json = await resp.Content.ReadAsStringAsync();
                 var result = json.ToImageViewModel();
 
-                _logger.LogDebug("Sidbild {FileName} uppladdad fÃ¶r {PageKey} med URL {Url}", fileName, pageKey, result?.Url);
+                _logger.LogDebug("Sidbild {FileName} uppladdad för {PageKey} med URL {Url}", fileName, pageKey, result?.Url);
 
                 // Invalidera cache efter bilduppladdning
                 _cache.InvalidatePageCache(pageKey);
@@ -157,19 +164,20 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppladdning av sidbild {FileName} fÃ¶r {PageKey}", fileName, pageKey);
+            _logger.LogError(ex, "Fel vid uppladdning av sidbild {FileName} för {PageKey}", fileName, pageKey);
             return null;
         }
     }
 
     public async Task<(bool ok, string? error)> DeletePageImageAsync(string pageKey, int imageId, string? imageUrl = null)
     {
-        _logger.LogDebug("Tar bort sidbild {ImageId} frÃ¥n sida {PageKey}", imageId, pageKey);
+        _logger.LogDebug("Tar bort sidbild {ImageId} från sida {PageKey}", imageId, pageKey);
+        await _rolesHeader.ApplyToAsync(_http);
         var resp = await _http.DeleteAsync($"api/content/{pageKey}/images/{imageId}");
 
         if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
         {
-            var msg = "Bilden anvÃ¤nds och kan inte tas bort.";
+            var msg = "Bilden används och kan inte tas bort.";
             try
             {
                 using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
@@ -177,7 +185,7 @@ public class CmsService
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Kunde inte tolka felmeddelande frÃ¥n 409-svar â€“ anvÃ¤nder standardtext.");
+                _logger.LogDebug(ex, "Kunde inte tolka felmeddelande från 409-svar – använder standardtext.");
             }
             return (false, msg);
         }
@@ -185,7 +193,7 @@ public class CmsService
         resp.EnsureSuccessStatusCode();
         _cache.InvalidatePageCache(pageKey);
 
-        // Evicta lokal on-demand-cache sÃ¥ att en raderad bild inte fortsÃ¤tter visas frÃ¥n frontendens wwwroot.
+        // Evicta lokal on-demand-cache så att en raderad bild inte fortsätter visas från frontendens wwwroot.
         if (!string.IsNullOrWhiteSpace(imageUrl))
             TryEvictLocalImage(imageUrl);
 
@@ -197,7 +205,7 @@ public class CmsService
     {
         try
         {
-            // Endast lokala relativa URL:er hanteras (inte externa http(s)-lÃ¤nkar).
+            // Endast lokala relativa URL:er hanteras (inte externa http(s)-länkar).
             if (imageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 return;
 
@@ -205,10 +213,10 @@ public class CmsService
             var relPath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
             var candidate = Path.GetFullPath(Path.Combine(baseDir, relPath));
 
-            // SÃ¤kerstÃ¤ll att den resulterande sÃ¶kvÃ¤gen ligger under wwwroot.
+            // Säkerställ att den resulterande sökvägen ligger under wwwroot.
             if (!candidate.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogWarning("Hoppar Ã¶ver eviction utanfÃ¶r wwwroot: {Url}", imageUrl);
+                _logger.LogWarning("Hoppar över eviction utanför wwwroot: {Url}", imageUrl);
                 return;
             }
 
@@ -220,7 +228,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Kunde inte evicta lokal bildcache fÃ¶r {Url}", imageUrl);
+            _logger.LogWarning(ex, "Kunde inte evicta lokal bildcache för {Url}", imageUrl);
         }
     }
 
@@ -228,6 +236,7 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var resp = await _http.PutAsJsonAsync(
                 $"api/content/{pageKey}/images/{imageId}/active",
                 new { IsActive = isActive, DeactivateOthers = deactivateOthers });
@@ -244,7 +253,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid SetImageActiveAsync fÃ¶r bild {ImageId} pÃ¥ {PageKey}", imageId, pageKey);
+            _logger.LogError(ex, "Fel vid SetImageActiveAsync för bild {ImageId} på {PageKey}", imageId, pageKey);
             return false;
         }
     }
@@ -252,7 +261,7 @@ public class CmsService
     public async Task<PageImageViewModel?> RegisterPageImageMetadataAsync(
         string pageKey, string sourcePath, string altText, bool preserveFilename = false)
     {
-        _logger.LogDebug("Registrerar metadata fÃ¶r sidbild {SourcePath} pÃ¥ sida {PageKey}", sourcePath, pageKey);
+        _logger.LogDebug("Registrerar metadata för sidbild {SourcePath} på sida {PageKey}", sourcePath, pageKey);
 
         var dto = new RegisterPageImageViewModel
         {
@@ -262,7 +271,8 @@ public class CmsService
             PreserveFilename = preserveFilename
         };
 
-        // OBS: "register" pÃ¥ slutet av URL:en
+        // OBS: "register" på slutet av URL:en
+        await _rolesHeader.ApplyToAsync(_http);
         var response = await _http.PostAsJsonAsync(
             $"api/content/{pageKey}/images/register",
             dto);
@@ -280,11 +290,11 @@ public class CmsService
             var page = await GetPageContentAsync(pageKey);
             if (page == null || string.IsNullOrEmpty(page.Metadata))
             {
-                _logger.LogWarning("Kunde inte hitta intro-sektion fÃ¶r {PageKey}", pageKey);
+                _logger.LogWarning("Kunde inte hitta intro-sektion för {PageKey}", pageKey);
                 return new IntroSectionViewModel
                 {
-                    Title = "VÃ¤lkommen",
-                    Content = "<p>InnehÃ¥llet Ã¤r inte tillgÃ¤ngligt fÃ¶r tillfÃ¤llet.</p>"
+                    Title = "Välkommen",
+                    Content = "<p>Innehållet är inte tillgängligt för tillfället.</p>"
                 };
             }
 
@@ -363,32 +373,32 @@ public class CmsService
             }
             catch (JsonException ex)
             {
-                _logger.LogError(ex, "Kunde inte tolka metadata fÃ¶r {PageKey}", pageKey);
+                _logger.LogError(ex, "Kunde inte tolka metadata för {PageKey}", pageKey);
             }
 
             // Fallback om inga data hittades i metadata
             return new IntroSectionViewModel
             {
-                Title = "VÃ¤lkommen",
-                Content = "<p>InnehÃ¥llet Ã¤r inte tillgÃ¤ngligt fÃ¶r tillfÃ¤llet.</p>",
+                Title = "Välkommen",
+                Content = "<p>Innehållet är inte tillgängligt för tillfället.</p>",
                 HasImage = false
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hÃ¤mtning av intro-sektion: {Message}", ex.Message);
+            _logger.LogError(ex, "Fel vid hämtning av intro-sektion: {Message}", ex.Message);
 
             return new IntroSectionViewModel
             {
-                Title = "VÃ¤lkommen",
-                Content = "<p>Ett fel uppstod vid hÃ¤mtning av innehÃ¥llet.</p>"
+                Title = "Välkommen",
+                Content = "<p>Ett fel uppstod vid hämtning av innehållet.</p>"
             };
         }
     }
 
     public async Task SaveIntroSectionAsync(string pageKey, IntroSectionViewModel introSection)
     {
-        _logger.LogDebug("Sparar intro-sektion fÃ¶r sida: {PageKey}", pageKey);
+        _logger.LogDebug("Sparar intro-sektion för sida: {PageKey}", pageKey);
 
         try
         {
@@ -414,7 +424,7 @@ public class CmsService
                 }
                 catch (JsonException ex)
                 {
-                    _logger.LogWarning(ex, "Kunde inte tolka befintlig metadata fÃ¶r {PageKey}", pageKey);
+                    _logger.LogWarning(ex, "Kunde inte tolka befintlig metadata för {PageKey}", pageKey);
                 }
             }
 
@@ -439,11 +449,11 @@ public class CmsService
             var metadataJson = JsonSerializer.Serialize(existingMetadata);
             await SavePageMetadataAsync(pageKey, metadataJson);
 
-            _logger.LogDebug("Intro-sektion sparad fÃ¶r {PageKey}", pageKey);
+            _logger.LogDebug("Intro-sektion sparad för {PageKey}", pageKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid sparande av intro-sektion fÃ¶r {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid sparande av intro-sektion för {PageKey}", pageKey);
             throw;
         }
     }
@@ -455,10 +465,11 @@ public class CmsService
         {
             return await _cache.GetOrSetAsync($"features_public_{pageKey}", async () =>
             {
-                _logger.LogDebug("HÃ¤mtar publika feature-sektioner frÃ¥n API: {PageKey}", pageKey);
+                _logger.LogDebug("Hämtar publika feature-sektioner från API: {PageKey}", pageKey);
 
                 try
                 {
+                    await _rolesHeader.ApplyToAsync(_http);
                     var response = await _http.GetAsync($"api/featuresections/{pageKey}");
                     if (response.IsSuccessStatusCode)
                     {
@@ -469,7 +480,7 @@ public class CmsService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Fel vid hÃ¤mtning av publika feature-sektioner fÃ¶r {PageKey}", pageKey);
+                    _logger.LogError(ex, "Fel vid hämtning av publika feature-sektioner för {PageKey}", pageKey);
                 }
 
                 return await GetFeatureSectionsFromMetadata(pageKey);
@@ -477,12 +488,13 @@ public class CmsService
         }
         else
         {
-            // Inloggat innehÃ¥ll
+            // Inloggat innehåll
             return await _cache.GetOrSetAsync($"features_private_{pageKey}", async () =>
             {
-                _logger.LogDebug("HÃ¤mtar autentiserade feature-sektioner frÃ¥n API: {PageKey}", pageKey);
+                _logger.LogDebug("Hämtar autentiserade feature-sektioner från API: {PageKey}", pageKey);
                 try
                 {
+                    await _rolesHeader.ApplyToAsync(_http);
                     var response = await _http.GetAsync($"api/featuresections/{pageKey}/authenticated");
                     if (response.IsSuccessStatusCode)
                     {
@@ -494,7 +506,7 @@ public class CmsService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Fel vid hÃ¤mtning av autentiserade feature-sektioner fÃ¶r {PageKey}", pageKey);
+                    _logger.LogError(ex, "Fel vid hämtning av autentiserade feature-sektioner för {PageKey}", pageKey);
                     return await GetFeatureSectionsFromMetadata(pageKey);
                 }
             }, TimeSpan.FromMinutes(8), $"features_{pageKey}") ?? new List<FeatureSectionViewModel>();
@@ -528,6 +540,7 @@ public class CmsService
                 }).ToList()
             }).ToList();
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/featuresections/{pageKey}", dtos);
 
             if (!response.IsSuccessStatusCode)
@@ -536,11 +549,11 @@ public class CmsService
             }
 
             _cache.InvalidatePageCache(pageKey);
-            _logger.LogDebug("Feature-sektioner sparade fÃ¶r {PageKey}", pageKey);
+            _logger.LogDebug("Feature-sektioner sparade för {PageKey}", pageKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid sparande av feature-sektioner fÃ¶r {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid sparande av feature-sektioner för {PageKey}", pageKey);
             throw;
         }
     }
@@ -550,10 +563,11 @@ public class CmsService
     {
         return await _cache.GetOrSetAsync($"faq_{pageKey}", async () =>
         {
-            _logger.LogDebug("HÃ¤mtar FAQ sektioner frÃ¥n API: {PageKey}", pageKey);
+            _logger.LogDebug("Hämtar FAQ sektioner från API: {PageKey}", pageKey);
 
             try
             {
+                await _rolesHeader.ApplyToAsync(_http);
                 var response = await _http.GetAsync($"api/faq/{pageKey}");
                 if (response.IsSuccessStatusCode)
                 {
@@ -583,7 +597,7 @@ public class CmsService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fel vid hÃ¤mtning av FAQ-sektioner fÃ¶r {PageKey}", pageKey);
+                _logger.LogError(ex, "Fel vid hämtning av FAQ-sektioner för {PageKey}", pageKey);
             }
 
             return new List<FaqSectionViewModel>();
@@ -614,6 +628,7 @@ public class CmsService
                 }).ToList()
             }).ToList();
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/faq/page/{pageKey}", faqSectionDtos);
 
             if (!response.IsSuccessStatusCode)
@@ -625,11 +640,11 @@ public class CmsService
             }
 
             _cache.InvalidateGroup($"faq_{pageKey}");
-            _logger.LogDebug("FAQ-sektioner sparade fÃ¶r {PageKey}", pageKey);
+            _logger.LogDebug("FAQ-sektioner sparade för {PageKey}", pageKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid sparning av FAQ-sektioner fÃ¶r {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid sparning av FAQ-sektioner för {PageKey}", pageKey);
             throw;
         }
     }
@@ -638,11 +653,12 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             await _http.DeleteAsync($"api/faq/page/{pageKey}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid borttagning av FAQ-sektioner fÃ¶r {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid borttagning av FAQ-sektioner för {PageKey}", pageKey);
             throw;
         }
     }
@@ -656,6 +672,7 @@ public class CmsService
 
             try
             {
+                await _rolesHeader.ApplyToAsync(_http);
                 var response = await _http.GetAsync($"api/actionplan/{pageKey}");
                 if (response.IsSuccessStatusCode)
                 {
@@ -682,7 +699,7 @@ public class CmsService
         }) ?? new ActionPlanTableViewModel { PageKey = pageKey, Items = new List<ActionPlanItem>() };
     }
 
-    // Mappar ett API-DTO till frontendens ViewModel (Ã¥terbruk fÃ¶r aktiva och arkiverade poster).
+    // Mappar ett API-DTO till frontendens ViewModel (återbruk för aktiva och arkiverade poster).
     private static ActionPlanItem MapItem(ActionPlanItemDto i) => new()
     {
         Id = i.Id,
@@ -709,7 +726,7 @@ public class CmsService
     public async Task<PageImageViewModel?> UploadFeatureImageAsync(
         string pageKey, Stream fileStream, string fileName, string sectionIndex)
     {
-        _logger.LogDebug("Laddar upp feature-bild {FileName} fÃ¶r sektion {SectionIndex} pÃ¥ sida {PageKey}",
+        _logger.LogDebug("Laddar upp feature-bild {FileName} för sektion {SectionIndex} på sida {PageKey}",
             fileName, sectionIndex, pageKey);
 
         try
@@ -722,6 +739,7 @@ public class CmsService
             form.Add(new StringContent(sectionIndex), "altText");
             form.Add(new StringContent("true"), "preserveFilename");
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsync($"api/content/{pageKey}/images", form);
 
             if (response.IsSuccessStatusCode)
@@ -729,7 +747,7 @@ public class CmsService
                 var json = await response.Content.ReadAsStringAsync();
                 var dto = json.ToImageViewModel();
 
-                // Rensa cache fÃ¶r att synka om FeatureSections
+                // Rensa cache för att synka om FeatureSections
                 _cache.InvalidatePageCache(pageKey);
                 _cache.InvalidateGroup($"features_{pageKey}");
                 _cache.InvalidateKey($"features_public_{pageKey}");
@@ -747,7 +765,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppladdning av feature-bild {FileName} fÃ¶r {PageKey}", fileName, pageKey);
+            _logger.LogError(ex, "Fel vid uppladdning av feature-bild {FileName} för {PageKey}", fileName, pageKey);
             return null;
         }
     }
@@ -755,6 +773,7 @@ public class CmsService
     // MEMBER LOGOS
     public async Task<List<MemberLogoViewModel>> GetMemberLogosAsync()
     {
+        await _rolesHeader.ApplyToAsync(_http);
         var response = await _http.GetAsync("api/cms/logos");
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync();
@@ -772,6 +791,7 @@ public class CmsService
             LinkUrl = linkUrl
         };
 
+        await _rolesHeader.ApplyToAsync(_http);
         var resp = await _http.PostAsJsonAsync("api/cms/logos/register", dto);
         if (!resp.IsSuccessStatusCode) return null;
         var json = await resp.Content.ReadAsStringAsync();
@@ -801,6 +821,7 @@ public class CmsService
             if (uploadDto.SortOrd > 0)
                 content.Add(new StringContent(uploadDto.SortOrd.ToString()), "SortOrd");
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsync("api/cms/logos/upload", content);
 
             if (response.IsSuccessStatusCode)
@@ -822,6 +843,7 @@ public class CmsService
                         if (!File.Exists(localPath))
                         {
                             var apiUrl = $"{_http.BaseAddress}{relUrl.TrimStart('/')}";
+                            await _rolesHeader.ApplyToAsync(_http);
                             var rs = await _http.GetAsync(apiUrl);
                             if (rs.IsSuccessStatusCode)
                             {
@@ -855,6 +877,7 @@ public class CmsService
         try
         {
             var dto = new { Description = description };
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/cms/logos/{logoId}/description", dto);
 
             if (!response.IsSuccessStatusCode)
@@ -866,7 +889,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppdatering av logotypbeskrivning fÃ¶r logoId: {LogoId}", logoId);
+            _logger.LogError(ex, "Fel vid uppdatering av logotypbeskrivning för logoId: {LogoId}", logoId);
             throw;
         }
     }
@@ -876,18 +899,19 @@ public class CmsService
         try
         {
             var dto = new { LinkUrl = linkUrl };
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/cms/logos/{logoId}/link", dto);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Kunde inte uppdatera logotyplÃ¤nk: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                throw new HttpRequestException($"Kunde inte uppdatera lÃ¤nk: {response.StatusCode}");
+                _logger.LogError("Kunde inte uppdatera logotyplänk: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                throw new HttpRequestException($"Kunde inte uppdatera länk: {response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid uppdatering av logotyplÃ¤nk fÃ¶r logoId: {LogoId}", logoId);
+            _logger.LogError(ex, "Fel vid uppdatering av logotyplänk för logoId: {LogoId}", logoId);
             throw;
         }
     }
@@ -897,6 +921,7 @@ public class CmsService
         try
         {
             var dto = new { LogoId = logoId, Direction = direction };
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsJsonAsync("api/cms/logos/move", dto);
 
             if (!response.IsSuccessStatusCode)
@@ -908,7 +933,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid flytt av logotyp fÃ¶r logoId: {LogoId}", logoId);
+            _logger.LogError(ex, "Fel vid flytt av logotyp för logoId: {LogoId}", logoId);
             throw;
         }
     }
@@ -927,9 +952,10 @@ public class CmsService
             }
             catch (Exception lookupEx)
             {
-                _logger.LogWarning(lookupEx, "Kunde inte slÃ¥ upp logotyp-URL fÃ¶re radering: {LogoId}", logoId);
+                _logger.LogWarning(lookupEx, "Kunde inte slå upp logotyp-URL före radering: {LogoId}", logoId);
             }
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.DeleteAsync($"api/cms/logos/{logoId}");
 
             if (!response.IsSuccessStatusCode)
@@ -957,7 +983,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid borttagning av logotyp fÃ¶r logoId: {LogoId}", logoId);
+            _logger.LogError(ex, "Fel vid borttagning av logotyp för logoId: {LogoId}", logoId);
             throw;
         }
     }
@@ -967,7 +993,7 @@ public class CmsService
     {
         try
         {
-            _logger.LogDebug("HÃ¤mtar sektionskonfiguration fÃ¶r {PageKey}", pageKey);
+            _logger.LogDebug("Hämtar sektionskonfiguration för {PageKey}", pageKey);
 
             var pageContent = await GetPageContentAsync(pageKey);
             if (pageContent != null && !string.IsNullOrEmpty(pageContent.Metadata))
@@ -987,7 +1013,7 @@ public class CmsService
                                 var typeString = typeEl.GetString();
                                 if (!Enum.TryParse<SectionType>(typeString, out sectionType))
                                 {
-                                    _logger.LogWarning("OkÃ¤nd sektionstyp som string: {TypeString}", typeString);
+                                    _logger.LogWarning("Okänd sektionstyp som string: {TypeString}", typeString);
                                     continue;
                                 }
                             }
@@ -996,14 +1022,14 @@ public class CmsService
                                 var typeNumber = typeEl.GetInt32();
                                 if (!Enum.IsDefined(typeof(SectionType), typeNumber))
                                 {
-                                    _logger.LogWarning("OkÃ¤nd sektionstyp som nummer: {TypeNumber}", typeNumber);
+                                    _logger.LogWarning("Okänd sektionstyp som nummer: {TypeNumber}", typeNumber);
                                     continue;
                                 }
                                 sectionType = (SectionType)typeNumber;
                             }
                             else
                             {
-                                _logger.LogWarning("SectionType har ovÃ¤ntat format: {ValueKind}", typeEl.ValueKind);
+                                _logger.LogWarning("SectionType har oväntat format: {ValueKind}", typeEl.ValueKind);
                                 continue;
                             }
                         }
@@ -1035,12 +1061,12 @@ public class CmsService
                 }
             }
 
-            _logger.LogDebug("Ingen sektionskonfiguration hittades, anvÃ¤nder fallback fÃ¶r {PageKey}", pageKey);
+            _logger.LogDebug("Ingen sektionskonfiguration hittades, använder fallback för {PageKey}", pageKey);
             return GetDefaultSectionConfig(pageKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hÃ¤mtning av sektionskonfiguration fÃ¶r {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid hämtning av sektionskonfiguration för {PageKey}", pageKey);
             return GetDefaultSectionConfig(pageKey);
         }
     }
@@ -1070,7 +1096,7 @@ public class CmsService
                 }
                 catch (JsonException ex)
                 {
-                    _logger.LogWarning(ex, "Kunde inte tolka befintlig metadata fÃ¶r {PageKey}", pageKey);
+                    _logger.LogWarning(ex, "Kunde inte tolka befintlig metadata för {PageKey}", pageKey);
                 }
             }
 
@@ -1080,12 +1106,12 @@ public class CmsService
             var metadataJson = JsonSerializer.Serialize(existingMetadata, _jsonOptions);
             await SavePageMetadataAsync(pageKey, metadataJson);
 
-            _logger.LogDebug("Sektionskonfiguration sparad fÃ¶r {PageKey}", pageKey);
+            _logger.LogDebug("Sektionskonfiguration sparad för {PageKey}", pageKey);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid sparning av sektionskonfiguration fÃ¶r {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid sparning av sektionskonfiguration för {PageKey}", pageKey);
             return false;
         }
     }
@@ -1095,6 +1121,7 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.GetAsync("api/contact/info");
             if (response.IsSuccessStatusCode)
             {
@@ -1137,7 +1164,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hÃ¤mtning av kontaktinformation");
+            _logger.LogError(ex, "Fel vid hämtning av kontaktinformation");
         }
 
         return new ContactPageInfoViewModel();
@@ -1157,6 +1184,7 @@ public class CmsService
                 Country = postalAddress.Country
             };
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync("api/contact/postal-address", dto);
             return response.IsSuccessStatusCode;
         }
@@ -1171,6 +1199,7 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.GetAsync("api/contact/persons");
             if (response.IsSuccessStatusCode)
             {
@@ -1192,7 +1221,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hÃ¤mtning av kontaktpersoner");
+            _logger.LogError(ex, "Fel vid hämtning av kontaktpersoner");
         }
 
         return new List<ContactPagePersonViewModel>();
@@ -1212,6 +1241,7 @@ public class CmsService
                 IsActive = contactPerson.IsActive
             };
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsJsonAsync("api/contact/persons", dto);
             if (response.IsSuccessStatusCode)
             {
@@ -1253,6 +1283,7 @@ public class CmsService
                 IsActive = contactPerson.IsActive
             };
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/contact/persons/{contactPerson.Id}", dto);
             return response.IsSuccessStatusCode;
         }
@@ -1267,6 +1298,7 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.DeleteAsync($"api/contact/persons/{contactPersonId}");
             return response.IsSuccessStatusCode;
         }
@@ -1281,12 +1313,13 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsync($"api/contact/persons/{contactPersonId}/toggle-active", null);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid Ã¤ndring av aktivstatus fÃ¶r kontaktperson");
+            _logger.LogError(ex, "Fel vid ändring av aktivstatus för kontaktperson");
             return false;
         }
     }
@@ -1297,6 +1330,7 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.GetAsync("api/contact/emaillists");
             if (response.IsSuccessStatusCode)
             {
@@ -1317,7 +1351,7 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hÃ¤mtning av e-postlistor");
+            _logger.LogError(ex, "Fel vid hämtning av e-postlistor");
         }
 
         return new List<EmailListViewModel>();
@@ -1336,6 +1370,7 @@ public class CmsService
                 IsActive = emailList.IsActive
             };
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsJsonAsync("api/contact/emaillists", dto);
             if (response.IsSuccessStatusCode)
             {
@@ -1375,6 +1410,7 @@ public class CmsService
                 IsActive = emailList.IsActive
             };
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/contact/emaillists/{emailList.Id}", dto);
             return response.IsSuccessStatusCode;
         }
@@ -1389,6 +1425,7 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.DeleteAsync($"api/contact/emaillists/{emailListId}");
             return response.IsSuccessStatusCode;
         }
@@ -1403,12 +1440,13 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsync($"api/contact/emaillists/{emailListId}/toggle-active", null);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid Ã¤ndring av aktivstatus fÃ¶r e-postlista");
+            _logger.LogError(ex, "Fel vid ändring av aktivstatus för e-postlista");
             return false;
         }
     }
@@ -1416,6 +1454,7 @@ public class CmsService
     // CUSTOM PAGES
     public async Task<List<CustomPageViewModel>> GetCustomPagesAsync()
     {
+        await _rolesHeader.ApplyToAsync(_http);
         var response = await _http.GetAsync("api/custompage");
         if (response.IsSuccessStatusCode)
         {
@@ -1438,6 +1477,7 @@ public class CmsService
             content.Add(fileContent, "file", file.Name);
             content.Add(new StringContent("Uppladdad bild"), "altText");
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsync($"api/content/{pageKey}/images", content);
 
             if (response.IsSuccessStatusCode)
@@ -1445,7 +1485,7 @@ public class CmsService
                 var json = await response.Content.ReadAsStringAsync();
                 var imageResult = json.ToImageViewModel();
 
-                // rensa relevanta cacher sÃ¥ nya bilder/URLs syns direkt
+                // rensa relevanta cacher så nya bilder/URLs syns direkt
                 _cache.InvalidatePageCache(pageKey);
                 _cache.InvalidateGroup($"features_{pageKey}");
                 _cache.InvalidateKey($"features_public_{pageKey}");
@@ -1466,7 +1506,7 @@ public class CmsService
     // SYNC IMAGES
     public async Task<bool> SyncImagesFromApiAsync()
     {
-        _logger.LogDebug("Synkroniserar bilder frÃ¥n API till wwwroot");
+        _logger.LogDebug("Synkroniserar bilder från API till wwwroot");
 
         var logos = await GetMemberLogosAsync();
         var membersDir = Path.Combine(_env.WebRootPath, "images", "members");
@@ -1481,6 +1521,7 @@ public class CmsService
                 var apiUrl = logo.Url.StartsWith("http")
                     ? logo.Url
                     : $"{_http.BaseAddress}{logo.Url.TrimStart('/')}";
+                await _rolesHeader.ApplyToAsync(_http);
                 var rs = await _http.GetAsync(apiUrl);
                 if (rs.IsSuccessStatusCode)
                 {
@@ -1506,6 +1547,7 @@ public class CmsService
                     var apiUrl = img.Url.StartsWith("http")
                         ? img.Url
                         : $"{_http.BaseAddress}{rel}";
+                    await _rolesHeader.ApplyToAsync(_http);
                     var rs = await _http.GetAsync(apiUrl);
                     if (rs.IsSuccessStatusCode)
                     {
@@ -1523,9 +1565,10 @@ public class CmsService
     {
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // HÃ¤mta navigationens sidor (inkl. statiska system-sidor)
+        // Hämta navigationens sidor (inkl. statiska system-sidor)
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var navResp = await _http.GetAsync("api/navigation");
             if (navResp.IsSuccessStatusCode)
             {
@@ -1542,12 +1585,13 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Kunde inte hÃ¤mta navigation fÃ¶r PageKeys");
+            _logger.LogWarning(ex, "Kunde inte hämta navigation för PageKeys");
         }
 
-        // HÃ¤mta alla custom pages (krÃ¤ver Admin)
+        // Hämta alla custom pages (kräver Admin)
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var custResp = await _http.GetAsync("api/custompage");
             if (custResp.IsSuccessStatusCode)
             {
@@ -1564,14 +1608,14 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Kunde inte hÃ¤mta custom pages fÃ¶r PageKeys");
+            _logger.LogWarning(ex, "Kunde inte hämta custom pages för PageKeys");
         }
 
-        // LÃ¤gg till nÃ¥gra vanliga standardsidor som fallback
+        // Lägg till några vanliga standardsidor som fallback
         foreach (var k in new[] { "home", "omkonsortiet", "omsystemet", "visioner", "kontaktaoss", "dokument", "forvaltning", "forstyrelsen", "forvnsg", "medlemsnytt" })
             keys.Add(k);
 
-        // Rensa bort icke-innehÃ¥llssidor om de smugit sig med
+        // Rensa bort icke-innehållssidor om de smugit sig med
         keys.Remove("admin");
         keys.Remove("logout");
 
@@ -1582,8 +1626,8 @@ public class CmsService
     private async Task<List<FeatureSectionViewModel>> GetFeatureSectionsFromMetadata(string pageKey)
     {
         // Fallback: features lagras numera enbart i FeatureSection-tabellen via api/featuresections.
-        // Denna metod anvÃ¤nds bara om API-anropet misslyckas helt.
-        _logger.LogWarning("GetFeatureSectionsFromMetadata anropades fÃ¶r {PageKey} â€“ API-anropet misslyckades", pageKey);
+        // Denna metod används bara om API-anropet misslyckas helt.
+        _logger.LogWarning("GetFeatureSectionsFromMetadata anropades för {PageKey} – API-anropet misslyckades", pageKey);
         return new List<FeatureSectionViewModel>();
     }
 
@@ -1639,12 +1683,12 @@ public class CmsService
         {
             "home" => "Startsida",
             "omkonsortiet" => "Om konsortiet",
-            "visioner" => "Visioner & VerksamhetsidÃ©",
+            "visioner" => "Visioner & Verksamhetsidé",
             "kontaktaoss" => "Kontakta oss",
             "omsystemet" => "Om systemet",
-            "forstyrelsen" => "FÃ¶r styrelsen",
-            "forvnsg" => "FÃ¶r VNSG",
-            "forvaltning" => "FÃ¶rvaltning",
+            "forstyrelsen" => "För styrelsen",
+            "forvnsg" => "För VNSG",
+            "forvaltning" => "Förvaltning",
             _ => "Sida"
         };
     }
@@ -1748,6 +1792,7 @@ public class CmsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var resp = await _http.GetAsync($"api/content/{pageKey}/images");
             if (!resp.IsSuccessStatusCode) return new List<PageImageViewModel>();
             var json = await resp.Content.ReadAsStringAsync();
@@ -1757,14 +1802,14 @@ public class CmsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fel vid hÃ¤mtning av bilder fÃ¶r {PageKey}", pageKey);
+            _logger.LogError(ex, "Fel vid hämtning av bilder för {PageKey}", pageKey);
             return new List<PageImageViewModel>();
         }
     }
 
     public void InvalidateActionPlanCache(string pageKey)
     {
-        // Rensa alla actionplan-cacher + sidrelaterad cache fÃ¶r sÃ¤kerhets skull
+        // Rensa alla actionplan-cacher + sidrelaterad cache för säkerhets skull
         _cache.InvalidateGroup("actionplans");
         _cache.InvalidatePageCache(pageKey);
         // Rensa nyckeln om den skulle vara satt utan grupp
@@ -1774,11 +1819,15 @@ public class CmsService
     public async Task<List<PageImageViewModel>> GetAllImagesAsync(string? pageKey = null)
     {
         var url = string.IsNullOrWhiteSpace(pageKey) ? "api/content/images" : $"api/content/images?pageKey={pageKey}";
+        await _rolesHeader.ApplyToAsync(_http);
         return await _http.GetFromJsonAsync<List<PageImageViewModel>>(url) ?? [];
     }
 
     public async Task<List<ImageUsageDto>> GetAllImageUsagesAsync()
-        => await _http.GetFromJsonAsync<List<ImageUsageDto>>("api/content/images/usage-all") ?? [];
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        return await _http.GetFromJsonAsync<List<ImageUsageDto>>("api/content/images/usage-all") ?? [];
+    }
 
     public async Task<PageImageViewModel?> RegisterExistingImageAsync(string pageKey, string sourceUrl, string altText)
     {
@@ -1789,14 +1838,15 @@ public class CmsService
 
         if (string.IsNullOrWhiteSpace(sourcePath))
         {
-            _logger.LogWarning("RegisterExistingImageAsync: tom SourcePath fÃ¶r {PageKey}", pageKey);
+            _logger.LogWarning("RegisterExistingImageAsync: tom SourcePath för {PageKey}", pageKey);
             return null;
         }
 
-        // Registrera alltid en metadata-referens till samma URL (ingen fysisk kopia â†’ inga fÃ¶rÃ¤ldralÃ¶sa filer)
+        // Registrera alltid en metadata-referens till samma URL (ingen fysisk kopia ? inga föräldralösa filer)
         var endpoint = $"api/content/{pageKey}/images/register";
 
         var payload = new { SourcePath = sourcePath, AltText = altText };
+        await _rolesHeader.ApplyToAsync(_http);
         var res = await _http.PostAsJsonAsync(endpoint, payload);
 
         if (!res.IsSuccessStatusCode)

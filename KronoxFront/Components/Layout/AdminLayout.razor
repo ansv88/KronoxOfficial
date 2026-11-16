@@ -12,6 +12,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject NavigationManager Nav
 @inject IHttpClientFactory HttpClientFactory
+@inject UserRolesHeaderService RolesHeader
 @inject ILogger<AdminLayout> Logger
 @inject IJSRuntime JS
 @inject NavigationEvents NavEvents
@@ -413,6 +414,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var pages = await http.GetFromJsonAsync<List<CustomPageDto>>("api/custompage");
             customPages = pages?
                 .OrderBy(p => p.SortOrder)
@@ -432,6 +434,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var items = await http.GetFromJsonAsync<List<NavigationConfigDto>>("api/navigation");
             fixedPageStatus = items?
                 .GroupBy(i => i.PageKey, StringComparer.OrdinalIgnoreCase)
@@ -468,6 +471,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var suggestions = await http.GetFromJsonAsync<List<object>>("api/developmentsuggestion?includeProcessed=false");
             if (suggestions != null)
             {
@@ -491,6 +495,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var mainCategories = await http.GetFromJsonAsync<List<object>>("api/category/main");
             if (mainCategories != null)
             {
@@ -525,6 +530,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var newUsers = await http.GetFromJsonAsync<List<object>>("api/admin/registration-requests");
             if (newUsers != null)
             {

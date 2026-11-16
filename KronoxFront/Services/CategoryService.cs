@@ -7,45 +7,84 @@ namespace KronoxFront.Services;
 public class CategoryService
 {
     private readonly HttpClient _http;
-    public CategoryService(HttpClient http) => _http = http;
+    private readonly UserRolesHeaderService _rolesHeader;
 
-    public Task<List<MainCategoryDto>> GetMainCategoriesAsync()
-        => _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main")!;
+    public CategoryService(HttpClient http, UserRolesHeaderService rolesHeader)
+    {
+        _http = http;
+        _rolesHeader = rolesHeader;
+    }
+
+    public async Task<List<MainCategoryDto>> GetMainCategoriesAsync()
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        return (await _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main"))!;
+    }
 
     // Hämtar kategorier baserat på användarens roller
-    public Task<List<MainCategoryDto>> GetAccessibleMainCategoriesAsync()
-        => _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main/accessible")!;
+    public async Task<List<MainCategoryDto>> GetAccessibleMainCategoriesAsync()
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        return (await _http.GetFromJsonAsync<List<MainCategoryDto>>("api/category/main/accessible"))!;
+    }
 
-    public Task<List<SubCategoryDto>> GetSubCategoriesAsync()
-    => _http.GetFromJsonAsync<List<SubCategoryDto>>("api/category/sub")!;
+    public async Task<List<SubCategoryDto>> GetSubCategoriesAsync()
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        return (await _http.GetFromJsonAsync<List<SubCategoryDto>>("api/category/sub"))!;
+    }
 
-    public Task<MainCategoryDto> GetMainCategoryByIdAsync(int id)
-        => _http.GetFromJsonAsync<MainCategoryDto>($"api/category/main/{id}")!;
+    public async Task<MainCategoryDto> GetMainCategoryByIdAsync(int id)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        return (await _http.GetFromJsonAsync<MainCategoryDto>($"api/category/main/{id}"))!;
+    }
 
-    public Task<SubCategoryDto> GetSubCategoryByIdAsync(int id)
-        => _http.GetFromJsonAsync<SubCategoryDto>($"api/category/sub/{id}")!;
+    public async Task<SubCategoryDto> GetSubCategoryByIdAsync(int id)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        return (await _http.GetFromJsonAsync<SubCategoryDto>($"api/category/sub/{id}"))!;
+    }
 
-    public Task<bool> AddMainCategoryAsync(string name, List<string> allowedRoles)
-    => _http.PostAsJsonAsync("api/category/main", new { Name = name, AllowedRoles = allowedRoles })
-            .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    public async Task<bool> AddMainCategoryAsync(string name, List<string> allowedRoles)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        var response = await _http.PostAsJsonAsync("api/category/main", new { Name = name, AllowedRoles = allowedRoles });
+        return response.IsSuccessStatusCode;
+    }
 
-    public Task<bool> AddSubCategoryAsync(string name)
-    => _http.PostAsJsonAsync("api/category/sub", new { Name = name })
-            .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    public async Task<bool> AddSubCategoryAsync(string name)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        var response = await _http.PostAsJsonAsync("api/category/sub", new { Name = name });
+        return response.IsSuccessStatusCode;
+    }
 
-    public Task<bool> EditMainCategoryAsync(int id, string name, List<string> allowedRoles)
-        => _http.PutAsJsonAsync($"api/category/main/{id}", new { Name = name, AllowedRoles = allowedRoles })
-                .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    public async Task<bool> EditMainCategoryAsync(int id, string name, List<string> allowedRoles)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        var response = await _http.PutAsJsonAsync($"api/category/main/{id}", new { Name = name, AllowedRoles = allowedRoles });
+        return response.IsSuccessStatusCode;
+    }
 
-    public Task<bool> EditSubCategoryAsync(int id, string name)
-        => _http.PutAsJsonAsync($"api/category/sub/{id}", new { Name = name })
-                .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    public async Task<bool> EditSubCategoryAsync(int id, string name)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        var response = await _http.PutAsJsonAsync($"api/category/sub/{id}", new { Name = name });
+        return response.IsSuccessStatusCode;
+    }
 
-    public Task<bool> DeleteMainCategoryAsync(int id)
-        => _http.DeleteAsync($"api/category/main/{id}")
-                .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    public async Task<bool> DeleteMainCategoryAsync(int id)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        var response = await _http.DeleteAsync($"api/category/main/{id}");
+        return response.IsSuccessStatusCode;
+    }
 
-    public Task<bool> DeleteSubCategoryAsync(int id)
-        => _http.DeleteAsync($"api/category/sub/{id}")
-                .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    public async Task<bool> DeleteSubCategoryAsync(int id)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        var response = await _http.DeleteAsync($"api/category/sub/{id}");
+        return response.IsSuccessStatusCode;
+    }
 }

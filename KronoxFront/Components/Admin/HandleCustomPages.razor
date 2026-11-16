@@ -1,4 +1,4 @@
-Ôªø@page "/admin/pages"
+@page "/admin/pages"
 @using KronoxFront.ViewModels
 @using KronoxFront.Extensions
 @using KronoxFront.Services
@@ -9,6 +9,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject IHttpClientFactory HttpClientFactory
+@inject UserRolesHeaderService RolesHeader
 @inject IToastService Toast
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -16,7 +17,7 @@
 @inject NavigationEvents NavEvents
 
 <HeadContent>
-    <meta name="description" content="Hantera specialsidor f√∂r KronoX-webbplatsen" />
+    <meta name="description" content="Hantera specialsidor fˆr KronoX-webbplatsen" />
 </HeadContent>
 
 <PageTitle>Admin - Hantera specialsidor</PageTitle>
@@ -31,7 +32,7 @@
                 </div>
                 <button type="button" class="btn btn-primary" @onclick="ToggleCreateForm">
                     <i class="fa-solid @(showCreateForm ? "fa-xmark" : "fa-plus") me-1"></i>
-                    @(showCreateForm ? "St√§ng" : "Skapa ny sida")
+                    @(showCreateForm ? "St‰ng" : "Skapa ny sida")
                 </button>
             </div>
 
@@ -59,7 +60,7 @@
                                         </div>
                                         <div class="form-text">
                                             Skriv endast sidans namn utan snedstreck (t.ex. <code>min-nya-sida</code>).
-                                            Anv√§nd bara sm√• bokst√§ver, siffror och bindestreck.
+                                            Anv‰nd bara smÂ bokst‰ver, siffror och bindestreck.
                                         </div>
                                         <ValidationMessage For="() => newPage.PageKey" class="text-danger small" />
 
@@ -67,7 +68,7 @@
                                         {
                                             <div class="alert alert-warning mt-2">
                                                 <small>
-                                                    <strong>F√∂rslag p√• alternativa namn:</strong><br>
+                                                    <strong>Fˆrslag pÂ alternativa namn:</strong><br>
                                                     @foreach (var suggestion in pageKeySuggestions)
                                                     {
                                                         <button type="button" class="btn btn-link btn-sm p-0 me-2"
@@ -92,10 +93,10 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-medium">Sidtitel (f√∂r webbl√§sare)*</label>
+                                <label class="form-label fw-medium">Sidtitel (fˆr webbl‰sare)*</label>
                                 <InputText class="form-control" @bind-Value="newPage.Title"
                                            placeholder="Min nya sida - KronoX" />
-                                <div class="form-text">Visas i webbl√§sarens flik och f√∂r s√∂kmotorer.</div>
+                                <div class="form-text">Visas i webbl‰sarens flik och fˆr sˆkmotorer.</div>
                                 <ValidationMessage For="() => newPage.Title" class="text-danger small" />
                             </div>
 
@@ -113,18 +114,18 @@
                                         <InputSelect class="form-select mb-3" @bind-Value="newPage.NavigationType" @onchange="OnNavigationTypeChanged">
                                             <option value="main">Huvudnavigation</option>
                                             <option value="dropdown">Dropdown-meny</option>
-                                            <option value="hidden">Dold (endast direktl√§nk)</option>
+                                            <option value="hidden">Dold (endast direktl‰nk)</option>
                                         </InputSelect>
                                         <div class="form-text">
                                             @if (newPage.NavigationType == "hidden")
                                             {
-                                                <text><strong>Dold:</strong> Sidan √§r tillg√§nglig via direktl√§nk men visas inte i navigation.</text>
+                                                <text><strong>Dold:</strong> Sidan ‰r tillg‰nglig via direktl‰nk men visas inte i navigation.</text>
                                             }
                                             else
                                             {
-                                                <text>Best√§mmer var l√§nken visas p√• webbplatsen.</text>
+                                                <text>Best‰mmer var l‰nken visas pÂ webbplatsen.</text>
                                             }
-                                            Ordningen i menyn st√§lls in under <strong>Hantera navigation</strong>.
+                                            Ordningen i menyn st‰lls in under <strong>Hantera navigation</strong>.
                                         </div>
                                     </div>
                                 </div>
@@ -133,9 +134,9 @@
                             @if (newPage.NavigationType == "dropdown")
                             {
                                 <div class="mb-3">
-                                    <label class="form-label fw-medium">√ñverordnad sida</label>
+                                    <label class="form-label fw-medium">÷verordnad sida</label>
                                     <InputSelect class="form-select" @bind-Value="newPage.ParentPageKey">
-                                        <option value="">V√§lj √∂verordnad sida...</option>
+                                        <option value="">V‰lj ˆverordnad sida...</option>
                                         @foreach (var parentOption in GetParentPageOptions())
                                         {
                                             <option value="@parentOption.Key">@parentOption.Value</option>
@@ -145,7 +146,7 @@
                                 </div>
                             }
 
-                            @* Varning f√∂r dolda sidor *@
+                            @* Varning fˆr dolda sidor *@
                             @if (newPage.NavigationType == "hidden")
                             {
                                 <div class="alert alert-warning mb-3">
@@ -154,9 +155,9 @@
                                         <div>
                                             <h6 class="mb-1">Dold sida</h6>
                                             <p class="mb-0 small">
-                                                Denna sida kommer att vara tillg√§nglig via direktl√§nken <strong>/@(string.IsNullOrEmpty(newPage.PageKey) ? "sidans-url" : newPage.PageKey)</strong>
-                                                men kommer inte att visas i n√•gon navigation eller footer.
-                                                Du kan l√§nka till den fr√•n andra sidor eller dela l√§nken direkt.
+                                                Denna sida kommer att vara tillg‰nglig via direktl‰nken <strong>/@(string.IsNullOrEmpty(newPage.PageKey) ? "sidans-url" : newPage.PageKey)</strong>
+                                                men kommer inte att visas i nÂgon navigation eller footer.
+                                                Du kan l‰nka till den frÂn andra sidor eller dela l‰nken direkt.
                                             </p>
                                         </div>
                                     </div>
@@ -168,14 +169,14 @@
                                     <div class="form-check mb-3">
                                         <InputCheckbox class="form-check-input" @bind-Value="newPage.IsActive" />
                                         <label class="form-check-label fw-medium">Aktiv sida</label>
-                                        <div class="form-text">Om sidan √§r aktiv eller inte. Inaktiva sidor kan inte bes√∂kas av anv√§ndare.</div>
+                                        <div class="form-text">Om sidan ‰r aktiv eller inte. Inaktiva sidor kan inte besˆkas av anv‰ndare.</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-medium">Beh√∂righeter</label>
-                                <div class="form-text mb-3">V√§lj vilka roller som ska kunna se denna sida:</div>
+                                <label class="form-label fw-medium">Behˆrigheter</label>
+                                <div class="form-text mb-3">V‰lj vilka roller som ska kunna se denna sida:</div>
 
                                 <div class="card border-success mb-3">
                                     <div class="card-body p-3">
@@ -185,9 +186,9 @@
                                                    checked="@(!newPage.RequiredRoles.Any())" />
                                             <label class="form-check-label fw-bold text-success d-flex align-items-center">
                                                 <i class="fa-solid fa-globe me-2"></i>
-                                                Publik (alla anv√§ndare)
+                                                Publik (alla anv‰ndare)
                                             </label>
-                                            <div class="form-text">Sidan √§r tillg√§nglig f√∂r alla bes√∂kare, b√•de inloggade och anonyma.</div>
+                                            <div class="form-text">Sidan ‰r tillg‰nglig fˆr alla besˆkare, bÂde inloggade och anonyma.</div>
                                         </div>
                                     </div>
                                 </div>
@@ -196,7 +197,7 @@
                                     <div class="card-header bg-light">
                                         <small class="fw-medium text-muted">
                                             <i class="fa-solid fa-lock me-1"></i>
-                                            Begr√§nsa till specifika roller
+                                            Begr‰nsa till specifika roller
                                         </small>
                                     </div>
                                     <div class="card-body">
@@ -214,7 +215,7 @@
                                                 </div>
                                             }
                                         </div>
-                                        <div class="form-text mt-2">Endast anv√§ndare med dessa roller kan se sidan.</div>
+                                        <div class="form-text mt-2">Endast anv‰ndare med dessa roller kan se sidan.</div>
                                     </div>
                                 </div>
                             </div>
@@ -255,10 +256,10 @@
                     <div class="card-body text-center py-5">
                         <i class="fa-solid fa-file-plus fa-3x text-muted mb-3"></i>
                         <h4>Inga anpassade sidor</h4>
-                        <p class="text-muted">Skapa din f√∂rsta anpassade sida genom att klicka p√• knappen ovan.</p>
+                        <p class="text-muted">Skapa din fˆrsta anpassade sida genom att klicka pÂ knappen ovan.</p>
                         <button type="button" class="btn btn-primary" @onclick="ToggleCreateForm">
                             <i class="fa-solid fa-plus me-1"></i>
-                            Skapa f√∂rsta sidan
+                            Skapa fˆrsta sidan
                         </button>
                     </div>
                 </div>
@@ -273,8 +274,8 @@
                                     <th>Sida</th>
                                     <th>Status</th>
                                     <th>Navigation</th>
-                                    <th>Beh√∂righet</th>
-                                    <th class="text-end">√Ötg√§rder</th>
+                                    <th>Behˆrighet</th>
+                                    <th class="text-end">≈tg‰rder</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -309,7 +310,7 @@
                                         <td>
                                             @if (customPage.NavigationType == "hidden" || !customPage.ShowInNavigation)
                                             {
-                                                <span class="badge bg-secondary" title="Dold fr√•n navigation men tillg√§nglig via direktl√§nk">
+                                                <span class="badge bg-secondary" title="Dold frÂn navigation men tillg‰nglig via direktl‰nk">
                                                     <i class="fa-solid fa-eye-slash fa-xs me-1"></i>
                                                     Dold
                                                 </span>
@@ -323,7 +324,7 @@
                                             @if (customPage.RequiredRoles.Any())
                                             {
                                                 <span class="badge bg-warning text-dark" title="@string.Join(", ", customPage.RequiredRoles)">
-                                                    Begr√§nsad
+                                                    Begr‰nsad
                                                 </span>
                                             }
                                             else
@@ -338,7 +339,7 @@
                                                     <i class="fa-solid fa-eye"></i>
                                                 </a>
                                                 <a href="@($"/admin/page/{customPage.PageKey}")" class="btn btn-outline-primary"
-                                                   title="Redigera inneh√•ll och inst√§llningar">
+                                                   title="Redigera innehÂll och inst‰llningar">
                                                     <i class="fa-solid fa-edit"></i>
                                                 </a>
                                                 <button type="button" class="btn btn-outline-danger"
@@ -361,8 +362,8 @@
 
 <ConfirmDialog IsVisible="@showDeleteConfirm"
                Title="Ta bort sida"
-               Message="@($"√Ñr du s√§ker p√• att du vill ta bort sidan '{pageToDelete?.DisplayName}'? Detta tar bort sidan, alla sektioner och navigationsl√§nkar.")"
-               WarningText="√Ötg√§rden kan inte √•ngras."
+               Message="@($"ƒr du s‰ker pÂ att du vill ta bort sidan '{pageToDelete?.DisplayName}'? Detta tar bort sidan, alla sektioner och navigationsl‰nkar.")"
+               WarningText="≈tg‰rden kan inte Ângras."
                ConfirmText="Ta bort"
                IsBusy="@isDeleting"
                OnConfirmCallback="ConfirmDeletePage"
@@ -392,6 +393,7 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             var response = await httpClient.GetAsync("api/custompage");
 
             if (response.IsSuccessStatusCode)
@@ -401,13 +403,13 @@
             }
             else
             {
-                Logger.LogError("Fel vid h√§mtning av custom pages: {StatusCode}", response.StatusCode);
+                Logger.LogError("Fel vid h‰mtning av custom pages: {StatusCode}", response.StatusCode);
                 await Toast.Error("Kunde inte ladda sidor");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Fel vid h√§mtning av anpassade sidor");
+            Logger.LogError(ex, "Fel vid h‰mtning av anpassade sidor");
             await Toast.Error("Kunde inte ladda sidor");
         }
         finally
@@ -441,7 +443,7 @@
         pageKeySuggestions.Clear();
     }
 
-    // Hantera √§ndringar av navigationstyp
+    // Hantera ‰ndringar av navigationstyp
     private void OnNavigationTypeChanged(ChangeEventArgs e)
     {
         var selectedType = e.Value?.ToString() ?? "main";
@@ -449,7 +451,7 @@
 
         newPage.ShowInNavigation = selectedType != "hidden";
 
-        // Nollst√§ll ParentPageKey n√§r sidan inte l√§ngre ska vara dropdown
+        // Nollst‰ll ParentPageKey n‰r sidan inte l‰ngre ska vara dropdown
         if (selectedType != "dropdown")
         {
             newPage.ParentPageKey = null;
@@ -464,6 +466,7 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
 
             newPage.ShowInNavigation = newPage.NavigationType != "hidden";
 
@@ -474,7 +477,7 @@
                 var created = await response.Content.ReadFromJsonAsync<KronoxFront.DTOs.CustomPageDto>();
                 var pageKey = created?.PageKey ?? newPage.PageKey;
 
-                await Toast.Success("Sida skapad framg√•ngsrikt!");
+                await Toast.Success("Sida skapad framgÂngsrikt!");
 
                 HideCreateForm();
                 await LoadCustomPages();
@@ -497,11 +500,11 @@
 
                 if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                 {
-                    await Toast.Error("Det finns redan en sida med samma URL. √Ñndra URL:en och f√∂rs√∂k igen.");
+                    await Toast.Error("Det finns redan en sida med samma URL. ƒndra URL:en och fˆrsˆk igen.");
                 }
                 else
                 {
-                    await Toast.Error("Ett fel uppstod n√§r sidan skulle skapas. F√∂rs√∂k igen.");
+                    await Toast.Error("Ett fel uppstod n‰r sidan skulle skapas. Fˆrsˆk igen.");
                 }
             }
         }
@@ -530,6 +533,7 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             var response = await httpClient.DeleteAsync($"api/custompage/{pageToDelete.PageKey}");
 
             if (response.IsSuccessStatusCode)
@@ -578,7 +582,7 @@
         }
         else if (!newPage.RequiredRoles.Any())
         {
-            // Om man avmarkerar publik, l√§gg till Admin som default
+            // Om man avmarkerar publik, l‰gg till Admin som default
             newPage.RequiredRoles.Add("Admin");
         }
     }
@@ -597,10 +601,10 @@
         {
             { "omkonsortiet", "Om konsortiet" },
             { "omsystemet", "Om systemet" },
-            { "visioner", "Visioner & verksamhetsid√©" },
+            { "visioner", "Visioner & verksamhetsidÈ" },
             { "dokument", "Dokument" },
             { "kontaktaoss", "Kontakta oss" },
-            { "forvaltning", "F√∂rvaltning" },
+            { "forvaltning", "Fˆrvaltning" },
             { "medlemsnytt", "Medlemsnytt" }
         };
 
@@ -621,7 +625,7 @@
         {
             "main" => "Huvudnavigation",
             "dropdown" => "Dropdown",
-            "hidden" => "Dold fr√•n navigation",
+            "hidden" => "Dold frÂn navigation",
             _ => navigationType
         };
     }

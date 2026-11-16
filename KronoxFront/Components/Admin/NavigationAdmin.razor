@@ -1,4 +1,4 @@
-ï»¿@page "/admin/navigation"
+@page "/admin/navigation"
 @using Microsoft.AspNetCore.Authorization
 @using KronoxFront.ViewModels
 @using KronoxFront.DTOs
@@ -9,6 +9,7 @@
 @inject IHttpClientFactory HttpClientFactory
 @inject IToastService Toast
 @inject ILogger<NavigationAdmin> Logger
+@inject UserRolesHeaderService RolesHeader
 
 <PageTitle>KronoX - Navigationshantering</PageTitle>
 
@@ -18,11 +19,11 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 class="h3"><i class="fa-solid fa-compass me-2"></i>Hantera navigation</h1>
-                    <p class="text-muted">Hantera ordning och synlighet fÃ¶r alla navigationslÃ¤nkar</p>
+                    <p class="text-muted">Hantera ordning och synlighet för alla navigationslänkar</p>
                 </div>
             </div>
 
-            <!-- FÃ¶rbÃ¤ttrad informationsruta -->
+            <!-- Förbättrad informationsruta -->
             <div class="alert alert-info mb-4">
                 <div class="row">
                     <div class="col-md-8">
@@ -31,24 +32,24 @@
                             Hur fungerar navigationshantering?
                         </h6>
                         <ul class="mb-0 small">
-                            <li><strong>Ordning:</strong> AnvÃ¤nd nummerboxarna fÃ¶r att Ã¤ndra ordning. LÃ¤gre nummer visas fÃ¶rst. Ã–vriga sidor numreras automatiskt om sÃ¥ att inga nummer krockar.</li>
-                            <li><strong>Separata instÃ¤llningar:</strong> Du kan stÃ¤lla in olika ordning fÃ¶r inloggade och oinloggade anvÃ¤ndare.</li>
+                            <li><strong>Ordning:</strong> Använd nummerboxarna för att ändra ordning. Lägre nummer visas först. Övriga sidor numreras automatiskt om så att inga nummer krockar.</li>
+                            <li><strong>Separata inställningar:</strong> Du kan ställa in olika ordning för inloggade och oinloggade användare.</li>
                             <li><strong>Dropdown-menyer:</strong> Sidor markerade med <span class="badge bg-info text-dark">Dropdown</span> har undersidor.</li>
-                            <li><strong>Undersidor fÃ¶ljer huvudsidan:</strong> NÃ¤r du Ã¤ndrar ordning pÃ¥ en huvudsida flyttas alla dess undersidor automatiskt med.</li>
-                            <li><strong>Hantera undersidor:</strong> GÃ¥ in pÃ¥ respektive specialsida som Ã¤r satt som en undersida fÃ¶r att Ã¤ndra hur de visas i navigationen.</li>
+                            <li><strong>Undersidor följer huvudsidan:</strong> När du ändrar ordning på en huvudsida flyttas alla dess undersidor automatiskt med.</li>
+                            <li><strong>Hantera undersidor:</strong> Gå in på respektive specialsida som är satt som en undersida för att ändra hur de visas i navigationen.</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
             <div class="row">
-                <!-- FÃ¶r gÃ¤ster -->
+                <!-- För gäster -->
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header bg-light d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="fa-solid fa-globe me-2"></i>
-                                FÃ¶r oinloggade anvÃ¤ndare
+                                För oinloggade användare
                             </h5>
                             <small class="text-muted">@guestNavigationItems.Count objekt</small>
                         </div>
@@ -67,14 +68,14 @@
                                                                disabled="@(IsProtectedItem(item))" />
                                                         @if (HasChildren(item.PageKey))
                                                         {
-                                                            <span class="badge bg-info text-dark" title="Denna sida har undersidor som fÃ¶ljer med nÃ¤r huvudsidan flyttas">
+                                                            <span class="badge bg-info text-dark" title="Denna sida har undersidor som följer med när huvudsidan flyttas">
                                                                 <i class="fa-solid fa-layer-group fa-xs me-1"></i>
                                                                 Dropdown
                                                             </span>
                                                         }
                                                         @if (IsProtectedItem(item))
                                                         {
-                                                            <span class="badge bg-warning text-dark" title="Systemsida - kan inte Ã¤ndras">
+                                                            <span class="badge bg-warning text-dark" title="Systemsida - kan inte ändras">
                                                                 <i class="fa-solid fa-shield fa-xs me-1"></i>
                                                                 System
                                                             </span>
@@ -111,13 +112,13 @@
                     </div>
                 </div>
 
-                <!-- FÃ¶r medlemmar -->
+                <!-- För medlemmar -->
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header bg-light d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="fa-solid fa-users me-2"></i>
-                                FÃ¶r inloggade anvÃ¤ndare
+                                För inloggade användare
                             </h5>
                             <small class="text-muted">@memberNavigationItems.Count objekt</small>
                         </div>
@@ -136,14 +137,14 @@
                                                                disabled="@(IsProtectedItem(item))" />
                                                         @if (HasChildren(item.PageKey))
                                                         {
-                                                            <span class="badge bg-info text-dark" title="Denna sida har undersidor som fÃ¶ljer med nÃ¤r huvudsidan flyttas">
+                                                            <span class="badge bg-info text-dark" title="Denna sida har undersidor som följer med när huvudsidan flyttas">
                                                                 <i class="fa-solid fa-layer-group fa-xs me-1"></i>
                                                                 Dropdown
                                                             </span>
                                                         }
                                                         @if (IsProtectedItem(item))
                                                         {
-                                                            <span class="badge bg-warning text-dark" title="Systemsida - kan inte Ã¤ndras">
+                                                            <span class="badge bg-warning text-dark" title="Systemsida - kan inte ändras">
                                                                 <i class="fa-solid fa-shield fa-xs me-1"></i>
                                                                 System
                                                             </span>
@@ -185,7 +186,7 @@
             {
                 <div class="alert alert-warning mt-3">
                     <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                    <strong>Osparade Ã¤ndringar:</strong> Du har @changedItems.Count objekt med Ã¤ndringar. GlÃ¶m inte att spara!
+                    <strong>Osparade ändringar:</strong> Du har @changedItems.Count objekt med ändringar. Glöm inte att spara!
                 </div>
             }
 
@@ -230,13 +231,14 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             var response = await httpClient.GetAsync("api/navigation");
 
             if (response.IsSuccessStatusCode)
             {
                 var dtos = await response.Content.ReadFromJsonAsync<List<NavigationConfigDto>>() ?? new();
 
-                // Skapa tvÃ¥ separata listor med separata kopior av objekten
+                // Skapa två separata listor med separata kopior av objekten
                 guestNavigationItems = dtos
                     .Where(dto => dto.IsVisibleToGuests && dto.IsActive)
                     .Select(dto => new NavigationConfigViewModel
@@ -286,6 +288,7 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             var response = await httpClient.GetAsync("api/custompage/navigation");
 
             if (response.IsSuccessStatusCode)
@@ -309,8 +312,8 @@
         StateHasChanged();
     }
 
-    // Anropas nÃ¤r ett ordningsnummer Ã¤ndras. Klampar vÃ¤rdet och numrerar om
-    // listan sÃ¥ att alla redigerbara poster fÃ¥r unika, lÃ¶pande nummer.
+    // Anropas när ett ordningsnummer ändras. Klampar värdet och numrerar om
+    // listan så att alla redigerbara poster får unika, löpande nummer.
     private void OnSortOrderChanged(NavigationConfigViewModel item, List<NavigationConfigViewModel> list)
     {
         if (IsProtectedItem(item)) return;
@@ -328,24 +331,24 @@
 
     private void ResequenceList(List<NavigationConfigViewModel> list, NavigationConfigViewModel changed)
     {
-        // Redigerbara poster i nuvarande ordning, men utan den Ã¤ndrade posten.
+        // Redigerbara poster i nuvarande ordning, men utan den ändrade posten.
         var editable = list
             .Where(i => !IsProtectedItem(i) && i.Id != changed.Id)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
-        // SÃ¤tt in den Ã¤ndrade posten pÃ¥ Ã¶nskat index (1-baserat nummer -> 0-baserat index).
+        // Sätt in den ändrade posten på önskat index (1-baserat nummer -> 0-baserat index).
         var targetIndex = Math.Clamp(changed.SortOrder - 1, 0, editable.Count);
         editable.Insert(targetIndex, changed);
 
-        // Numrera om alla till unika, lÃ¶pande nummer.
+        // Numrera om alla till unika, löpande nummer.
         var order = 1;
         foreach (var i in editable)
         {
             if (i.SortOrder != order)
             {
                 i.SortOrder = order;
-                changedItems.Add(i.Id); // posten fick nytt nummer och mÃ¥ste sparas
+                changedItems.Add(i.Id); // posten fick nytt nummer och måste sparas
             }
             order++;
         }
@@ -414,7 +417,7 @@
     {
         if (!changedItems.Any())
         {
-            await Toast.Info("Inga Ã¤ndringar att spara");
+            await Toast.Info("Inga ändringar att spara");
             return;
         }
 
@@ -422,6 +425,7 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(httpClient);
             foreach (var itemId in changedItems)
             {
                 var guestItem = guestNavigationItems.FirstOrDefault(i => i.Id == itemId);
@@ -430,7 +434,7 @@
                 var item = guestItem ?? memberItem;
                 if (item == null) continue;
 
-                // Hoppa Ã¶ver systemposter (admin, logout, home)
+                // Hoppa över systemposter (admin, logout, home)
                 if (IsProtectedItem(item)) continue;
 
                 var guestSortOrder = guestItem?.SortOrder;
@@ -452,12 +456,12 @@
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"API Error fÃ¶r {item.PageKey}: {error}");
+                    throw new Exception($"API Error för {item.PageKey}: {error}");
                 }
             }
 
             changedItems.Clear();
-            await Toast.Success($"Navigationsordningen Ã¤r sparad! Navigationen kommer att uppdateras.");
+            await Toast.Success($"Navigationsordningen är sparad! Navigationen kommer att uppdateras.");
             await LoadNavigationData();
         }
         catch (Exception ex)

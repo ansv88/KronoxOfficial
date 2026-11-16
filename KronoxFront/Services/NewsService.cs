@@ -9,15 +9,17 @@ public class NewsService
 {
     private readonly HttpClient _http;
     private readonly ILogger<NewsService> _logger;
+    private readonly UserRolesHeaderService _rolesHeader;
     private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
     {
         PropertyNameCaseInsensitive = true
     };
 
-    public NewsService(HttpClient http, ILogger<NewsService> logger)
+    public NewsService(HttpClient http, ILogger<NewsService> logger, UserRolesHeaderService rolesHeader)
     {
         _http = http;
         _logger = logger;
+        _rolesHeader = rolesHeader;
     }
 
     // Hämta nyheter för medlemmar (publika sidan)
@@ -25,6 +27,7 @@ public class NewsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.GetAsync($"api/news/member-news?includeArchived={includeArchived}&page={page}&pageSize={pageSize}");
 
             if (response.IsSuccessStatusCode)
@@ -60,6 +63,7 @@ public class NewsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.GetAsync("api/news/all");
 
             if (response.IsSuccessStatusCode)
@@ -85,6 +89,7 @@ public class NewsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.GetAsync($"api/news/{id}");
 
             if (response.IsSuccessStatusCode)
@@ -122,6 +127,7 @@ public class NewsService
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsync("api/news/create", content);
 
             if (response.IsSuccessStatusCode)
@@ -159,6 +165,7 @@ public class NewsService
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsync($"api/news/update/{id}", content);
 
             if (response.IsSuccessStatusCode)
@@ -184,6 +191,7 @@ public class NewsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.DeleteAsync($"api/news/{id}");
             return response.IsSuccessStatusCode;
         }
@@ -199,6 +207,7 @@ public class NewsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsync($"api/news/{id}/archive", null);
             return response.IsSuccessStatusCode;
         }
@@ -213,6 +222,7 @@ public class NewsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.GetAsync($"api/news/{newsId}/documents");
 
             if (response.IsSuccessStatusCode)
@@ -246,6 +256,7 @@ public class NewsService
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsync($"api/news/{newsId}/documents", content);
             return response.IsSuccessStatusCode;
         }
@@ -260,6 +271,7 @@ public class NewsService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.DeleteAsync($"api/news/{newsId}/documents/{documentId}");
             return response.IsSuccessStatusCode;
         }

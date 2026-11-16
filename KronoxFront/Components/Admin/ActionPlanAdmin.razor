@@ -14,6 +14,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @layout AdminLayout
 @inject IHttpClientFactory HttpClientFactory
+@inject UserRolesHeaderService RolesHeader
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ILogger<ActionPlanAdmin> Logger
@@ -770,6 +771,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.GetFromJsonAsync<ActionPlanTableDto>($"api/ActionPlan/{pageKey}?includeArchived=true");
 
             if (response != null)
@@ -970,6 +972,7 @@
             if (content is not null) editModel.DetailedDescription = content;
 
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
 
             HttpResponseMessage response = editingItem.Id == 0
                 ? await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items", editModel)
@@ -1009,6 +1012,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var moveRequest = new { Direction = direction };
 
             var response = await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items/{itemId}/move", moveRequest);
@@ -1044,6 +1048,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.PostAsync($"api/ActionPlan/{pageKey}/items/{itemToArchive.Id}/archive", null);
 
             if (response.IsSuccessStatusCode)
@@ -1075,6 +1080,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.PostAsync($"api/ActionPlan/{pageKey}/items/{item.Id}/unarchive", null);
 
             if (response.IsSuccessStatusCode)
@@ -1107,6 +1113,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.PutAsJsonAsync(
                 $"api/ActionPlan/{pageKey}/show-archived",
                 new SetShowArchivedDto { ShowArchivedPublicly = value });
@@ -1155,6 +1162,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.DeleteAsync($"api/ActionPlan/{pageKey}/items/{deletingItem.Id}");
 
             if (response.IsSuccessStatusCode)
@@ -1301,6 +1309,7 @@
             if (content is not null) subgoalModel.DetailedDescription = content;
 
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             HttpResponseMessage response = editingSubgoal.Id == 0
                 ? await http.PostAsJsonAsync($"api/ActionPlan/{pageKey}/items/{subgoalParent.Id}/subgoals", subgoalModel)
                 : await http.PutAsJsonAsync($"api/ActionPlan/{pageKey}/items/{subgoalParent.Id}/subgoals/{editingSubgoal.Id}", subgoalModel);
@@ -1334,6 +1343,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.PostAsJsonAsync(
                 $"api/ActionPlan/{pageKey}/items/{parent.Id}/subgoals/{subgoalId}/move", new { Direction = direction });
 
@@ -1376,6 +1386,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("KronoxAPI");
+            await RolesHeader.ApplyToAsync(http);
             var response = await http.DeleteAsync(
                 $"api/ActionPlan/{pageKey}/items/{deletingSubgoalParent.Id}/subgoals/{deletingSubgoal.Id}");
 

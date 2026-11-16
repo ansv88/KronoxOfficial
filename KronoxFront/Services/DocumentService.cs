@@ -13,12 +13,14 @@ public class DocumentService
     private readonly HttpClient _http;
     private readonly ILogger<DocumentService> _logger;
     private readonly CacheService _cache;
+    private readonly UserRolesHeaderService _rolesHeader;
 
-    public DocumentService(HttpClient http, ILogger<DocumentService> logger, CacheService cache)
+    public DocumentService(HttpClient http, ILogger<DocumentService> logger, CacheService cache, UserRolesHeaderService rolesHeader)
     {
         _http = http;
         _logger = logger;
         _cache = cache;
+        _rolesHeader = rolesHeader;
     }
 
     // Hämtar alla dokument (endast admin) med korrekt DTO-mappning
@@ -26,6 +28,7 @@ public class DocumentService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var documentDtos = await _http.GetFromJsonAsync<List<DocumentDto>>("api/documents");
             return documentDtos?.ToViewModels() ?? new List<DocumentViewModel>();
         }
@@ -46,6 +49,7 @@ public class DocumentService
 
             try
             {
+                await _rolesHeader.ApplyToAsync(_http);
                 var response = await _http.GetAsync("api/documents/accessible");
                 if (response.IsSuccessStatusCode)
                 {
@@ -94,6 +98,7 @@ public class DocumentService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var documentDtos = await _http.GetFromJsonAsync<List<DocumentDto>>($"api/documents/by-maincategory/{categoryId}");
             return documentDtos?.ToViewModels() ?? new List<DocumentViewModel>();
         }
@@ -109,6 +114,7 @@ public class DocumentService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             using var form = new MultipartFormDataContent();
 
             var stream = file.OpenReadStream(25 * 1024 * 1024);
@@ -139,6 +145,7 @@ public class DocumentService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsync($"api/documents/{id}/archive", null);
             return response.IsSuccessStatusCode;
         }
@@ -154,6 +161,7 @@ public class DocumentService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PostAsync($"api/documents/{id}/unarchive", null);
             return response.IsSuccessStatusCode;
         }
@@ -169,6 +177,7 @@ public class DocumentService
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var response = await _http.PutAsJsonAsync($"api/documents/{documentId}", request);
             return response.IsSuccessStatusCode;
         }
@@ -180,15 +189,19 @@ public class DocumentService
     }
 
     // Tar bort ett dokument.
-    public Task<bool> DeleteDocumentAsync(int id)
-        => _http.DeleteAsync($"api/documents/{id}")
-                .ContinueWith(t => t.Result.IsSuccessStatusCode);
+    public async Task<bool> DeleteDocumentAsync(int id)
+    {
+        await _rolesHeader.ApplyToAsync(_http);
+        var response = await _http.DeleteAsync($"api/documents/{id}");
+        return response.IsSuccessStatusCode;
+    }
 
     // Laddar ner ett dokument som en ström + filnamn.
     public async Task<(Stream content, string fileName)?> DownloadDocumentAsync(int id)
     {
         try
         {
+            await _rolesHeader.ApplyToAsync(_http);
             var res = await _http.GetAsync(
                 $"api/documents/{id}",
                 HttpCompletionOption.ResponseHeadersRead
