@@ -1,4 +1,5 @@
-﻿using MailKit.Net.Smtp;
+﻿using MailKit;
+using MailKit.Net.Smtp;
 using MimeKit;
 
 namespace KronoxApi.Services;
